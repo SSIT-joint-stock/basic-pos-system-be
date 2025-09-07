@@ -88,6 +88,13 @@ model User {
   is_verified Boolean     @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  refresh_token String?
+
+  // code 
+  verification_code String?
+  verification_code_expired DateTime? 
+  password_reset_code String?
+  password_reset_code_expired DateTime?
 
   // relations
   ownedStores      Store[] // user is owner of the store

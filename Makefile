@@ -1,5 +1,5 @@
 # Application commands
-.PHONY: dev debug prod test test-watch test-cov test-e2e test-users-dev test-users-test test-users-prod format lint
+.PHONY: dev debug prod dev-full test test-watch test-cov test-e2e test-users-dev test-users-test test-users-prod format lint
 
 dev:
 	npm run start:dev
@@ -36,6 +36,37 @@ format:
 
 lint:
 	npm run lint
+
+# Tailwind commands
+.PHONY: tw-dev tw-build tw-build-dev tw-clean tw-purge
+
+tw-dev:
+	npm run tw:dev
+
+tw-build:
+	npm run tw:build
+
+tw-build-dev:
+	npm run tw:build:dev
+
+tw-clean:
+	npm run tw:clean
+
+tw-purge:
+	npm run tw:purge
+
+# Full development (NestJS + Tailwind)
+dev-full:
+	npm run dev:full
+
+# Full build commands (Tailwind + NestJS)
+.PHONY: build-full build-full-dev
+
+build-full:
+	npm run build:full
+
+build-full-dev:
+	npm run build:full:dev
 
 # Docker commands
 .PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down
@@ -137,6 +168,15 @@ help:
 	@echo "    make test-users-prod - Run users module API test in production"
 	@echo "    make format      - Format code"
 	@echo "    make lint        - Lint code"
+	@echo "    make dev-full    - Run app + Tailwind in development mode"
+	@echo "  Tailwind:"
+	@echo "    make tw-dev      - Run Tailwind CSS in watch mode"
+	@echo "    make tw-build    - Build Tailwind CSS for production (minified)"
+	@echo "    make tw-build-dev - Build Tailwind CSS for development"
+	@echo "    make tw-clean    - Remove Tailwind CSS output file"
+	@echo "    make tw-purge    - Build Tailwind with content purging"
+	@echo "    make build-full  - Build Tailwind + NestJS for production"
+	@echo "    make build-full-dev - Build Tailwind + NestJS for development"
 	@echo "  Docker:"
 	@echo "    make docker-dev-up    - Start dev database container"
 	@echo "    make docker-dev-down  - Stop dev database container"

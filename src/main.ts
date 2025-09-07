@@ -1,7 +1,7 @@
 // core
 import { NestFactory } from '@nestjs/core';
 import { ConfigType } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 // app
 import { AppModule } from 'app/app.module';
 import { appConfig } from 'app/config';
@@ -25,11 +25,19 @@ async function bootstrap() {
       bufferLogs: true, // Buffer logs until logger is set up
     });
 
+    // app.use(cookie)
     // Get app config
     const appCfg = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
     // Set global prefix for the api
-    app.setGlobalPrefix('api/v1');
+    app.setGlobalPrefix('api/v1', {
+      exclude: [
+        { path: 'docs', method: RequestMethod.ALL },
+        { path: 'docs/*path', method: RequestMethod.ALL },
+        { path: 'health', method: RequestMethod.ALL },
+        { path: 'health/*path', method: RequestMethod.ALL },
+      ],
+    });
 
     // Apply global pipes, interceptors, and filters in the correct order
 

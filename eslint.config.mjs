@@ -38,6 +38,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-type-assertion': 'warn',
       '@typescript-eslint/no-base-to-string': 'warn',
       '@typescript-eslint/restrict-template-expressions': 'warn',
+      '@typescript-eslint/prefer-promise-reject-errors': 'warn',
     },
   },
 );
