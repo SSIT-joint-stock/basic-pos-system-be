@@ -24,6 +24,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { TokenService } from './auth/token.service';
 import { HealthModule } from './health/health.module';
+import { StoreModule } from './store/store.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { HealthModule } from './health/health.module';
     JobsModule,
     DocsModule,
     HealthModule,
+    StoreModule,
   ],
   providers: [
     TokenService,
