@@ -11,6 +11,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { LoggerCoreModule, LoggerModule } from './common/logger';
 import { JobsModule } from './jobs/jobs.module';
+import { ProductModule } from './module/product/product.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { JobsModule } from './jobs/jobs.module';
     UsersModule,
     ScheduleModule.forRoot(),
     JobsModule,
+    ProductModule,
   ],
   providers: [HttpLogInterceptor, ResponseInterceptor, AllExceptionsFilter],
 })
