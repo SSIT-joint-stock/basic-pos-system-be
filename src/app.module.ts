@@ -13,6 +13,7 @@ import { LoggerCoreModule, LoggerModule } from './common/logger';
 import { JobsModule } from './jobs/jobs.module';
 import { ProductModule } from './module/product/product.module';
 import { InventoryModule } from './module/inventory/inventory.module';
+import { StockMovementModule } from './module/stock-movement/stock-movement.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { InventoryModule } from './module/inventory/inventory.module';
     JobsModule,
     ProductModule,
     InventoryModule,
+    StockMovementModule,
   ],
   providers: [HttpLogInterceptor, ResponseInterceptor, AllExceptionsFilter],
 })

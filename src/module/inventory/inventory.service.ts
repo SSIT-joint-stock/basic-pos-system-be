@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -14,6 +15,7 @@ import {
   StoreMemberRole,
 } from '@prisma/client';
 import { waitForDebugger } from 'inspector';
+import { StockMovementService } from '../stock-movement/stock-movement.service';
 
 @Injectable()
 export class InventoryService {
@@ -37,7 +39,10 @@ export class InventoryService {
     USER_NOT_IN_STORE: 'Only user in store can do this actions',
   };
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stockMovementService: StockMovementService,
+  ) {}
 
   private get db() {
     return this.prisma;
@@ -135,30 +140,29 @@ export class InventoryService {
           throw new ConflictError('Resulting quantity cannot be negative');
         }
 
-        // 5) Nested write: Cập nhật inventory + tạo stock movement trong 1 lệnh
-        const updatedProduct = await tx.product.update({
-          where: { id: product_id },
-          data: {
-            inventories: {
-              update: {
-                where: { id: inv.id },
-                data: { quantity: newQty },
-              },
-            },
-            stock_movements: {
-              create: {
-                // product_id tự gắn theo quan hệ từ Product
-                quantity: delta, // dương = nhập, âm = xuất (giữ nguyên dấu nếu bạn muốn)
-                type: stock_movement_type.ADJUSTMENT,
-              },
-            },
-          },
-          include: {
-            inventories: true, // nếu chỉ cần inventory vừa sửa, có thể select/locate theo id
+        // 5) Cập nhật inventory trước, rồi tạo stock movement qua service có sẵn
+        const updatedInv = await tx.inventory.update({
+          where: { id: inv.id },
+          data: { quantity: newQty },
+          select: {
+            id: true,
+            quantity: true,
+            product_id: true,
+            status: true,
+            updatedAt: true,
           },
         });
+        await this.stockMovementService.create(
+          product_id,
+          stock_movement_type.ADJUSTMENT,
+          Math.abs(delta),
+          tx,
+        );
 
-        return updatedProduct;
+        return {
+          ...product,
+          inventory: updatedInv,
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
