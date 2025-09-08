@@ -13,6 +13,7 @@ import { UpdateStoreDto } from './dto/update-store.dto';
 import { User } from 'app/common/decorators/user.decorator';
 import type { IUSER } from 'app/auth/token.service';
 import { ApiSuccess } from 'app/common/decorators';
+
 @Controller('store')
 export class StoreController {
   constructor(private readonly storeService: StoreService) {}
@@ -56,5 +57,28 @@ export class StoreController {
   @ApiSuccess('Delete store successfully')
   remove(@Param('id') id: string, @User() user: IUSER) {
     return this.storeService.remove(id, user);
+  }
+
+  // Store member management
+  @Post('add-member/:storeId')
+  @ApiSuccess('Add member to store successfully')
+  addMemberToStore(
+    @Param('storeId') storeId: string,
+    @Body() body: { emailUser: string },
+    @User() user: IUSER,
+  ) {
+    return this.storeService.addMemberToStore(storeId, body.emailUser, user);
+  }
+
+  @Delete('delete-member/:storeId')
+  @ApiSuccess('Remove member from store successfully')
+  removeMember(@Param('storeId') storeId: string, @User() user: IUSER) {
+    return this.storeService.removeMember(storeId, user.id, user);
+  }
+
+  @Get('members/:storeId')
+  @ApiSuccess('Get members in store successfully')
+  getMembersInStore(@Param('storeId') storeId: string, @User() user: IUSER) {
+    return this.storeService.getMembersInStore(storeId, user);
   }
 }
