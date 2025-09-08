@@ -122,7 +122,9 @@ export class AuthService {
     if (!user) {
       throw new NotFoundError(this.errorMessages.INVALID_CREDENTIALS);
     }
-
+    if (!user.password) {
+      throw new NotFoundError(this.errorMessages.INVALID_CREDENTIALS);
+    }
     const isPasswordValid = await this.bcryptService.comparePassword(
       dto.password,
       user.password,
