@@ -31,7 +31,6 @@ export class PermissionService {
       PERMISSIONS.ORDER_CREATE,
       PERMISSIONS.ORDER_READ,
       PERMISSIONS.ORDER_UPDATE,
-      PERMISSIONS.ORDER_READ,
 
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.CUSTOMER_CREATE,
@@ -135,6 +134,7 @@ export class PermissionService {
         userId,
       },
     });
+
     return member?.role as StoreMemberRole;
   }
 
@@ -154,7 +154,9 @@ export class PermissionService {
     user: IUSER,
   ): Promise<IUserWithPermissions> {
     const role = await this.getUserStoreRole(storeId, user.id);
+
     const permissions = await this.getUserPermissions(storeId, user.id);
+
     return {
       ...user,
       storeId,
@@ -191,5 +193,38 @@ export class PermissionService {
     }
 
     return Array.from(expanded);
+  }
+
+  // kiem tra store con ton tai khong
+  async findStoreById(storeId: string) {
+    return await this.prismaService.store.findUnique({
+      where: {
+        id: storeId,
+      },
+      select: {
+        id: true,
+        name: true,
+        owner_id: true,
+      },
+    });
+  }
+  async hasStoreAccess(storeId: string, userId: string) {
+    const role = await this.getUserStoreRole(storeId, userId);
+
+    return role !== null;
+  }
+  async getStoreAccessInfo(storeId: string, userId: string) {
+    const store = await this.findStoreById(storeId);
+    const role = await this.getUserStoreRole(storeId, userId);
+    const permissions = await this.getUserPermissions(storeId, userId);
+
+    return {
+      store,
+      hasAccess: role !== null,
+      role,
+      permissions,
+      isOwner: role === 'OWNER',
+      isMember: role && role !== 'OWNER',
+    };
   }
 }
