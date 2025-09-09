@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { SidebarService } from './sidebar.service';
 import { DocsService } from './docs.service';
 import { Logger } from '@nestjs/common';
+import { Public } from 'app/common/decorators/public.decorator';
 
 @Controller('docs')
 export class DocsController {
@@ -17,11 +18,13 @@ export class DocsController {
     this.service = new DocsService(this.docsRoot);
   }
 
+  @Public()
   @Get('sidebar')
   getSidebar() {
     return this.sidebar.getSidebar();
   }
 
+  @Public()
   @Get('page/*path')
   async getPage(@Param('path') path: string, @Res() res: Response) {
     let id = path.replace(',', '/');

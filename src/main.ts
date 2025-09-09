@@ -11,6 +11,8 @@ import { AllExceptionsFilter } from 'common/filters/all-exceptions.filter';
 import { HttpLogInterceptor } from 'common/interceptors/http-logger.interceptor';
 import * as path from 'path';
 import * as fs from 'fs';
+// external
+import cookieParser from 'cookie-parser';
 
 // bootstrap the application
 async function bootstrap() {
@@ -29,6 +31,7 @@ async function bootstrap() {
     // Get app config
     const appCfg = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
+    app.use(cookieParser());
     // Set global prefix for the api
     app.setGlobalPrefix('api/v1', {
       exclude: [

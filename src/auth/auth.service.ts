@@ -122,7 +122,9 @@ export class AuthService {
     if (!user) {
       throw new NotFoundError(this.errorMessages.INVALID_CREDENTIALS);
     }
-
+    if (!user.password) {
+      throw new NotFoundError(this.errorMessages.INVALID_CREDENTIALS);
+    }
     const isPasswordValid = await this.bcryptService.comparePassword(
       dto.password,
       user.password,
@@ -137,6 +139,9 @@ export class AuthService {
     const tokens = this.tokenService.generateTokenPair({
       id: user.id,
       email: user.email,
+      role: user.role,
+      status: user.status,
+      username: user.username,
     });
 
     await this.updateUserRefreshToken(user.id, tokens.refresh_token);
@@ -149,7 +154,7 @@ export class AuthService {
 
   async forgotPassword(dto: EmailRequestDto): Promise<void> {
     const user = await this.findUserByEmail(dto.email);
-    const { code, expiredAt } = this.codeService.generateCodeWithExpiry();
+    const { code, expiredAt } = this.codeService.generateCodeWithExpiry(6, 2);
 
     await this.prismaService.user.update({
       where: { id: user.id },
@@ -213,6 +218,9 @@ export class AuthService {
     const tokens = this.tokenService.generateTokenPair({
       id: user.id,
       email: user.email,
+      role: user.role,
+      status: user.status,
+      username: user.username,
     });
 
     await this.updateUserRefreshToken(user.id, tokens.refresh_token);

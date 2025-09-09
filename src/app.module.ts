@@ -25,6 +25,9 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { TokenService } from './auth/token.service';
 import { HealthModule } from './health/health.module';
 import { ProductModule } from './module/product/product.module';
+import { SharedModule } from './shared/shared.module';
+import { OAuthModule } from './oauth/oauth.module';
+import { StoreModule } from './store/store.module';
 
 @Module({
   imports: [
@@ -70,13 +73,13 @@ import { ProductModule } from './module/product/product.module';
     JobsModule,
     DocsModule,
     HealthModule,
-    ProductModule,
   ],
   providers: [
     TokenService,
     HttpLogInterceptor,
     ResponseInterceptor,
     AllExceptionsFilter,
+    SharedModule,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
