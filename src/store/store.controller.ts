@@ -84,4 +84,14 @@ export class StoreController {
   getMembersInStore(@Param('storeId') storeId: string, @User() user: IUSER) {
     return this.storeService.getMembersInStore(storeId, user);
   }
+
+  // Get Permissions
+  @Get('members/permissions/:storeId')
+  @ApiSuccess('Get permissions in store successfully')
+  getPermissionsInStore(
+    @Param('storeId') storeId: string,
+    @User() user: IUSER,
+  ) {
+    return this.storeService.getPermissionsInStore(storeId, user);
+  }
 }

@@ -9,10 +9,14 @@ import {
   NotFoundError,
 } from 'app/common/response';
 import { StoreMemberRole } from '@prisma/client';
+import { PermissionService } from 'app/permissions/permission.service';
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly permissionService: PermissionService,
+  ) {}
   async create(createStoreDto: CreateStoreDto, user: IUSER) {
     // create store when user is owner
     return await this.prismaService.store.create({
@@ -73,6 +77,7 @@ export class StoreService {
             products: true,
             categories: true,
             customer: true,
+            members: true,
           },
         },
       },
@@ -240,6 +245,9 @@ export class StoreService {
         },
       },
     });
+  }
+  async getPermissionsInStore(storeId: string, user: IUSER) {
+    return await this.permissionService.getUserWithPermissions(storeId, user);
   }
 
   // HELPER METHODS PRIVATE
