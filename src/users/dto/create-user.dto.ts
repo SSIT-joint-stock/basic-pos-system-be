@@ -13,4 +13,10 @@ export class CreateUserDto {
 
   @IsOptional()
   avatar?: string;
+
+  @IsOptional()
+  lastLoginAt?: Date;
+
+  @IsOptional()
+  updatedAt?: Date;
 }

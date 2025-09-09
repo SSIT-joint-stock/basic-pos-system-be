@@ -1,8 +1,11 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { nanoid } from 'nanoid';
+
+export type UserEntity = User;
 
 @Injectable()
 export class UsersService {
@@ -35,6 +38,20 @@ export class UsersService {
       where: { username },
     });
   }
+  async findByProviderId(providerId: string) {
+    return this.prisma.user.findFirst({
+      where: { providerId },
+    });
+  }
+  async generateUsername(email: string): Promise<string> {
+    const username = email.split('@')[0];
+    const user = await this.findByUsername(username);
+    if (user) {
+      const randomSuffix = nanoid(4);
+      return `${username}_${randomSuffix}`;
+    }
+    return username;
+  }
   async findByEmailOrUsername(emailOrUsername: string) {
     return await this.prisma.user.findFirst({
       where: {
@@ -58,5 +75,12 @@ export class UsersService {
     } catch {
       throw new NotFoundException('User not found');
     }
+  }
+  async createOauthUser(
+    user: Omit<UserEntity, 'id' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>,
+  ): Promise<UserEntity> {
+    return this.prisma.user.create({
+      data: user,
+    });
   }
 }
