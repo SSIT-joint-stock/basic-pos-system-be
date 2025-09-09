@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { StoreService } from './store.service';
 import { CreateStoreDto } from './dto/create-store.dto';
@@ -13,8 +14,11 @@ import { UpdateStoreDto } from './dto/update-store.dto';
 import { User } from 'app/common/decorators/user.decorator';
 import type { IUSER } from 'app/auth/token.service';
 import { ApiSuccess } from 'app/common/decorators';
+import { PermissionGuard } from 'app/permissions/guard/permission.guard';
+import { RequirePermissions } from 'app/common/decorators/permission.decorator';
+import { PERMISSIONS } from 'app/common/types/permission.type';
 
-@Controller('store')
+@Controller('stores')
 export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
@@ -24,39 +28,38 @@ export class StoreController {
     return this.storeService.create(createStoreDto, user);
   }
 
-  // @UseGuards(RolesGuard)
-  // @Roles([user_role.ADMIN])
-  // @Get()
-  // findAllByAdmin() {
-  //   return this.storeService.findAllByAdmin();
-  // }
-
   @Get()
   @ApiSuccess('Get stores successfully')
   findAll(@User() user: IUSER) {
     return this.storeService.findAll(user);
   }
 
-  @Get(':id')
+  @Get(':storeId')
+  @UseGuards(PermissionGuard)
+  @RequirePermissions([PERMISSIONS.STORE_READ])
   @ApiSuccess('Get store successfully')
-  findOne(@Param('id') id: string, @User() user: IUSER) {
-    return this.storeService.findOne(id, user);
+  findOne(@Param('storeId') storeId: string, @User() user: IUSER) {
+    return this.storeService.findOne(storeId, user);
   }
 
-  @Patch(':id')
+  @Patch(':storeId')
+  @UseGuards(PermissionGuard)
+  @RequirePermissions([PERMISSIONS.STORE_UPDATE, PERMISSIONS.STORE_ALL])
   @ApiSuccess('Update store successfully')
   update(
-    @Param('id') id: string,
+    @Param('storeId') storeId: string,
     @Body() updateStoreDto: UpdateStoreDto,
     @User() user: IUSER,
   ) {
-    return this.storeService.update(id, updateStoreDto, user);
+    return this.storeService.update(storeId, updateStoreDto, user);
   }
 
-  @Delete(':id')
+  @Delete(':storeId')
   @ApiSuccess('Delete store successfully')
-  remove(@Param('id') id: string, @User() user: IUSER) {
-    return this.storeService.remove(id, user);
+  @UseGuards(PermissionGuard)
+  @RequirePermissions([PERMISSIONS.STORE_DELETE, PERMISSIONS.STORE_ALL])
+  remove(@Param('storeId') storeId: string, @User() user: IUSER) {
+    return this.storeService.remove(storeId, user);
   }
 
   // Store member management

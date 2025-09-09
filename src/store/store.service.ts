@@ -79,15 +79,15 @@ export class StoreService {
     });
   }
 
-  async findOne(id: string, user: IUSER) {
+  async findOne(storeId: string, user: IUSER) {
     // check user have access to the store members and owner in this store will access dc
-    const hasAccess = await this.checkStoreAccess(id, user.id);
+    const hasAccess = await this.checkStoreAccess(storeId, user.id);
     if (!hasAccess) {
       throw new ForbiddenError('You do not have access to this store');
     }
     const store = await this.prismaService.store.findUnique({
       where: {
-        id,
+        id: storeId,
       },
       include: {
         owner: {
@@ -123,16 +123,16 @@ export class StoreService {
     return store;
   }
 
-  async update(id: string, updateStoreDto: UpdateStoreDto, user: IUSER) {
+  async update(storeId: string, updateStoreDto: UpdateStoreDto, user: IUSER) {
     // Only store owner can update this store
-    const isOwner = await this.checkIsOwner(id, user.id);
+    const isOwner = await this.checkIsOwner(storeId, user.id);
 
     if (!isOwner) {
       throw new ForbiddenError('Only store owner can update store information');
     }
 
     return await this.prismaService.store.update({
-      where: { id },
+      where: { id: storeId },
       data: {
         ...updateStoreDto,
         updatedAt: new Date(),
@@ -145,14 +145,14 @@ export class StoreService {
     });
   }
 
-  async remove(id: string, user: IUSER) {
+  async remove(storeId: string, user: IUSER) {
     // Only store owner can delete this store
-    const isOwner = await this.checkIsOwner(id, user.id);
+    const isOwner = await this.checkIsOwner(storeId, user.id);
     if (!isOwner) {
       throw new ForbiddenError('Only store owner can delete store');
     }
     return await this.prismaService.store.delete({
-      where: { id },
+      where: { id: storeId },
     });
   }
 
