@@ -16,8 +16,10 @@ export class InventoryService {
     INVENTORY_NOT_FOUND: 'Inventory not found',
     INVENTORY_WOULD_GO_NEGATIVE: 'Operation would result in negative inventory',
     INVALID_INVENTORY_STATUS: 'Invalid inventory status',
+    INVALID_TYPE_MODIFY_INVENTORY: 'Invalid type modify inventory',
     NO_INVENTORY_FOUND_IN_STORE: 'No inventory found in store',
     INVENTORY_OR_PRODUCT_NOT_ACTIVE: 'Inventory or product is not active',
+    RESULT_QUANTY_CAN_NOT_NEGATIVE: 'Resulting quantity cannot be negative',
     CANNOT_MARK_SOLD_WHILE_STOCK_REMAINS:
       'Cannot mark as SOLD while quantity > 0',
 
@@ -93,7 +95,9 @@ export class InventoryService {
         // 3) Tính số lượng mới & validate
         const newQty = existing.quantity + delta;
         if (newQty < 0) {
-          throw new ConflictError('Resulting quantity cannot be negative');
+          throw new ConflictError(
+            this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
+          );
         }
 
         // 4) Cập nhật inventory trước, rồi tạo stock movement qua service có sẵn
@@ -232,5 +236,77 @@ export class InventoryService {
     );
 
     return updated;
+  }
+  async modify(
+    type: stock_movement_type,
+    store_id: string,
+    id: string,
+    delta: number,
+  ) {
+    if (!Number.isFinite(delta) || delta === 0) {
+      throw new BadRequestError(this.errorMessages.DELTA_NON_ZERO_NUMBER);
+    }
+    //cac type nhap kho
+    if (
+      type === stock_movement_type.RETURN_SALE ||
+      type === stock_movement_type.PURCHASE ||
+      type === stock_movement_type.TRANSFER_IMPORT
+    ) {
+      const existing = await this.prisma.inventory.findFirst({
+        where: {
+          id,
+          product: {
+            store_id,
+          },
+        },
+      });
+      if (!existing)
+        throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
+
+      const newQty = existing.quantity + delta;
+
+      const updated = await this.prisma.inventory.update({
+        where: { id: existing.id },
+        data: {
+          quantity: newQty,
+        },
+      });
+      return updated;
+    }
+    //cac type ma xuat ra khoi kho
+    else if (
+      type === stock_movement_type.RETURN_PURCHASE ||
+      type === stock_movement_type.SALE ||
+      type === stock_movement_type.TRANSFER_EXPORT
+    ) {
+      const existing = await this.prisma.inventory.findFirst({
+        where: {
+          id,
+          product: {
+            store_id,
+          },
+        },
+      });
+      if (!existing)
+        throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
+
+      const newQty = existing.quantity - delta;
+      if (newQty < 0)
+        throw new BadRequestError(
+          this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
+        );
+      const updated = await this.prisma.inventory.update({
+        where: { id: existing.id },
+        data: {
+          quantity: newQty,
+        },
+      });
+      return updated;
+    }
+    // nhung truong hop sai type
+    else
+      throw new BadRequestError(
+        this.errorMessages.INVALID_TYPE_MODIFY_INVENTORY,
+      );
   }
 }
