@@ -37,6 +37,13 @@ export const PERMISSIONS = {
   PRODUCT_DELETE: 'product:delete' as Permission,
   PRODUCT_ALL: 'product:all' as Permission,
 
+  // Category permissions
+  CATEGORY_CREATE: 'category:create' as Permission,
+  CATEGORY_READ: 'category:read' as Permission,
+  CATEGORY_UPDATE: 'category:update' as Permission,
+  CATEGORY_DELETE: 'category:delete' as Permission,
+  CATEGORY_ALL: 'category:all' as Permission,
+
   // Order permissions
   ORDER_CREATE: 'order:create' as Permission,
   ORDER_READ: 'order:read' as Permission,

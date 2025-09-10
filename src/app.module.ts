@@ -28,6 +28,7 @@ import { ProductModule } from './module/product/product.module';
 import { SharedModule } from './shared/shared.module';
 import { OAuthModule } from './oauth/oauth.module';
 import { StoreModule } from './store/store.module';
+import { CategoryModule } from './module/category/category.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { StoreModule } from './store/store.module';
     JobsModule,
     DocsModule,
     HealthModule,
+    CategoryModule,
   ],
   providers: [
     TokenService,
