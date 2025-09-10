@@ -1,4 +1,3 @@
-// decorators/permission.decorator.ts
 import { SetMetadata } from '@nestjs/common';
 import { Permission } from './../types/permission.type';
 

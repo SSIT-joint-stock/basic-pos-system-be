@@ -8,12 +8,13 @@ import {
   PermissionLogic,
   PERMISSIONS_KEY,
 } from 'app/common/decorators/permission.decorator';
-import { IUSER } from 'app/auth/token.service';
+
 import {
   ForbiddenError,
   ValidationError,
   NotFoundError,
 } from 'app/common/response';
+import { IUser } from 'app/common/types/user.type';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -40,7 +41,7 @@ export class PermissionGuard implements CanActivate {
     );
 
     const request = context.switchToHttp().getRequest();
-    const user: IUSER = request.user;
+    const user: IUser = request.user;
 
     //Check : User authentication
     if (!user) {

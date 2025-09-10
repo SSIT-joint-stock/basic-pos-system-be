@@ -17,7 +17,7 @@ import express from 'express';
 import { Public } from 'app/common/decorators/public.decorator';
 import { User } from 'app/common/decorators/user.decorator';
 import { ApiSuccess } from 'app/common/decorators';
-import type { IUSER } from './token.service';
+import type { IUser } from 'app/common/types/user.type';
 
 @Controller('auth')
 export class AuthController {
@@ -123,7 +123,7 @@ export class AuthController {
   @Post('logout')
   @ApiSuccess('Logged out successfully')
   logout(
-    @User() user: IUSER,
+    @User() user: IUser,
     @Res({ passthrough: true }) res: express.Response,
   ) {
     res.clearCookie('refresh_token');
@@ -132,7 +132,7 @@ export class AuthController {
 
   @Get('profile')
   @ApiSuccess('Profile fetched successfully')
-  profile(@User() user: IUSER) {
+  profile(@User() user: IUser) {
     return user;
   }
 }

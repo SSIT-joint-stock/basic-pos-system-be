@@ -1,5 +1,5 @@
 import { StoreMemberRole } from '@prisma/client';
-import { IUSER } from 'app/auth/token.service';
+import { IUser } from './user.type';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'all';
 export type PermissionResource =
@@ -55,7 +55,7 @@ export const PERMISSIONS = {
   ALL: 'all:all' as Permission,
 } as const;
 
-export interface IUserWithPermissions extends IUSER {
+export interface IUserWithPermissions extends IUser {
   storeId?: string;
   storeRole?: StoreMemberRole | 'OWNER';
   permissions: Permission[];

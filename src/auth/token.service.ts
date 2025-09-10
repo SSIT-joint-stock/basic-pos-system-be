@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { IUser } from 'app/common/types/user.type';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
 const JWT_ACCESS_SECRET = 'your-access-secret-key';
@@ -6,16 +7,9 @@ const JWT_REFRESH_SECRET = 'your-refresh-secret-key';
 const JWT_ACCESS_EXPIRES_IN = '15m';
 const JWT_REFRESH_EXPIRES_IN = '7d';
 
-export interface IUSER {
-  id: string;
-  email: string;
-  username: string;
-  role: string;
-  status: string;
-}
 @Injectable()
 export class TokenService {
-  generateTokenPair(payload: IUSER) {
+  generateTokenPair(payload: IUser) {
     const access_token = jwt.sign(payload, JWT_ACCESS_SECRET, {
       expiresIn: JWT_ACCESS_EXPIRES_IN,
     });
