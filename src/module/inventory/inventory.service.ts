@@ -1,19 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
 import {
   BadRequestError,
   ConflictError,
-  ForbiddenError,
   NotFoundError,
 } from 'app/common/response';
-import {
-  Prisma,
-  stock_movement_type,
-  inventory_status,
-  StoreMemberRole,
-} from '@prisma/client';
-import { waitForDebugger } from 'inspector';
+import { Prisma, stock_movement_type, inventory_status } from '@prisma/client';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
 
 @Injectable()
@@ -24,6 +16,8 @@ export class InventoryService {
     INVENTORY_NOT_FOUND: 'Inventory not found',
     INVENTORY_WOULD_GO_NEGATIVE: 'Operation would result in negative inventory',
     INVALID_INVENTORY_STATUS: 'Invalid inventory status',
+    NO_INVENTORY_FOUND_IN_STORE: 'No inventory found in store',
+    INVENTORY_OR_PRODUCT_NOT_ACTIVE: 'Inventory or product is not active',
     CANNOT_MARK_SOLD_WHILE_STOCK_REMAINS:
       'Cannot mark as SOLD while quantity > 0',
 
@@ -43,105 +37,68 @@ export class InventoryService {
     private readonly stockMovementService: StockMovementService,
   ) {}
 
-  private get db() {
-    return this.prisma;
-  }
-  private async ensureUserInStore(
-    db: Prisma.TransactionClient | typeof this.db,
-    userId: string,
-    storeId: string,
-    allowedRoles: StoreMemberRole[] = [
-      StoreMemberRole.OWNER,
-      StoreMemberRole.MEMBER,
-    ],
-  ): Promise<StoreMemberRole> {
-    const store = await db.store.findUnique({
-      where: { id: storeId },
-      select: { owner_id: true },
-    });
-    if (!store) throw new NotFoundError(this.errorMessages.STORE_NOT_FOUND);
-
-    // Chủ store luôn được coi là OWNER
-    if (
-      allowedRoles.includes(StoreMemberRole.OWNER) &&
-      store.owner_id === userId
-    ) {
-      return StoreMemberRole.OWNER;
-    }
-
-    // Kiểm tra membership
-    const membership = await db.storeMember.findUnique({
-      where: { storeId_userId: { storeId, userId } }, // vì @@id([storeId, userId])
-      select: { role: true },
-    });
-
-    if (membership && allowedRoles.includes(membership.role)) {
-      return membership.role;
-    }
-
-    throw new ForbiddenError(this.errorMessages.USER_NOT_IN_STORE);
-  }
-
   async findAll(store_id: string) {
-    const store = await this.prisma.store.findUnique({
-      where: { id: store_id },
-    });
-    if (!store) {
-      throw new NotFoundError(this.errorMessages.STORE_NOT_FOUND);
-    }
-
     const inventories = await this.prisma.inventory.findMany({
       where: {
-        product: { store_id: store_id },
+        product: { store_id },
       },
     });
+    if (inventories.length === 0)
+      throw new NotFoundError(this.errorMessages.NO_INVENTORY_FOUND_IN_STORE);
     return inventories;
   }
 
-  async findById(id: string) {
-    const inventory = await this.prisma.inventory.findUnique({ where: { id } });
+  async findById(store_id: string, id: string) {
+    const inventory = await this.prisma.inventory.findUnique({
+      where: { id, product: { store_id } },
+    });
     if (!inventory) {
       throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
     }
     return inventory;
   }
 
-  async adjustQuanity(userId: string, product_id: string, delta: number) {
+  async adjustQuanity(store_id: string, product_id: string, delta: number) {
     if (!Number.isFinite(delta) || delta === 0) {
       throw new BadRequestError(this.errorMessages.DELTA_NON_ZERO_NUMBER);
     }
     const updated = await this.prisma.$transaction(
       async (tx) => {
-        // 1) Lấy product để biết store_id
-        const product = await tx.product.findUnique({
-          where: { id: product_id },
-          select: { id: true, store_id: true },
-        });
-        if (!product)
-          throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
-
-        // 2) Kiểm tra owner của store
-        await this.ensureUserInStore(tx, userId, product.store_id, [
-          StoreMemberRole.OWNER,
-        ]);
-
-        // 3) Lấy inventory ACTIVE của product //FIX: (nếu bạn quản lý theo status)
-        const inv = await tx.inventory.findFirst({
-          where: { product_id, status: 'ACTIVE' },
+        // 1) Kiem tra xem inventory co ton tai khong
+        const existing = await tx.inventory.findFirst({
+          where: {
+            product_id,
+            product: {
+              store_id,
+            },
+          },
           select: { id: true, quantity: true },
         });
-        if (!inv)
+        if (!existing)
           throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
 
-        // 4) Tính số lượng mới & validate
-        const newQty = inv.quantity + delta;
+        //2) Kiem tra xem inventory hoac product co active khong
+        const isActive = await tx.inventory.findFirst({
+          where: {
+            id: existing.id,
+            status: 'ACTIVE',
+            product: { store_id, product_status: 'ACTIVE' },
+          },
+        });
+        if (!isActive)
+          throw new BadRequestError(
+            this.errorMessages.INVENTORY_OR_PRODUCT_NOT_ACTIVE,
+          );
+
+        // 3) Tính số lượng mới & validate
+        const newQty = existing.quantity + delta;
         if (newQty < 0) {
           throw new ConflictError('Resulting quantity cannot be negative');
         }
 
-        // 5) Cập nhật inventory trước, rồi tạo stock movement qua service có sẵn
+        // 4) Cập nhật inventory trước, rồi tạo stock movement qua service có sẵn
         const updatedInv = await tx.inventory.update({
-          where: { id: inv.id },
+          where: { id: existing.id },
           data: { quantity: newQty },
           select: {
             id: true,
@@ -158,25 +115,17 @@ export class InventoryService {
           tx,
         );
 
-        return {
-          ...product,
-          inventory: updatedInv,
-        };
+        return updatedInv;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     return updated;
   }
 
-  async setSatus(userId: string, id: string, status: inventory_status) {
-    //0) Validate input
-    if (!Object.values(inventory_status).includes(status)) {
-      throw new BadRequestError(this.errorMessages.INVALID_INVENTORY_STATUS);
-    }
-
+  async setSatus(store_id: string, id: string, status: inventory_status) {
     // 1) Lấy inventory hiện tại
     const inventory = await this.prisma.inventory.findUnique({
-      where: { id },
+      where: { id, product: { store_id } },
       select: {
         id: true,
         product_id: true,
@@ -197,28 +146,14 @@ export class InventoryService {
       throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
     }
 
-    // 2) User thuộc store (owner hoặc member)
-    await this.ensureUserInStore(
-      this.prisma,
-      userId,
-      inventory.product.store_id,
-    );
-
-    // 3) Rule nghiệp vụ (gợi ý): không cho set SOLD nếu vẫn còn tồn
-    if (status === inventory_status.SOLD && inventory.quantity > 0) {
-      throw new ConflictError(
-        this.errorMessages.CANNOT_MARK_SOLD_WHILE_STOCK_REMAINS,
-      );
-    }
-
-    // 4) Idempotent: nếu không đổi trạng thái, trả về luôn
+    // 2) Idempotent: nếu không đổi trạng thái, trả về luôn
     if (inventory.status === status) {
       return inventory;
     }
 
-    // 5) Cập nhật trạng thái
+    // 3) Cập nhật trạng thái
     const updated = await this.prisma.inventory.update({
-      where: { id },
+      where: { id: inventory.id },
       data: { status },
       select: {
         id: true,
@@ -235,7 +170,7 @@ export class InventoryService {
   }
 
   async revalue(
-    userId: string,
+    store_id: string,
     inventory_id: string,
     data: { discount?: number; total?: number },
   ) {
@@ -244,7 +179,7 @@ export class InventoryService {
       async (tx) => {
         // 1) Lấy inventory + product(store_id)
         const inv = await tx.inventory.findUnique({
-          where: { id: inventory_id },
+          where: { id: inventory_id, product: { store_id } },
           select: {
             id: true,
             product_id: true,
@@ -258,12 +193,7 @@ export class InventoryService {
           throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
         }
 
-        // 2) Chỉ OWNER được revalue (đổi allowedRoles nếu muốn cho member)
-        await this.ensureUserInStore(tx, userId, inv.product.store_id, [
-          StoreMemberRole.OWNER,
-        ]);
-
-        // 3) Build patch (idempotent: nếu không đổi gì, trả về luôn)
+        // 2) Build patch (idempotent: nếu không đổi gì, trả về luôn)
         const patch: Record<string, number> = {};
         if (discount !== undefined && discount !== inv.discount)
           patch.discount = discount;

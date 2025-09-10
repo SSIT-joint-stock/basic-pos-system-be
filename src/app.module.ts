@@ -78,6 +78,9 @@ import { StockMovementModule } from './module/stock-movement/stock-movement.modu
     JobsModule,
     ProductModule,
     StockMovementModule,
+    InventoryModule,
+    HealthModule,
+    DocsModule,
   ],
   providers: [
     TokenService,

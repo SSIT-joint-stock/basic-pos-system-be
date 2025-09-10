@@ -59,6 +59,11 @@ export const PERMISSIONS = {
   STOCK_MOVEMENT_DELETE: 'stock-movement:delete' as Permission,
   STOCK_MOVEMENT_ALL: 'stock-movement:all' as Permission,
 
+  // Inventory permissions
+  INVENTORY_ADJUST: 'inventory:adjust' as Permission,
+  INVENTORY_READ: 'inventory:read' as Permission,
+  INVENTORY_ALL: 'inventory:all' as Permission,
+
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,
 } as const;
