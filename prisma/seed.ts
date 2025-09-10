@@ -411,7 +411,7 @@ async function main() {
         type: 'SALE',
       },
     }),
-      prisma.stockMovement.create({
+    prisma.stockMovement.create({
       data: {
         product_id: products[1].id,
         quantity: -1, // Sale

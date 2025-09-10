@@ -70,7 +70,7 @@ sequenceDiagram
     end
 ```
 
-![sale-management](./images/sale-management.png)
+![sale-management](./sale-management.png)
 
 ## Database Operations
 

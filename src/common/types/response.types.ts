@@ -93,3 +93,57 @@ export function createRawResponse<T = unknown>(data: T): RawResponse<T> {
 export function isRawResponse(data: RawResponse): data is RawResponse {
   return data && typeof data === 'object' && data.__raw === true;
 }
+
+/**
+ * ============================================================================
+ * API RESPONSE DECORATOR TYPES
+ * ============================================================================
+ */
+
+/**
+ * Options for API response configuration
+ */
+export interface ApiResponseOptions {
+  /** Custom status code for the response */
+  statusCode?: number;
+
+  /** Additional metadata to include in the response */
+  metadata?: Record<string, any>;
+
+  /** Custom headers to set on the response */
+  headers?: Record<string, string>;
+
+  /** Whether to include request ID in the response */
+  includeRequestId?: boolean;
+
+  /** Custom response transformation function */
+  transform?: (data: any) => any;
+}
+
+/**
+ * Metadata stored by API response decorators
+ */
+export interface ApiSuccessMetadata {
+  message?: string;
+  options?: ApiResponseOptions;
+}
+
+export interface ApiCustomMetadata {
+  statusCode: number;
+  message?: string;
+  options?: ApiResponseOptions;
+}
+
+export interface ApiErrorMetadata {
+  message?: string;
+  statusCode: number;
+}
+
+/**
+ * Union type for all API response metadata
+ */
+export type ApiResponseMetadata =
+  | { type: 'success'; data: ApiSuccessMetadata }
+  | { type: 'custom'; data: ApiCustomMetadata }
+  | { type: 'error'; data: ApiErrorMetadata }
+  | { type: 'raw'; data: boolean };

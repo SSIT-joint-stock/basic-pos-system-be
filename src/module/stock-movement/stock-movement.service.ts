@@ -1,17 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-} from 'app/common/response';
+import { BadRequestError, NotFoundError } from 'app/common/response';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { Prisma, stock_movement_type, StoreMemberRole } from '@prisma/client';
+import { Prisma, stock_movement_type } from '@prisma/client';
 
 @Injectable()
 export class StockMovementService {
   private readonly errorMessages = {
     //Stock_movement Management
     QUANTITY_NON_ZERO_NUMBER: 'Delta must be a non-zero number',
+    STOCK_MOVEMENT_NOT_FOUND: 'Stock movement not found',
+    NO_STOCK_MOVEMENT_FOUND_IN_STORE: 'No stock movements found for this store',
 
     //Product Management
     PRODUCT_NOT_FOUND: 'Product not found',
@@ -25,79 +23,21 @@ export class StockMovementService {
     USER_NOT_IN_STORE: 'Only user in store can do this actions',
   };
 
-  private get db() {
-    return this.prisma;
-  }
-  private async ensureUserInStore(
-    db: Prisma.TransactionClient | typeof this.db,
-    userId: string,
-    storeId: string,
-    allowedRoles: StoreMemberRole[] = [
-      StoreMemberRole.OWNER,
-      StoreMemberRole.MEMBER,
-    ],
-  ): Promise<StoreMemberRole> {
-    const store = await db.store.findUnique({
-      where: { id: storeId },
-      select: { owner_id: true },
-    });
-    if (!store) throw new NotFoundError(this.errorMessages.STORE_NOT_FOUND);
-
-    // Chủ store luôn được coi là OWNER
-    if (
-      allowedRoles.includes(StoreMemberRole.OWNER) &&
-      store.owner_id === userId
-    ) {
-      return StoreMemberRole.OWNER;
-    }
-
-    // Kiểm tra membership
-    const membership = await db.storeMember.findUnique({
-      where: { storeId_userId: { storeId, userId } }, // vì @@id([storeId, userId])
-      select: { role: true },
-    });
-
-    if (membership && allowedRoles.includes(membership.role)) {
-      return membership.role;
-    }
-
-    throw new ForbiddenError(this.errorMessages.USER_NOT_IN_STORE);
-  }
-
-  private getAllowedRolesByMovementType(
-    type: stock_movement_type,
-  ): StoreMemberRole[] {
-    switch (type) {
-      case 'ADJUSTMENT':
-      case 'TRANSFER':
-        // chỉ OWNER mới được phép
-        return [StoreMemberRole.OWNER];
-
-      case 'PURCHASE':
-      case 'SALE':
-      case 'RETURN_PURCHASE':
-      case 'RETURN_SALE':
-        // MEMBER và OWNER đều được phép
-        return [StoreMemberRole.MEMBER, StoreMemberRole.OWNER];
-
-      default:
-        // an toàn: chỉ OWNER
-        return [StoreMemberRole.OWNER];
-    }
-  }
-
   constructor(private readonly prisma: PrismaService) {}
 
   async create(
     product_id: string,
     type: stock_movement_type,
     quantity: number,
-    tx: Prisma.TransactionClient | typeof this.db,
+    tx: Prisma.TransactionClient | PrismaService,
   ) {
     if (!Number.isFinite(quantity) || quantity <= 0) {
       throw new BadRequestError(this.errorMessages.QUANTITY_NON_ZERO_NUMBER);
     }
-    const stockMovement = await tx.stockMovement.create({
+
+    const client = tx ?? this.prisma;
+
+    const stockMovement = await client.stockMovement.create({
       data: {
         product_id: product_id,
         type: type,
@@ -107,26 +47,34 @@ export class StockMovementService {
     return stockMovement;
   }
 
-  async findAllByStoreId(userId: string, store_id: string) {
-    // 1) permission: OWNER (or MEMBER) — tweak as needed
-    await this.ensureUserInStore(this.prisma, userId, store_id, [
-      StoreMemberRole.OWNER,
-    ]);
-
-    // 2) find
+  async findAll(store_id: string) {
     const stockMovements = await this.prisma.stockMovement.findMany({
       where: {
         product: {
           store_id: store_id,
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
+    if (stockMovements.length === 0) {
+      throw new NotFoundError(
+        this.errorMessages.NO_STOCK_MOVEMENT_FOUND_IN_STORE,
+      );
+    }
     return stockMovements;
   }
 
-  findOne(id: string) {
-    return this.prisma.stockMovement.findUnique({
-      where: { id },
+  async findOne(store_id: string, id: string) {
+    const existing = await this.prisma.stockMovement.findUnique({
+      where: {
+        id,
+        product: {
+          store_id,
+        },
+      },
     });
+    if (!existing)
+      throw new NotFoundError(this.errorMessages.STOCK_MOVEMENT_NOT_FOUND);
+    return existing;
   }
 }

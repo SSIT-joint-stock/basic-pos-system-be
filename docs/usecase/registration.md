@@ -39,7 +39,7 @@ sequenceDiagram
     end
 ```
 
-![registration](./images/registration.png)
+![registration](./registration.png)
 
 ## Database Operations
 

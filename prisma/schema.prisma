@@ -80,14 +80,24 @@ enum payment_method {
  */
 model User {
   id          String      @id @default(uuid()) @db.Uuid
+  providerId   String? 
+  provider   String? 
   email       String      @unique
-  password    String
+  password    String?
   username    String      @unique
   role        user_role   @default(USER)
   status      user_status @default(ACTIVE)
   is_verified Boolean     @default(false)
+  lastLoginAt DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  refresh_token String?
+
+  // code 
+  verification_code String?
+  verification_code_expired DateTime? 
+  password_reset_code String?
+  password_reset_code_expired DateTime?
 
   // relations
   ownedStores      Store[] // user is owner of the store

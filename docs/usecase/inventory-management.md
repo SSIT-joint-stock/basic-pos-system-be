@@ -56,7 +56,7 @@ sequenceDiagram
     end
 ```
 
-![inventory-management](./images/inventory-management.png)
+![inventory-management](./inventory-management.png)
 
 ## Database Operations
 

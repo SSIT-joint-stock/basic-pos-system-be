@@ -5,11 +5,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import {
-  ApiResponse,
   BadRequestError,
   ConflictError,
   NotFoundError,
 } from 'app/common/response';
+import type { IUserWithPermissions } from 'app/common/types/permission.type';
 
 @Injectable()
 export class ProductService {
@@ -49,9 +49,12 @@ export class ProductService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(
+    user: IUserWithPermissions,
+    storeId: string,
     data: Omit<
       Prisma.ProductUncheckedCreateInput,
       | 'id'
+      | 'store_id'
       | 'createdAt'
       | 'updatedAt'
       | 'created_by_user'
@@ -61,13 +64,14 @@ export class ProductService {
       | 'stock_movements'
       | 'order'
       | 'order_item'
+      | 'created_by'
     >,
   ) {
     // 1) Pre-check unique
     const exists = await this.prisma.product.findFirst({
       where: {
         sku: data.sku,
-        store_id: data.store_id,
+        store_id: storeId,
       },
     });
 
@@ -75,60 +79,34 @@ export class ProductService {
       throw new BadRequestError(this.errorMessages.PRODUCT_SKU_EXISTS);
     }
 
-    // 2) FK checks
-    const store = await this.prisma.store.findUnique({
-      where: { id: data.store_id },
-    });
-    if (!store) {
-      throw new NotFoundError(this.errorMessages.STORE_NOT_FOUND);
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: data.created_by },
-    });
-    if (!user) {
-      throw new NotFoundError(this.errorMessages.USER_NOT_FOUND);
-    }
-
-    // 3) Create + default inventory
+    // 2) Create + default inventory
     const created = await this.prisma.product.create({
       data: {
         ...data,
+        store_id: storeId,
+        created_by: user.id,
         inventories: { create: {} },
       },
     });
-
-    return ApiResponse.success(created, 'Product created successfully');
+    return created;
   }
 
-  async findAll(created_by: string) {
-    // 1) Validate input
-    if (!created_by) {
-      throw new BadRequestError(this.errorMessages.UNAUTHORIZED);
-    }
-
-    // 2) Check user tồn tại
-    const user = await this.prisma.user.findUnique({
-      where: { id: created_by },
-      select: { id: true },
-    });
-    if (!user) {
-      throw new NotFoundError(this.errorMessages.USER_NOT_FOUND);
-    }
-
-    // 3) Lấy danh sách sản phẩm (trả mảng rỗng nếu không có)
-    const products = await this.prisma.product.findMany({
-      where: { created_by },
+  async findAll(storeId: string) {
+    return await this.prisma.product.findMany({
+      where: { store_id: storeId },
       orderBy: { createdAt: 'desc' },
-      // select: {...} // TODO nếu muốn giới hạn field trả về
+      include: {
+        // nếu muốn trả kèm quan hệ // FIX co the fix later
+        inventories: true,
+        categories: true,
+        tags: true,
+      },
     });
-
-    return ApiResponse.success(products, 'Products fetched successfully');
   }
 
-  async findOne(id: string) {
+  async findOne(storeId: string, id: string) {
     const product = await this.prisma.product.findUnique({
-      where: { id },
+      where: { store_id: storeId, id },
       include: {
         // nếu muốn trả kèm quan hệ // FIX co the fix later
         inventories: true,
@@ -140,11 +118,11 @@ export class ProductService {
     if (!product) {
       throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
     }
-    return ApiResponse.success(product, 'Product fetched successfully');
+    return product;
   }
 
   async update(
-    //TODO nho them dieu kien update chi cho nguoi tao
+    storeId: string,
     id: string,
     data: Omit<
       Prisma.ProductUpdateInput,
@@ -161,21 +139,13 @@ export class ProductService {
       | 'order_item'
     >,
   ) {
-    if (!id) {
-      throw new BadRequestError(this.errorMessages.BAD_REQUEST);
-    }
-
-    // 1) Lấy product hiện tại để kiểm tra tồn tại + lấy store_id (phục vụ check SKU unique)
+    // 1) Lấy product hiện tại để kiểm tra tồn tại
     const existing = await this.prisma.product.findUnique({
-      where: { id },
-      select: { id: true, store_id: true, created_by: true },
+      where: { store_id: storeId, id },
     });
     if (!existing) {
       throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
     }
-
-    // TODO Chỉ cho người tạo được update
-    // if (actorId !== existing.created_by) throw new ForbiddenError(this.errorMessages.FORBIDDEN);
 
     // 2) Nếu có cập nhật SKU thì check unique theo (store_id, sku)
     const nextSku = (data as any)?.sku as string | undefined;
@@ -197,16 +167,15 @@ export class ProductService {
     const updated = await this.prisma.product.update({
       where: { id },
       data: { ...data },
-      include: { inventories: true }, // giữ nguyên như bạn ghi chú
+      include: { inventories: true }, // FIX: Sau co the bo
     });
-
-    return ApiResponse.success(updated, 'Update product successfully');
+    return updated;
   }
 
-  async remove(id: string) {
+  async remove(storeId: string, id: string) {
     // 1. Check product tồn tại
     const product = await this.prisma.product.findUnique({
-      where: { id },
+      where: { store_id: storeId, id },
       select: { id: true },
     });
 
@@ -216,8 +185,5 @@ export class ProductService {
 
     // 2. Xoá
     await this.prisma.product.delete({ where: { id } });
-
-    // 3. Trả về response chuẩn
-    return ApiResponse.success(null, 'Delete product successfully');
   }
 }

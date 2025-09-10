@@ -49,7 +49,7 @@ sequenceDiagram
     end
 ```
 
-![product-management](./images/product-management.png)
+![product-management](./product-management.png)
 
 ## Database Operations
 

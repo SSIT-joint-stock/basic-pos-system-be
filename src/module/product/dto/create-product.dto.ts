@@ -2,7 +2,6 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
-  IsUUID,
   IsInt,
   Min,
   IsEnum,
@@ -13,10 +12,6 @@ import { Type } from 'class-transformer';
 import { product_status } from '@prisma/client';
 
 export class CreateProductDto {
-  @IsUUID()
-  @IsNotEmpty()
-  store_id: string;
-
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -54,8 +49,4 @@ export class CreateProductDto {
   @IsOptional()
   @IsObject()
   meta?: Record<string, any>;
-
-  @IsUUID()
-  @IsNotEmpty()
-  created_by: string;
 }

@@ -56,7 +56,7 @@ sequenceDiagram
     end
 ```
 
-![member-management](./images/member-management.png)
+![member-management](./member-management.png)
 
 ## Database Operations
 

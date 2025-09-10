@@ -73,7 +73,7 @@ flowchart LR
 
 ```
 
-![userflow](./usecase/images/userflow.png)
+![userflow](./userflow.png)
 
 ## User Roles and Permissions
 

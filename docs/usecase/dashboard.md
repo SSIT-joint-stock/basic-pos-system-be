@@ -32,7 +32,7 @@ sequenceDiagram
     Backend-->>Frontend: Return updated dashboard data
     Frontend-->>User: Display updated dashboard
 ```
-![dashboard](./images/dashboard.png)
+![dashboard](./dashboard.png)
 
 ## Database Operations
 

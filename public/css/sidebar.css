@@ -1,0 +1,174 @@
+/* Custom styles for documentation sidebar */
+
+/* Smooth scrolling for sidebar navigation */
+nav {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for sidebar */
+nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+nav::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+nav::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* Dark mode scrollbar */
+.dark nav::-webkit-scrollbar-thumb {
+  background: #4a5568;
+}
+
+.dark nav::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* Sidebar animations */
+aside {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Mobile responsiveness improvements */
+@media (max-width: 768px) {
+  aside {
+    position: fixed;
+    left: -100%;
+    top: 0;
+    height: 100vh;
+    z-index: 40;
+    transition: left 0.3s ease-in-out;
+  }
+
+  aside:not(.hidden) {
+    left: 0;
+  }
+
+  /* Overlay for mobile */
+  aside::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  aside:not(.hidden)::before {
+    opacity: 1;
+  }
+}
+
+/* Focus states for accessibility */
+.sidebar-link:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Loading animation for sidebar items */
+.sidebar-loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Active page indicator */
+.active-page::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #3b82f6;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Search input focus animation */
+.search-input:focus {
+  transform: scale(1.02);
+  transition: transform 0.2s ease-in-out;
+}
+
+/* Category collapse/expand animation */
+.category-toggle {
+  transition: transform 0.2s ease-in-out;
+}
+
+.category-toggle.rotated {
+  transform: rotate(90deg);
+}
+
+/* Responsive text sizing */
+@media (max-width: 1024px) {
+  aside {
+    width: 240px;
+  }
+}
+
+@media (max-width: 640px) {
+  aside {
+    width: 280px;
+  }
+}
+
+/* Print styles - hide sidebar when printing */
+@media print {
+  aside {
+    display: none !important;
+  }
+
+  main {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  aside {
+    border-right: 2px solid;
+  }
+
+  .sidebar-link {
+    border: 1px solid transparent;
+  }
+
+  .sidebar-link:hover,
+  .sidebar-link:focus {
+    border-color: currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  aside,
+  .sidebar-link,
+  .search-input,
+  .category-toggle {
+    transition: none;
+  }
+
+  nav {
+    scroll-behavior: auto;
+  }
+}

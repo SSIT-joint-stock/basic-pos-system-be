@@ -6,38 +6,63 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { PermissionGuard } from 'app/permissions/guard/permission.guard';
+import { RequirePermissions } from 'app/common/decorators/permission.decorator';
+import { PERMISSIONS } from 'app/common/types/permission.type';
+import type { IUserWithPermissions } from 'app/common/types/permission.type';
+import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
+import { ApiSuccess } from 'app/common/decorators';
 
-@Controller('product')
+@Controller('stores/:storeId/products')
+@UseGuards(PermissionGuard)
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productService.create(createProductDto);
+  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
+  @ApiSuccess('Create product successfully')
+  create(
+    @Param('storeId') storeId: string,
+    @UserWithPermissions() user: IUserWithPermissions,
+    @Body() createProductDto: CreateProductDto,
+  ) {
+    return this.productService.create(user, storeId, createProductDto);
   }
 
   @Get()
-  findAll(@Query('created_by') created_by: string) {
-    return this.productService.findAll(created_by);
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
+  @ApiSuccess('Find all product successfully')
+  findAll(@Param('storeId') storeId: string) {
+    return this.productService.findAll(storeId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.productService.findOne(id);
+  @ApiSuccess('Find product by Id successfully')
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
+  findOne(@Param('storeId') storeId: string, @Param('id') id: string) {
+    return this.productService.findOne(storeId, id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productService.update(id, updateProductDto);
+  @RequirePermissions([PERMISSIONS.PRODUCT_UPDATE])
+  @ApiSuccess('Update product successfully')
+  update(
+    @Param('storeId') storeId: string,
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
+    return this.productService.update(storeId, id, updateProductDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.productService.remove(id);
+  @RequirePermissions([PERMISSIONS.PRODUCT_DELETE])
+  @ApiSuccess('Delete product successfully')
+  remove(@Param('storeId') storeId: string, @Param('id') id: string) {
+    return this.productService.remove(storeId, id);
   }
 }
