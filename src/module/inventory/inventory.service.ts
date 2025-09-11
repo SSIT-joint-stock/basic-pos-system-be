@@ -60,7 +60,7 @@ export class InventoryService {
     return inventory;
   }
 
-  async adjustQuanity(store_id: string, product_id: string, delta: number) {
+  async adjustQuanity(store_id: string, id: string, delta: number) {
     if (!Number.isFinite(delta) || delta === 0) {
       throw new BadRequestError(this.errorMessages.DELTA_NON_ZERO_NUMBER);
     }
@@ -69,7 +69,7 @@ export class InventoryService {
         // 1) Kiem tra xem inventory co ton tai khong
         const existing = await tx.inventory.findFirst({
           where: {
-            product_id,
+            id,
             product: {
               store_id,
             },
@@ -113,7 +113,7 @@ export class InventoryService {
           },
         });
         await this.stockMovementService.create(
-          product_id,
+          updatedInv.product_id,
           stock_movement_type.ADJUSTMENT,
           Math.abs(delta),
           tx,
@@ -126,7 +126,7 @@ export class InventoryService {
     return updated;
   }
 
-  async setSatus(store_id: string, id: string, status: inventory_status) {
+  async setStatus(store_id: string, id: string, status: inventory_status) {
     // 1) Lấy inventory hiện tại
     const inventory = await this.prisma.inventory.findUnique({
       where: { id, product: { store_id } },

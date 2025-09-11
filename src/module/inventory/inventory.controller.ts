@@ -21,15 +21,16 @@ import { PermissionGuard } from 'app/permissions/guard/permission.guard';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  @Put()
+  @Put(':id')
   @RequirePermissions([PERMISSIONS.INVENTORY_ADJUST, PERMISSIONS.ALL], 'OR')
   @ApiSuccess('Adjust quantity successfully')
   async adjustQuanity(
     @Param('storeId') storeId: string,
+    @Param('id') id: string,
     @Body() adjustInventoryDto: AdjustInventoryDto,
   ) {
-    const { product_id, delta } = adjustInventoryDto;
-    return this.inventoryService.adjustQuanity(storeId, product_id, delta);
+    const { delta } = adjustInventoryDto;
+    return this.inventoryService.adjustQuanity(storeId, id, delta);
   }
 
   @Get()
@@ -55,7 +56,7 @@ export class InventoryController {
     @Body() dto: SetStatusDto,
   ) {
     const { status } = dto;
-    return this.inventoryService.setSatus(store_id, id, status);
+    return this.inventoryService.setStatus(store_id, id, status);
   }
 
   @Patch('revalue/:id')
