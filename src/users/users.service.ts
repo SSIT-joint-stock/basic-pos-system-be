@@ -57,6 +57,32 @@ export class UsersService {
       where: {
         OR: [{ email: emailOrUsername }, { username: emailOrUsername }],
       },
+      include: {
+        ownedStores: {
+          include: {
+            _count: {
+              select: { members: true },
+            },
+          },
+        },
+        memberships: {
+          include: {
+            store: {
+              include: {
+                _count: {
+                  select: { members: true },
+                },
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            ownedStores: true,
+            memberships: true,
+          },
+        },
+      },
     });
   }
 

@@ -31,7 +31,14 @@ async function bootstrap() {
     // Get app config
     const appCfg = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
+    // Set up the application
     app.use(cookieParser());
+    app.enableCors({
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+      allowedHeaders: 'Content-Type, Accept',
+      origin: 'http://localhost:3000',
+      credentials: true,
+    });
     // Set global prefix for the api
     app.setGlobalPrefix('api/v1', {
       exclude: [

@@ -20,7 +20,7 @@ import { IUser } from 'app/common/types/user.type';
 export class PermissionGuard implements CanActivate {
   constructor(
     private readonly permissionService: PermissionService,
-    private readonly reflector: Reflector,
+    private readonly reflector: Reflector, // doc metadata
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -42,11 +42,6 @@ export class PermissionGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const user: IUser = request.user;
-
-    //Check : User authentication
-    if (!user) {
-      throw new ForbiddenError('User not authenticated!');
-    }
 
     //Check : StoreId validation
     const storeId = this.extractStoreId(request);

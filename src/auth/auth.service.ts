@@ -14,12 +14,16 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { BcryptService } from 'app/common/helpers/bcrypt.util';
 import { CodeService } from 'app/common/helpers/code.util';
-import { user_status, User } from '@prisma/client';
+import { user_status, User, Store } from '@prisma/client';
 import { TokenService } from './token.service';
 
 export interface AuthResponse {
   access_token: string;
   refresh_token: string;
+  user: User;
+  stores?: Store[];
+}
+export interface RegisterResponse {
   user: User;
 }
 
@@ -57,13 +61,13 @@ export class AuthService {
     private readonly tokenService: TokenService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<void> {
+  async register(dto: RegisterDto): Promise<RegisterResponse> {
     await this.validateUserDoesNotExist(dto.email, dto.username);
 
     const { code, expiredAt } = this.codeService.generateCodeWithExpiry();
     const hashedPassword = await this.bcryptService.hashPassword(dto.password);
 
-    await this.prismaService.user.create({
+    const user = await this.prismaService.user.create({
       data: {
         email: dto.email,
         username: dto.username,
@@ -74,6 +78,9 @@ export class AuthService {
     });
 
     this.sendVerificationEmailAsync(dto.email, code, expiredAt);
+    return {
+      user: user,
+    };
   }
 
   async verifyEmail(dto: VerifyEmailDto): Promise<void> {
@@ -83,7 +90,7 @@ export class AuthService {
       throw new ValidationError(this.errorMessages.EMAIL_ALREADY_VERIFIED);
     }
 
-    this.validateVerificationCode(user, dto.code);
+    this.validateVerificationCode(user, dto.verificationCode);
 
     await this.prismaService.user.update({
       where: { id: user.id },
@@ -136,6 +143,16 @@ export class AuthService {
 
     this.validateUserCanLogin(user);
 
+    const stores = [
+      ...user.ownedStores.map((s) => ({
+        ...s,
+        membersCount: s._count.members,
+      })),
+      ...user.memberships.map((m) => ({
+        ...m.store,
+        membersCount: m.store._count.members,
+      })),
+    ];
     const tokens = this.tokenService.generateTokenPair({
       id: user.id,
       email: user.email,
@@ -149,6 +166,7 @@ export class AuthService {
     return {
       ...tokens,
       user,
+      stores,
     };
   }
 

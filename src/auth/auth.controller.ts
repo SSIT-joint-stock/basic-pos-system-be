@@ -29,7 +29,15 @@ export class AuthController {
     'Account registered successfully. Please check your email for verification.',
   )
   async register(@Body() dto: RegisterDto) {
-    await this.authService.register(dto);
+    const result = await this.authService.register(dto);
+    return {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
+        role: result.user.role,
+      },
+    };
   }
 
   @Public()
@@ -54,6 +62,7 @@ export class AuthController {
         username: result.user.username,
         role: result.user.role,
       },
+      stores: result.stores,
     };
   }
 
