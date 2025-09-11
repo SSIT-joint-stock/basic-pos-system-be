@@ -24,7 +24,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { TokenService } from './auth/token.service';
 import { HealthModule } from './health/health.module';
-
+import { OrdersModule } from './orders/orders.module';
 @Module({
   imports: [
     ServeStaticModule.forRoot(
@@ -69,6 +69,7 @@ import { HealthModule } from './health/health.module';
     JobsModule,
     DocsModule,
     HealthModule,
+    OrdersModule,
   ],
   providers: [
     TokenService,
