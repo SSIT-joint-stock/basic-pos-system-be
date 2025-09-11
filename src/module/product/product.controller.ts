@@ -49,7 +49,10 @@ export class ProductController {
   }
 
   @Patch(':id')
-  @RequirePermissions([PERMISSIONS.PRODUCT_UPDATE])
+  @RequirePermissions(
+    [PERMISSIONS.PRODUCT_UPDATE, PERMISSIONS.PRODUCT_ALL],
+    'OR',
+  )
   @ApiSuccess('Update product successfully')
   update(
     @Param('storeId') storeId: string,
