@@ -3,7 +3,6 @@
 > Phiên bản: **v1**
 > Base URL: `http://localhost:3000`
 > Tất cả các endpoint trong tài liệu này **yêu cầu xác thực** bằng **Access Token** (JWT) theo chuẩn `Authorization: Bearer <access_token>`.
-> Cấu trúc & cách trình bày theo mẫu `product.md`.&#x20;
 
 ---
 
