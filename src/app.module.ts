@@ -24,7 +24,6 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { TokenService } from './auth/token.service';
 import { HealthModule } from './health/health.module';
-import { SharedModule } from './shared/shared.module';
 import { OAuthModule } from './oauth/oauth.module';
 import { StoreModule } from './store/store.module';
 
@@ -80,7 +79,6 @@ import { StoreModule } from './store/store.module';
     HttpLogInterceptor,
     ResponseInterceptor,
     AllExceptionsFilter,
-    SharedModule,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

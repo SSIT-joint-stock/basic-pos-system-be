@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { AuthResponse, OAuthService } from './oauth.service';
+import { OAuthService } from './oauth.service';
 import { OAuthInitDto } from './dto/oauth-init.dto';
 import { OAuthCallbackDto } from './dto/oauth-callback.dto';
 import { Public } from 'app/common/decorators/public.decorator';
@@ -27,11 +27,13 @@ export class OAuthController {
   @Get('callback')
   async googleAuthCallback(
     @Query('code') code: string,
+    @Query('state') state: string,
     @Res({ passthrough: true }) res: express.Response,
-  ): Promise<AuthResponse> {
+  ) {
     const callbackParams: OAuthCallbackDto = {
       provider: 'google',
       code,
+      state,
       redirectUri: 'http://localhost:3000/api/v1/auth/callback',
     };
     const result = await this.authService.callback(callbackParams);
@@ -44,10 +46,13 @@ export class OAuthController {
     return {
       accessToken: result.accessToken || '',
       refreshToken: result.refreshToken || '',
-      googleRefreshToken: result.googleRefreshToken || '',
-      googleAccessToken: result.googleAccessToken || '',
 
-      user: result.user,
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
+        role: result.user.role,
+      },
     };
   }
 }

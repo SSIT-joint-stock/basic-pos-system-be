@@ -1,6 +1,6 @@
+import * as jwt from 'jsonwebtoken';
 // import { env } from './../../config/env.validation';
 import { Injectable, Logger } from '@nestjs/common';
-import { UserRepository } from 'app/shared/user.repository';
 import { OAuth2Client } from 'google-auth-library';
 import { OAuthInitDto } from './dto/oauth-init.dto';
 import { OAuthCallbackDto } from './dto/oauth-callback.dto';
@@ -14,14 +14,12 @@ import {
   ConflictError,
   ValidationError,
 } from 'app/common/response/client-errors';
-import { User } from '@prisma/client';
+import { User, user_role, user_status } from '@prisma/client';
 import { UsersService } from 'app/users/users.service';
 
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
-  googleRefreshToken: string;
-  googleAccessToken: string;
   user: User;
 }
 
@@ -29,10 +27,12 @@ export interface AuthResponse {
 export class OAuthService {
   private readonly oauth2Client: InstanceType<typeof OAuth2Client>;
   private readonly logger = new Logger(OAuthService.name);
+  private readonly jwtSecret = process.env.STATE_SECRET || 'super-secret';
 
   private readonly errorMessages = {
     MISSING_CLIENT_ID: 'Missing CLIENT_ID or CLIENT_SECRET',
     UNSUPPORTED_PROVIDER: 'Only Google OAuth is supported',
+    MISSING_STATE: 'Missing state',
 
     // OAuth Flow
     MISSING_AUTH_CODE: 'Authorization code is missing',
@@ -47,10 +47,10 @@ export class OAuthService {
 
     // Callback
     CALLBACK_FAILED: 'OAuth callback failed',
+    INVALID_STATE: 'Invalid or expired state',
   } as const;
 
   constructor(
-    private readonly users: UserRepository,
     private readonly tokenService: TokenService,
     private readonly prismaService: PrismaService,
     private readonly usersService: UsersService,
@@ -63,24 +63,7 @@ export class OAuthService {
 
     this.oauth2Client = new OAuth2Client(clientId, clientSecret);
   }
-  //init oauth
-  init(params: OAuthInitDto) {
-    const { provider, redirectUri, state } = params;
-
-    if (provider !== 'google') {
-      throw new BadRequestError(this.errorMessages.UNSUPPORTED_PROVIDER);
-    }
-
-    const scopes = ['profile', 'email', 'openid'];
-    const authorizeUrl = this.oauth2Client.generateAuthUrl({
-      redirect_uri: redirectUri,
-      scope: scopes,
-      state,
-      access_type: 'offline',
-    });
-
-    return { authUrl: authorizeUrl, state };
-  }
+  // generate state
 
   private async updateUserRefreshToken(
     userId: string,
@@ -92,12 +75,56 @@ export class OAuthService {
     });
   }
 
-  async callback(params: OAuthCallbackDto): Promise<AuthResponse> {
-    const { code, redirectUri } = params;
+  private generateState(redirectUri: string): string {
+    return jwt.sign(
+      { redirectUri, nonce: Math.random().toString(36).substring(2, 10) },
+      this.jwtSecret,
+      { expiresIn: '5m' },
+    );
+  }
+
+  private validateState(state: string, redirectUri: string): void {
+    try {
+      const decoded = jwt.verify(state, this.jwtSecret) as {
+        redirectUri: string;
+      };
+      if (decoded.redirectUri !== redirectUri) {
+        throw new ForbiddenError(this.errorMessages.INVALID_STATE);
+      }
+    } catch {
+      throw new ForbiddenError(this.errorMessages.INVALID_STATE);
+    }
+  }
+
+  init(params: OAuthInitDto) {
+    const { provider, redirectUri } = params;
+    const state = this.generateState(redirectUri);
+    const scopes = ['profile', 'email', 'openid'];
+
+    if (provider !== 'google') {
+      throw new BadRequestError(this.errorMessages.UNSUPPORTED_PROVIDER);
+    }
+
+    const authorizeUrl = this.oauth2Client.generateAuthUrl({
+      redirect_uri: redirectUri,
+      scope: scopes,
+      state,
+      access_type: 'offline',
+      prompt: 'consent',
+    });
+
+    return { authUrl: authorizeUrl, state };
+  }
+  async callback(params: OAuthCallbackDto) {
+    const { code, redirectUri, state } = params;
 
     if (!code) {
       throw new BadRequestError(this.errorMessages.MISSING_AUTH_CODE);
     }
+    if (!state) {
+      throw new BadRequestError(this.errorMessages.MISSING_STATE);
+    }
+    this.validateState(state, redirectUri);
 
     try {
       const { tokens } = await this.oauth2Client.getToken({
@@ -143,8 +170,8 @@ export class OAuthService {
             password: null,
             provider: 'GOOGLE',
             is_verified: true,
-            role: 'USER',
-            status: 'ACTIVE',
+            role: user_role.USER,
+            status: user_status.ACTIVE,
             verification_code: null,
             verification_code_expired: null,
             password_reset_code: null,
@@ -171,8 +198,6 @@ export class OAuthService {
         accessToken: tokenPair.access_token,
         refreshToken: tokenPair.refresh_token,
         user,
-        googleAccessToken: tokens.access_token || '',
-        googleRefreshToken: tokens.refresh_token || '',
       };
     } catch (error) {
       this.logger.error('OAuth callback failed');

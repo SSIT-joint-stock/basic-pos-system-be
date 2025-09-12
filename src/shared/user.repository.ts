@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; // Giả sử PrismaService ở đây
+import { PrismaService } from '../prisma/prisma.service';
 import { User } from '@prisma/client'; // Import từ Prisma client
 import { nanoid } from 'nanoid';
 
