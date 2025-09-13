@@ -7,6 +7,7 @@ import {
   Get,
   Req,
   UnauthorizedException,
+  Param,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -18,7 +19,6 @@ import { Public } from 'app/common/decorators/public.decorator';
 import { User } from 'app/common/decorators/user.decorator';
 import { ApiSuccess } from 'app/common/decorators';
 import type { IUser } from 'app/common/types/user.type';
-
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -50,9 +50,9 @@ export class AuthController {
     const result = await this.authService.login(dto);
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
-      // secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      domain: 'localhost',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     return {
       access_token: result.access_token,
@@ -112,14 +112,20 @@ export class AuthController {
 
       res.cookie('refresh_token', result.refresh_token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
+        domain: 'localhost',
         maxAge: 1000 * 60 * 60 * 24 * 7,
       });
 
       return {
         access_token: result.access_token,
-        user: result.user,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          username: result.user.username,
+          role: result.user.role,
+        },
+        store: result.store,
         token_type: 'Bearer',
         expires_in: 900,
       };
@@ -136,12 +142,37 @@ export class AuthController {
     @Res({ passthrough: true }) res: express.Response,
   ) {
     res.clearCookie('refresh_token');
+    res.clearCookie('current_store');
     return this.authService.logout(user.id);
   }
 
   @Get('profile')
   @ApiSuccess('Profile fetched successfully')
-  profile(@User() user: IUser) {
-    return user;
+  async profile(@User() user: IUser) {
+    return await this.authService.profile(user.id, user.storeId!);
+  }
+
+  @Post('set-current-store/:storeId')
+  @ApiSuccess('Current store set successfully')
+  async setCurrentStore(
+    @User() user: IUser,
+    @Param('storeId') storeId: string,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const result = await this.authService.setCurrentStore(user.id, storeId);
+    res.cookie('refresh_token', result.refresh_token, {
+      httpOnly: true,
+      sameSite: 'strict',
+      domain: 'localhost',
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+    return {
+      access_token: result.access_token,
+      refresh_token: result.refresh_token,
+      store: {
+        id: result.store.id,
+        name: result.store.name,
+      },
+    };
   }
 }

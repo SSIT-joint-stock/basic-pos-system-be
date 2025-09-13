@@ -4,4 +4,6 @@ export interface IUser {
   username: string;
   role: string;
   status: string;
+  storeId?: string;
+  storeRole?: string;
 }

@@ -27,7 +27,6 @@ async function bootstrap() {
       bufferLogs: true, // Buffer logs until logger is set up
     });
 
-    // app.use(cookie)
     // Get app config
     const appCfg = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
@@ -35,10 +34,16 @@ async function bootstrap() {
     app.use(cookieParser());
     app.enableCors({
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      allowedHeaders: 'Content-Type, Accept',
-      origin: 'http://localhost:3000',
+      allowedHeaders: 'Content-Type, Accept, Authorization',
+      exposedHeaders: ['Authorization'],
+      origin: [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3002',
+      ],
       credentials: true,
     });
+
     // Set global prefix for the api
     app.setGlobalPrefix('api/v1', {
       exclude: [
