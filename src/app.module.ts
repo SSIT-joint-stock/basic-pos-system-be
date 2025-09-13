@@ -24,6 +24,12 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { TokenService } from './auth/token.service';
 import { HealthModule } from './health/health.module';
+import { ProductModule } from './module/product/product.module';
+import { SharedModule } from './shared/shared.module';
+import { OAuthModule } from './oauth/oauth.module';
+import { StoreModule } from './store/store.module';
+import { InventoryModule } from './module/inventory/inventory.module';
+import { StockMovementModule } from './module/stock-movement/stock-movement.module';
 import { OrdersModule } from './orders/orders.module';
 @Module({
   imports: [
@@ -65,17 +71,22 @@ import { OrdersModule } from './orders/orders.module';
     PrismaModule,
     UsersModule,
     AuthModule,
+    StoreModule,
+    ProductModule,
+    OAuthModule,
     ScheduleModule.forRoot(),
     JobsModule,
-    DocsModule,
+    ProductModule,
+    StockMovementModule,
+    InventoryModule,
     HealthModule,
-    OrdersModule,
   ],
   providers: [
     TokenService,
     HttpLogInterceptor,
     ResponseInterceptor,
     AllExceptionsFilter,
+    SharedModule,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
