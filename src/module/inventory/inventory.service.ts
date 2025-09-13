@@ -242,17 +242,20 @@ export class InventoryService {
     store_id: string,
     id: string,
     delta: number,
+    tx?: Prisma.TransactionClient | PrismaService,
   ) {
     if (!Number.isFinite(delta) || delta === 0) {
       throw new BadRequestError(this.errorMessages.DELTA_NON_ZERO_NUMBER);
     }
+    const client = tx ?? this.prisma;
+
     //cac type nhap kho
     if (
       type === stock_movement_type.RETURN_SALE ||
       type === stock_movement_type.PURCHASE ||
       type === stock_movement_type.TRANSFER_IMPORT
     ) {
-      const existing = await this.prisma.inventory.findFirst({
+      const existing = await client.inventory.findFirst({
         where: {
           id,
           product: {
@@ -265,7 +268,7 @@ export class InventoryService {
 
       const newQty = existing.quantity + delta;
 
-      const updated = await this.prisma.inventory.update({
+      const updated = await client.inventory.update({
         where: { id: existing.id },
         data: {
           quantity: newQty,
@@ -279,7 +282,7 @@ export class InventoryService {
       type === stock_movement_type.SALE ||
       type === stock_movement_type.TRANSFER_EXPORT
     ) {
-      const existing = await this.prisma.inventory.findFirst({
+      const existing = await client.inventory.findFirst({
         where: {
           id,
           product: {
@@ -295,7 +298,7 @@ export class InventoryService {
         throw new BadRequestError(
           this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
         );
-      const updated = await this.prisma.inventory.update({
+      const updated = await client.inventory.update({
         where: { id: existing.id },
         data: {
           quantity: newQty,
