@@ -4,6 +4,7 @@ import { UsersService } from 'app/users/users.service';
 import { PrismaService } from 'app/prisma/prisma.service';
 import {
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from 'app/common/response';
@@ -14,12 +15,15 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { BcryptService } from 'app/common/helpers/bcrypt.util';
 import { CodeService } from 'app/common/helpers/code.util';
-import { user_status, User } from '@prisma/client';
+import { user_status, User, Store } from '@prisma/client';
 import { TokenService } from './token.service';
-
 export interface AuthResponse {
   access_token: string;
   refresh_token: string;
+  user: User;
+  stores?: Store[];
+}
+export interface RegisterResponse {
   user: User;
 }
 
@@ -57,13 +61,13 @@ export class AuthService {
     private readonly tokenService: TokenService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<void> {
+  async register(dto: RegisterDto): Promise<RegisterResponse> {
     await this.validateUserDoesNotExist(dto.email, dto.username);
 
     const { code, expiredAt } = this.codeService.generateCodeWithExpiry();
     const hashedPassword = await this.bcryptService.hashPassword(dto.password);
 
-    await this.prismaService.user.create({
+    const user = await this.prismaService.user.create({
       data: {
         email: dto.email,
         username: dto.username,
@@ -74,6 +78,9 @@ export class AuthService {
     });
 
     this.sendVerificationEmailAsync(dto.email, code, expiredAt);
+    return {
+      user: user,
+    };
   }
 
   async verifyEmail(dto: VerifyEmailDto): Promise<void> {
@@ -83,7 +90,7 @@ export class AuthService {
       throw new ValidationError(this.errorMessages.EMAIL_ALREADY_VERIFIED);
     }
 
-    this.validateVerificationCode(user, dto.code);
+    this.validateVerificationCode(user, dto.verificationCode);
 
     await this.prismaService.user.update({
       where: { id: user.id },
@@ -136,6 +143,16 @@ export class AuthService {
 
     this.validateUserCanLogin(user);
 
+    const stores = [
+      ...user.ownedStores.map((s) => ({
+        ...s,
+        membersCount: s._count.members,
+      })),
+      ...user.memberships.map((m) => ({
+        ...m.store,
+        membersCount: m.store._count.members,
+      })),
+    ];
     const tokens = this.tokenService.generateTokenPair({
       id: user.id,
       email: user.email,
@@ -149,6 +166,7 @@ export class AuthService {
     return {
       ...tokens,
       user,
+      stores,
     };
   }
 
@@ -199,7 +217,7 @@ export class AuthService {
     });
   }
 
-  async refreshToken(refreshToken: string): Promise<AuthResponse> {
+  async refreshToken(refreshToken: string) {
     const payload = this.tokenService.verifyRefreshToken(refreshToken);
 
     const user = await this.prismaService.user.findUnique({
@@ -208,7 +226,20 @@ export class AuthService {
         refresh_token: refreshToken,
       },
     });
-
+    const store = await this.prismaService.store.findUnique({
+      where: {
+        id: payload.storeId,
+      },
+    });
+    if (!store) throw new NotFoundError('Store not found');
+    const memberShip = await this.prismaService.storeMember.findFirst({
+      where: {
+        userId: payload.id,
+        storeId: payload.storeId,
+      },
+    });
+    if (!memberShip && store.owner_id !== payload.id)
+      throw new ForbiddenError('You are not a member of this store');
     if (!user) {
       throw new ValidationError(this.errorMessages.INVALID_REFRESH_TOKEN);
     }
@@ -221,6 +252,7 @@ export class AuthService {
       role: user.role,
       status: user.status,
       username: user.username,
+      storeId: payload.storeId,
     });
 
     await this.updateUserRefreshToken(user.id, tokens.refresh_token);
@@ -228,6 +260,7 @@ export class AuthService {
     return {
       ...tokens,
       user,
+      store,
     };
   }
 
@@ -238,6 +271,73 @@ export class AuthService {
     });
   }
 
+  async setCurrentStore(userId: string, storeId: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+    if (!user) throw new NotFoundError('User not found');
+    const store = await this.prismaService.store.findUnique({
+      where: {
+        id: storeId,
+      },
+    });
+    if (!store) throw new NotFoundError('Store not found');
+    const memberShip = await this.prismaService.storeMember.findFirst({
+      where: {
+        userId,
+        storeId,
+      },
+    });
+    if (!memberShip && store.owner_id !== userId)
+      throw new ForbiddenError('You are not a member of this store');
+    const token = this.tokenService.generateTokenPair({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      username: user.username,
+      status: user.status,
+      storeId: store.id,
+      storeRole: memberShip?.role,
+    });
+    await this.updateUserRefreshToken(user.id, token.refresh_token);
+    return {
+      ...token,
+      store,
+    };
+  }
+  async profile(userId: string, storeId: string) {
+    const user = await this.prismaService.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+    if (!user) throw new NotFoundError('User not found');
+    const store = await this.prismaService.store.findUnique({
+      where: {
+        id: storeId,
+      },
+    });
+    if (!store) throw new NotFoundError('Store not found');
+    const memberShip = await this.prismaService.storeMember.findFirst({
+      where: {
+        userId,
+        storeId,
+      },
+    });
+    if (!memberShip && store.owner_id !== userId)
+      throw new ForbiddenError('You are not a member of this store');
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        status: user.status,
+      },
+      store,
+    };
+  }
   // Private helper methods
   private async validateUserDoesNotExist(
     email: string,

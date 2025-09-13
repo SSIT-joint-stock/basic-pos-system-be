@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { StoreMemberRole } from '@prisma/client';
-import { IUSER } from 'app/auth/token.service';
+
 import {
   IUserWithPermissions,
   Permission,
   PermissionAction,
   PERMISSIONS,
 } from 'app/common/types/permission.type';
+import { IUser } from 'app/common/types/user.type';
 import { PrismaService } from 'app/prisma/prisma.service';
 
 @Injectable()
@@ -155,7 +156,7 @@ export class PermissionService {
   // lay user permissions cua store
   async getUserWithPermissions(
     storeId: string,
-    user: IUSER,
+    user: IUser,
   ): Promise<IUserWithPermissions> {
     const role = await this.getUserStoreRole(storeId, user.id);
 

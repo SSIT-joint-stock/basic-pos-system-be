@@ -5,6 +5,7 @@ export class OAuthCallbackDto {
   provider: string;
 
   @IsString()
+  @IsOptional()
   code: string;
 
   @IsString()
