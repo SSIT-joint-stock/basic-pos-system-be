@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import dayjs from 'dayjs';
 import { Request } from 'express';
 import { z, ZodObject } from 'zod';
 
@@ -14,6 +15,8 @@ export const DefaultUserQuerySchema = z.object({
   limit: z.string().optional(),
   sortBy: z.string().optional(),
   sort: z.enum(['asc', 'desc']).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export type DefaultUserQueryType = z.infer<typeof DefaultUserQuerySchema>;
@@ -23,6 +26,7 @@ export type DefaultUserQueryType = z.infer<typeof DefaultUserQuerySchema>;
 //
 interface FilterParseOptions<TSchema extends ZodObject<any>> {
   schema: TSchema;
+  allowGetBetweenDate?: boolean;
   allowPagination?: boolean;
   allowSorting?: boolean;
   allowedSortBy?: string[];
@@ -34,6 +38,8 @@ interface FilterParseOptions<TSchema extends ZodObject<any>> {
 // 🔹 Infer filters type from schema
 //
 export type InferFilters<TSchema extends ZodObject<any>> = z.infer<TSchema>;
+
+// DateFilter Format
 
 //
 // 🔹 Return type
@@ -66,7 +72,6 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
 
       // ✅ Merge default + custom schema
       const finalSchema = DefaultUserQuerySchema.merge(options.schema);
-
       // ✅ Validate
       const parsed = finalSchema.safeParse(query);
       if (!parsed.success) {
@@ -77,8 +82,11 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
       const validatedQuery = parsed.data as DefaultUserQueryType &
         InferFilters<TSchema>;
 
+      console.log(validatedQuery);
       const result = {} as FilterParseResult<InferFilters<TSchema>>;
-      const filters = {} as Partial<InferFilters<TSchema>>;
+      const filters = {} as Partial<InferFilters<TSchema>> & {
+        createdAt?: { gte?: Date; lte?: Date };
+      };
 
       //
       // ✅ Pagination
@@ -96,15 +104,48 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
       //
       // ✅ Extract filters (exclude reserved keys)
       //
+
       (
         Object.keys(validatedQuery) as Array<keyof typeof validatedQuery>
       ).forEach((key) => {
-        if (!['page', 'limit', 'sort', 'sortBy'].includes(key as string)) {
-          // now TS knows key is really a key of validatedQuery
-          result.filters[key as keyof InferFilters<TSchema>] =
-            validatedQuery[key];
+        if (
+          !['page', 'limit', 'sort', 'sortBy', 'startDate', 'endDate'].includes(
+            key as string,
+          )
+        ) {
+          {
+            filters[key as keyof InferFilters<TSchema>] = validatedQuery[key];
+          }
         }
       });
+
+      if (options.allowGetBetweenDate) {
+        filters.createdAt = {
+          gte: validatedQuery.startDate
+            ? dayjs(validatedQuery.startDate).toDate()
+            : undefined,
+          lte: validatedQuery.endDate
+            ? dayjs(validatedQuery.endDate).endOf('day').toDate()
+            : undefined,
+        };
+      }
+
+      result.filters = filters;
+
+      //
+      // Get Between Date
+      //
+
+      // if (options.allowGetBetweenDate) {
+      //   filters['createdAt' as keyof (InferFilters<TSchema> & DateFilter)] = {
+      //     gte: validatedQuery.startDate
+      //       ? new Date(validatedQuery.startDate)
+      //       : undefined,
+      //     lte: validatedQuery.endDate
+      //       ? new Date(validatedQuery.endDate)
+      //       : undefined,
+      //   } as any; // cast here to avoid index signature noise
+      // }
 
       //
       // ✅ Sorting
@@ -132,7 +173,7 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
         take: result.limit,
         orderBy,
       };
-
+      console.log(result);
       return result;
     },
   )();

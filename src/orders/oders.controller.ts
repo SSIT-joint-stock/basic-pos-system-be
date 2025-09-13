@@ -24,12 +24,19 @@ export class OrdersController {
     @FilterParse({
       allowPagination: true,
       allowSorting: true,
+      allowGetBetweenDate: true,
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
       allowedSortBy: ['createdAt', 'total_amount'],
       schema: z.object({
         status: z.enum(order_status).optional(),
         payment_method: z.enum(payment_method).optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
       }),
     })
     query,
