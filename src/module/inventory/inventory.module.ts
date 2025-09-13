@@ -8,5 +8,6 @@ import { PermissionService } from 'app/permissions/permission.service';
   imports: [StockMovementModule],
   controllers: [InventoryController],
   providers: [InventoryService, PermissionService],
+  exports: [InventoryService],
 })
 export class InventoryModule {}
