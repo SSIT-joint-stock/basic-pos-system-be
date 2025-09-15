@@ -4,11 +4,11 @@ import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order';
 import { User } from 'app/common/decorators/user.decorator';
-import type { IUSER } from 'app/auth/token.service';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import z from 'zod';
 import { order_status, payment_method } from '@prisma/client';
 import { PaginatedResponse } from 'app/common/response';
+import type { IUser } from 'app/common/types/user.type';
 
 @Controller('store/:storeId/orders')
 export class OrdersController {
@@ -18,7 +18,7 @@ export class OrdersController {
   create(
     @Param('storeId') storeId: string,
     @Body() dto: CreateOrderDto,
-    @User() user: IUSER,
+    @User() user: IUser,
   ) {
     return this.order.create(storeId, dto, user);
   }

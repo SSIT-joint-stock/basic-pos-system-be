@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { IUSER } from 'app/auth/token.service';
 import { Prisma, stock_movement_type } from '@prisma/client';
 import { InventoryService } from 'app/module/inventory/inventory.service';
 import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
+import { IUser } from 'app/common/types/user.type';
 
 @Injectable()
 export class OrdersService {
@@ -15,7 +15,7 @@ export class OrdersService {
   ) {}
 
   //   TODO: Update quantity in inventory when Hoa complete his job
-  create(storeId: string, dto: CreateOrderDto, user: IUSER) {
+  create(storeId: string, dto: CreateOrderDto, user: IUser) {
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
