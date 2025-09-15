@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order';
 import { User } from 'app/common/decorators/user.decorator';
@@ -10,13 +10,22 @@ import z from 'zod';
 import { order_status, payment_method } from '@prisma/client';
 import { PaginatedResponse } from 'app/common/response';
 
-@Controller('orders')
+@Controller('store/:storeId/orders')
 export class OrdersController {
   constructor(private readonly order: OrdersService) {}
 
   @Post()
-  create(@Req() req, @Body() dto: CreateOrderDto, @User() user: IUSER) {
-    return this.order.create(req.user.id, dto, user);
+  create(
+    @Param('storeId') storeId: string,
+    @Body() dto: CreateOrderDto,
+    @User() user: IUSER,
+  ) {
+    return this.order.create(storeId, dto, user);
+  }
+
+  @Delete()
+  delete(@Param('storeId') storeId: string, @Body() body: { orderId: string }) {
+    return this.order.remove(body.orderId, storeId);
   }
 
   @Get()

@@ -240,7 +240,7 @@ export class InventoryService {
   async modify(
     type: stock_movement_type,
     store_id: string,
-    id: string,
+    productId: string,
     delta: number,
     tx?: Prisma.TransactionClient | PrismaService,
   ) {
@@ -257,14 +257,14 @@ export class InventoryService {
     ) {
       const existing = await client.inventory.findFirst({
         where: {
-          id,
+          product_id: productId,
           product: {
             store_id,
           },
         },
       });
       if (!existing)
-        throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
+        throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
 
       const newQty = existing.quantity + delta;
 
@@ -284,14 +284,14 @@ export class InventoryService {
     ) {
       const existing = await client.inventory.findFirst({
         where: {
-          id,
+          product_id: productId,
           product: {
             store_id,
           },
         },
       });
       if (!existing)
-        throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
+        throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
 
       const newQty = existing.quantity - delta;
       if (newQty < 0)

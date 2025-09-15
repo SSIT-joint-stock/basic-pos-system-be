@@ -80,6 +80,8 @@ import { OrdersModule } from './orders/orders.module';
     StockMovementModule,
     InventoryModule,
     HealthModule,
+    DocsModule,
+    OrdersModule,
   ],
   providers: [
     TokenService,
