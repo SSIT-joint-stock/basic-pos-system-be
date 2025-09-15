@@ -29,6 +29,9 @@ import { OAuthModule } from './oauth/oauth.module';
 import { StoreModule } from './store/store.module';
 import { CategoryModule } from './module/category/category.module';
 
+import { InventoryModule } from './module/inventory/inventory.module';
+import { StockMovementModule } from './module/stock-movement/stock-movement.module';
+import { OrdersModule } from './orders/orders.module';
 @Module({
   imports: [
     ServeStaticModule.forRoot(
@@ -74,9 +77,13 @@ import { CategoryModule } from './module/category/category.module';
     OAuthModule,
     ScheduleModule.forRoot(),
     JobsModule,
-    DocsModule,
+    ProductModule,
+    StockMovementModule,
+    InventoryModule,
     HealthModule,
     CategoryModule,
+    DocsModule,
+    OrdersModule,
   ],
   providers: [
     TokenService,

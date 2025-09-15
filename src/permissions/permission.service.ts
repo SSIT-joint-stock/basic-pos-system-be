@@ -40,6 +40,10 @@ export class PermissionService {
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.CUSTOMER_CREATE,
       PERMISSIONS.CUSTOMER_UPDATE,
+
+      PERMISSIONS.STOCK_MOVEMENT_READ,
+
+      PERMISSIONS.INVENTORY_READ,
       // sau nay co the them nhung quyen khac nhu tao category, tags, inentory, stok movement................
     ],
   };

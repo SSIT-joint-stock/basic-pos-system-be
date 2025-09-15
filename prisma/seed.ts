@@ -305,7 +305,6 @@ async function main() {
     prisma.order.create({
       data: {
         code: 'ORD-001',
-        product_id: products[0].id, // iPhone 15 Pro
         cashier_id: users[2].id, // staff/cashier
         customer_id: customers[0].id,
         customer_name: 'John Doe',
@@ -320,7 +319,6 @@ async function main() {
     prisma.order.create({
       data: {
         code: 'ORD-002',
-        product_id: products[2].id, // iPhone Charger
         cashier_id: users[2].id,
         customer_id: customers[1].id,
         customer_name: 'Jane Smith',
@@ -335,7 +333,6 @@ async function main() {
     prisma.order.create({
       data: {
         code: 'ORD-003',
-        product_id: products[1].id, // MacBook Pro
         cashier_id: users[2].id,
         subtotal_amount: 249900, // $2499.00
         discount_amount: 24990, // $249.90 (10% discount)

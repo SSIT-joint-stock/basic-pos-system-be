@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
 import { StoreMemberRole } from '@prisma/client';
 import { IUser } from './user.type';
 
@@ -57,6 +58,18 @@ export const PERMISSIONS = {
   CUSTOMER_UPDATE: 'customer:update' as Permission,
   CUSTOMER_DELETE: 'customer:delete' as Permission,
   CUSTOMER_ALL: 'customer:all' as Permission,
+
+  // Stockmovement permissions
+  STOCK_MOVEMENT_CREATE: 'stock-movement:create' as Permission,
+  STOCK_MOVEMENT_READ: 'stock-movement:read' as Permission,
+  STOCK_MOVEMENT_UPDATE: 'stock-movement:update' as Permission,
+  STOCK_MOVEMENT_DELETE: 'stock-movement:delete' as Permission,
+  STOCK_MOVEMENT_ALL: 'stock-movement:all' as Permission,
+
+  // Inventory permissions
+  INVENTORY_ADJUST: 'inventory:adjust' as Permission,
+  INVENTORY_READ: 'inventory:read' as Permission,
+  INVENTORY_ALL: 'inventory:all' as Permission,
 
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,
