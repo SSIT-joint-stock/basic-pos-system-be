@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Controller,
   Get,
@@ -7,6 +9,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -17,11 +20,51 @@ import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
 import { ApiSuccess } from 'app/common/decorators';
+import { FilterProductsDto } from './dto/filter-product.dto';
+import z from 'zod';
+import { order_status, payment_method } from '@prisma/client';
+import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
+import { PaginatedResponse } from 'app/common/response';
 
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
+
+  @Get('filter-product')
+  @ApiSuccess('Filter product successfully')
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
+  async filterProducts(
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'total_amount'],
+      schema: z.object({
+        status: z.enum(order_status).optional(),
+        payment_method: z.enum(payment_method).optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query,
+    @Param('storeId') storeId: string,
+    @Query() dto: FilterProductsDto,
+  ) {
+    const { data, total } = await this.productService.filterProducts(
+      storeId,
+      dto,
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+    // return this.productService.filterProducts(storeId, dto, query);
+  }
 
   @Post()
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
@@ -37,8 +80,30 @@ export class ProductController {
   @Get()
   @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
   @ApiSuccess('Find all product successfully')
-  findAll(@Param('storeId') storeId: string) {
-    return this.productService.findAll(storeId);
+  async findAll(
+    @Param('storeId') storeId: string,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'total_amount'],
+      schema: z.object({
+        status: z.enum(order_status).optional(),
+        payment_method: z.enum(payment_method).optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query,
+  ) {
+    const { data, total } = await this.productService.findAll(storeId, query);
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   @Get(':id')
