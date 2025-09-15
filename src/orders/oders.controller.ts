@@ -25,7 +25,7 @@ export class OrdersController {
 
   @Delete()
   delete(@Param('storeId') storeId: string, @Body() body: { orderId: string }) {
-    return this.order.remove(body.orderId, storeId);
+    return this.order.delete(body.orderId, storeId);
   }
 
   @Get()

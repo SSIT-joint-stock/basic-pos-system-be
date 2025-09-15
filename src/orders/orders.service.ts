@@ -64,7 +64,7 @@ export class OrdersService {
     });
   }
 
-  async remove(orderId: string, storeId: string) {
+  async delete(orderId: string, storeId: string) {
     return await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
@@ -76,28 +76,28 @@ export class OrdersService {
       }
 
       for (const item of order.order_item) {
-        const productId = item.product_id;
-        const quantity = item.quantity;
-
         await this.inventory.modify(
           stock_movement_type.RETURN_SALE,
           storeId,
-          productId,
-          quantity,
+          item.product_id,
+          item.quantity,
           tx,
         );
         await this.stockMovement.create(
-          productId,
+          item.product_id,
           stock_movement_type.RETURN_SALE,
-          quantity,
+          item.quantity,
           tx,
         );
-        await tx.order.delete({
-          where: { id: orderId },
-        });
 
-        return order;
+        await tx.orderItem.deleteMany({
+          where: { order_id: orderId },
+        });
       }
+      await tx.order.delete({
+        where: { id: orderId },
+      });
+      return order;
     });
   }
 
