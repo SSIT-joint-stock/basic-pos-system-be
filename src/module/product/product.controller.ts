@@ -22,7 +22,6 @@ import { UserWithPermissions } from 'app/common/decorators/user-with-permissions
 import { ApiSuccess } from 'app/common/decorators';
 import { FilterProductsDto } from './dto/filter-product.dto';
 import z from 'zod';
-import { order_status, payment_method } from '@prisma/client';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
 
@@ -43,8 +42,6 @@ export class ProductController {
       defaultSort: 'desc',
       allowedSortBy: ['createdAt', 'total_amount'],
       schema: z.object({
-        status: z.enum(order_status).optional(),
-        payment_method: z.enum(payment_method).optional(),
         createdAt: z
           .object({
             gte: z.string().optional(),
@@ -63,7 +60,6 @@ export class ProductController {
       query.prismaQuery,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
-    // return this.productService.filterProducts(storeId, dto, query);
   }
 
   @Post()
@@ -90,8 +86,6 @@ export class ProductController {
       defaultSort: 'desc',
       allowedSortBy: ['createdAt', 'total_amount'],
       schema: z.object({
-        status: z.enum(order_status).optional(),
-        payment_method: z.enum(payment_method).optional(),
         createdAt: z
           .object({
             gte: z.string().optional(),
