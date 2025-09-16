@@ -157,20 +157,33 @@
 
 # 2. Danh sách Sản phẩm
 
-**NOTE** chua xong
-
 ## 2.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                     |
-| -------------- | ------------------------------- |
-| Request URL    | `/api/stores/:storeId/products` |
-| Request Method | **GET**                         |
-| Request Header | `Authorization: Bearer <token>` |
-| Quyền yêu cầu  | `PRODUCT_READ` or `PRODUCT_ALL` |
+| **Thuộc tính** | **Giá trị**                       |
+| -------------- | --------------------------------- |
+| Request URL    | `/api/stores/:storeId/products`   |
+| Request Method | **GET**                           |
+| Request Header | `Authorization: Bearer <token>`   |
+| Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL` |
 
-### 2.2 Dữ liệu đầu ra
+---
 
-**Success Response (200):**
+## 2.2 Query Parameters
+
+| Tên         | Kiểu              | Bắt buộc | Mặc định    | Mô tả                                                          |
+| ----------- | ----------------- | -------- | ----------- | -------------------------------------------------------------- |
+| `page`      | int (string)      | Không    | `1`         | Trang hiện tại                                                 |
+| `limit`     | int (string)      | Không    | `10`        | Số bản ghi mỗi trang                                           |
+| `sortBy`    | string            | Không    | `createdAt` | Trường sắp xếp. **Chỉ chấp nhận**: `createdAt`, `total_amount` |
+| `sort`      | `'asc' \| 'desc'` | Không    | `desc`      | Thứ tự sắp xếp                                                 |
+| `startDate` | string (ISO)      | Không    | —           | Lọc từ ngày bắt đầu (map `createdAt.gte`)                      |
+| `endDate`   | string (ISO)      | Không    | —           | Lọc đến ngày kết thúc (map `createdAt.lte`)                    |
+
+---
+
+## 2.3 Dữ liệu đầu ra
+
+### Success Response (200)
 
 ```json
 {
@@ -200,9 +213,19 @@
 }
 ```
 
-**Error Response:**
+### Error Responses
 
-- **404 Not Found – Store không tồn tại**
+**403 – Forbidden**
+
+```json
+{
+  "success": false,
+  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
+  "meta": { "timestamp": "2025-09-10T08:20:11.000Z", "version": "v1" }
+}
+```
+
+**404 – Store Not Found**
 
 ```json
 {
@@ -212,15 +235,9 @@
 }
 ```
 
-- **403 Forbidden – Không có quyền**
+---
 
-```json
-{
-  "success": false,
-  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
-  "meta": { "timestamp": "2025-09-10T08:20:11.000Z", "version": "v1" }
-}
-```
+Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệp vụ chuẩn của **Product** (lọc theo `q`, `min_price`, `max_price`, `status`) thay vì để `payment_method`/`order_status` như code hiện tại không?
 
 ---
 
@@ -438,6 +455,106 @@
 
 ---
 
+# 6. Lọc Sản phẩm
+
+## 6.1 Mô tả
+
+| **Thuộc tính** | **Giá trị**                                    |
+| -------------- | ---------------------------------------------- |
+| Request URL    | `/api/stores/:storeId/products/filter-product` |
+| Request Method | **GET**                                        |
+| Request Header | `Authorization: Bearer <token>`                |
+| Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL`              |
+
+---
+
+## 6.2 Query Parameters
+
+### Phân trang, sắp xếp, khoảng ngày (từ `@FilterParse`)
+
+| Tên         | Kiểu              | Bắt buộc | Mặc định    | Mô tả                                                          |
+| ----------- | ----------------- | -------- | ----------- | -------------------------------------------------------------- |
+| `page`      | int (string)      | Không    | `1`         | Trang hiện tại                                                 |
+| `limit`     | int (string)      | Không    | `10`        | Số bản ghi mỗi trang                                           |
+| `sortBy`    | string            | Không    | `createdAt` | Trường sắp xếp. **Chỉ chấp nhận**: `createdAt`, `total_amount` |
+| `sort`      | `'asc' \| 'desc'` | Không    | `desc`      | Thứ tự sắp xếp                                                 |
+| `startDate` | string (ISO)      | Không    | —           | Lọc từ ngày bắt đầu (map vào `createdAt.gte`)                  |
+| `endDate`   | string (ISO)      | Không    | —           | Lọc đến ngày kết thúc (map vào `createdAt.lte`, endOf('day'))  |
+
+> `startDate`/`endDate` được decorator convert sang `createdAt: { gte, lte }`.
+
+### Trường lọc (từ `FilterProductsDto`)
+
+| Tên              | Kiểu         | Bắt buộc | Mô tả                                                                            |
+| ---------------- | ------------ | -------- | -------------------------------------------------------------------------------- |
+| `sku`            | string       | Không    | Khớp chính xác SKU                                                               |
+| `barcode`        | string       | Không    | Khớp chính xác barcode                                                           |
+| `min_price`      | number       | Không    | Giá bán tối thiểu (`price >= min_price`)                                         |
+| `max_price`      | number       | Không    | Giá bán tối đa (`price <= max_price`)                                            |
+| `min_cost`       | number       | Không    | Giá vốn tối thiểu (`cost >= min_cost`)                                           |
+| `max_cost`       | number       | Không    | Giá vốn tối đa (`cost <= max_cost`)                                              |
+| `image_url`      | string (URL) | Không    | Khớp chính xác `image_url`                                                       |
+| `product_status` | enum         | Không    | Lọc theo trạng thái sản phẩm                                                     |
+| `q`              | string       | Không    | Tìm kiếm toàn văn trong **name** và **description** (không phân biệt hoa thường) |
+
+---
+
+## 6.3 Dữ liệu đầu ra
+
+### Success (200)
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-09-10T08:20:11.000Z",
+    "version": "v1",
+    "pagination": { "page": 1, "limit": 20, "total": 57, "totalPages": 3 }
+  },
+  "data": [
+    {
+      "id": "b2e3e0d3-f9a6-4d94-8a7f-2a3c8b3d7f51",
+      "store_id": "14a04419-ca46-4244-b42a-ca3d94ef9c48",
+      "name": "Áo Thun Nam Basic",
+      "sku": "TSHIRT-001",
+      "barcode": "8938505971234",
+      "price": 199000,
+      "cost": 120000,
+      "image_url": "https://example.com/images/tshirt-basic.jpg",
+      "description": "Áo thun cotton thoáng mát",
+      "product_status": "ACTIVE",
+      "createdAt": "2025-09-10T08:12:34.000Z",
+      "updatedAt": "2025-09-10T08:12:34.000Z"
+    }
+  ],
+  "message": "Filter product successfully"
+}
+```
+
+### Error Responses
+
+**403 – Forbidden**
+
+```json
+{
+  "success": false,
+  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
+  "meta": { "timestamp": "2025-09-10T08:20:11.000Z", "version": "v1" }
+}
+```
+
+**404 – Store Not Found**
+
+```json
+{
+  "success": false,
+  "error": { "code": "NOT_FOUND", "message": "Store not found" },
+  "meta": { "timestamp": "2025-09-10T08:20:11.000Z", "version": "v1" }
+}
+```
+
+---
+
 # 7. Mẫu Lỗi chung
 
 Các lỗi có cấu trúc:
@@ -461,4 +578,4 @@ Các lỗi có cấu trúc:
 
 # 8. Ghi chú triển khai
 
-- `:storeId` và `:productId` là **UUID**.
+- `:storeId` và `:id` là **UUID**.
