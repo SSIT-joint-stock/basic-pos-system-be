@@ -7,6 +7,7 @@ import {
 } from 'app/common/response';
 import { Prisma, stock_movement_type, inventory_status } from '@prisma/client';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
+import { FindInventoryDto } from './dto/find-all.dto';
 
 @Injectable()
 export class InventoryService {
@@ -39,15 +40,43 @@ export class InventoryService {
     private readonly stockMovementService: StockMovementService,
   ) {}
 
-  async findAll(store_id: string) {
-    const inventories = await this.prisma.inventory.findMany({
-      where: {
-        product: { store_id },
+  async findAll(
+    store_id: string,
+    query: Prisma.InventoryFindManyArgs,
+    data: FindInventoryDto,
+  ) {
+    console.log(query.where);
+    const where: Prisma.InventoryWhereInput = {
+      AND: [
+        query.where ?? {},
+        data.status ? { status: data.status } : {},
+        data.min_quantity ? { quantity: { gte: data.min_quantity } } : {},
+        data.max_quantity ? { quantity: { lte: data.max_quantity } } : {},
+        data.min_discount ? { discount: { gte: data.min_discount } } : {},
+        data.max_discount ? { discount: { lte: data.max_discount } } : {},
+        data.min_total ? { total: { gte: data.min_total } } : {},
+        data.max_total ? { total: { lte: data.max_total } } : {},
+      ],
+      product: {
+        store_id,
       },
-    });
-    if (inventories.length === 0)
-      throw new NotFoundError(this.errorMessages.NO_INVENTORY_FOUND_IN_STORE);
-    return inventories;
+    };
+
+    const [inventories, total] = await Promise.all([
+      this.prisma.inventory.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+      }),
+      this.prisma.inventory.count({
+        where,
+      }),
+    ]);
+    return {
+      data: inventories,
+      total,
+    };
   }
 
   async findById(store_id: string, id: string) {

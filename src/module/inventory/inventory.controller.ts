@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Body,
   Controller,
@@ -5,6 +7,7 @@ import {
   Param,
   Patch,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
@@ -15,6 +18,10 @@ import { ApiSuccess } from 'app/common/decorators';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import { RequirePermissions } from 'app/common/decorators/permission.decorator';
 import { PermissionGuard } from 'app/permissions/guard/permission.guard';
+import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
+import z from 'zod';
+import { PaginatedResponse } from 'app/common/response';
+import { FindInventoryDto } from './dto/find-all.dto';
 
 @Controller('stores/:storeId/inventories')
 @UseGuards(PermissionGuard)
@@ -36,8 +43,33 @@ export class InventoryController {
   @Get()
   @RequirePermissions([PERMISSIONS.INVENTORY_READ, PERMISSIONS.ALL], 'OR')
   @ApiSuccess('Find all inventory successfully')
-  async findAll(@Param('storeId') store_id: string) {
-    return this.inventoryService.findAll(store_id);
+  async findAll(
+    @Param('storeId') store_id: string,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'asc',
+      allowedSortBy: ['createdAt', 'total_amount'],
+      schema: z.object({
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query,
+    @Query() dto: FindInventoryDto,
+  ) {
+    const { data, total } = await this.inventoryService.findAll(
+      store_id,
+      query.prismaQuery,
+      dto,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   @Get(':id')
