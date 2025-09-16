@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Controller, Get, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { StockMovementService } from './stock-movement.service';
@@ -42,7 +43,7 @@ export class StockMovementController {
   ) {
     const { data, total } = await this.stockMovementService.findAll(
       storeId,
-      query,
+      query.prismaQuery,
       dto,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
