@@ -12,11 +12,11 @@ import { StoreService } from './store.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { User } from 'app/common/decorators/user.decorator';
-import type { IUSER } from 'app/auth/token.service';
 import { ApiSuccess } from 'app/common/decorators';
 import { PermissionGuard } from 'app/permissions/guard/permission.guard';
 import { RequirePermissions } from 'app/common/decorators/permission.decorator';
 import { PERMISSIONS } from 'app/common/types/permission.type';
+import type { IUser } from 'app/common/types/user.type';
 
 @Controller('stores')
 export class StoreController {
@@ -24,13 +24,13 @@ export class StoreController {
 
   @Post()
   @ApiSuccess('Store created successfully')
-  create(@Body() createStoreDto: CreateStoreDto, @User() user: IUSER) {
+  create(@Body() createStoreDto: CreateStoreDto, @User() user: IUser) {
     return this.storeService.create(createStoreDto, user);
   }
 
   @Get()
   @ApiSuccess('Get stores successfully')
-  findAll(@User() user: IUSER) {
+  findAll(@User() user: IUser) {
     return this.storeService.findAll(user);
   }
 
@@ -38,7 +38,7 @@ export class StoreController {
   @UseGuards(PermissionGuard)
   @RequirePermissions([PERMISSIONS.STORE_READ])
   @ApiSuccess('Get store successfully')
-  findOne(@Param('storeId') storeId: string, @User() user: IUSER) {
+  findOne(@Param('storeId') storeId: string, @User() user: IUser) {
     return this.storeService.findOne(storeId, user);
   }
 
@@ -49,7 +49,7 @@ export class StoreController {
   update(
     @Param('storeId') storeId: string,
     @Body() updateStoreDto: UpdateStoreDto,
-    @User() user: IUSER,
+    @User() user: IUser,
   ) {
     return this.storeService.update(storeId, updateStoreDto, user);
   }
@@ -58,7 +58,7 @@ export class StoreController {
   @ApiSuccess('Delete store successfully')
   @UseGuards(PermissionGuard)
   @RequirePermissions([PERMISSIONS.STORE_DELETE, PERMISSIONS.STORE_ALL])
-  remove(@Param('storeId') storeId: string, @User() user: IUSER) {
+  remove(@Param('storeId') storeId: string, @User() user: IUser) {
     return this.storeService.remove(storeId, user);
   }
 
@@ -68,20 +68,20 @@ export class StoreController {
   addMemberToStore(
     @Param('storeId') storeId: string,
     @Body() body: { emailUser: string },
-    @User() user: IUSER,
+    @User() user: IUser,
   ) {
     return this.storeService.addMemberToStore(storeId, body.emailUser, user);
   }
 
   @Delete('delete-member/:storeId')
   @ApiSuccess('Remove member from store successfully')
-  removeMember(@Param('storeId') storeId: string, @User() user: IUSER) {
+  removeMember(@Param('storeId') storeId: string, @User() user: IUser) {
     return this.storeService.removeMember(storeId, user.id, user);
   }
 
   @Get('members/:storeId')
   @ApiSuccess('Get members in store successfully')
-  getMembersInStore(@Param('storeId') storeId: string, @User() user: IUSER) {
+  getMembersInStore(@Param('storeId') storeId: string, @User() user: IUser) {
     return this.storeService.getMembersInStore(storeId, user);
   }
 
@@ -90,7 +90,7 @@ export class StoreController {
   @ApiSuccess('Get permissions in store successfully')
   getPermissionsInStore(
     @Param('storeId') storeId: string,
-    @User() user: IUSER,
+    @User() user: IUser,
   ) {
     return this.storeService.getPermissionsInStore(storeId, user);
   }

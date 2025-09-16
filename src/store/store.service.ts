@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { IUSER } from 'app/auth/token.service';
 import {
   ConflictError,
   ForbiddenError,
@@ -10,6 +9,7 @@ import {
 } from 'app/common/response';
 import { StoreMemberRole } from '@prisma/client';
 import { PermissionService } from 'app/permissions/permission.service';
+import { IUser } from 'app/common/types/user.type';
 
 @Injectable()
 export class StoreService {
@@ -17,7 +17,7 @@ export class StoreService {
     private readonly prismaService: PrismaService,
     private readonly permissionService: PermissionService,
   ) {}
-  async create(createStoreDto: CreateStoreDto, user: IUSER) {
+  async create(createStoreDto: CreateStoreDto, user: IUser) {
     // create store when user is owner
     return await this.prismaService.store.create({
       data: {
@@ -36,7 +36,7 @@ export class StoreService {
     });
   }
 
-  async findAll(user: IUSER) {
+  async findAll(user: IUser) {
     // find all store when user is owner or memeber
     return await this.prismaService.store.findMany({
       where: {
@@ -84,7 +84,7 @@ export class StoreService {
     });
   }
 
-  async findOne(storeId: string, user: IUSER) {
+  async findOne(storeId: string, user: IUser) {
     // check user have access to the store members and owner in this store will access dc
     const hasAccess = await this.checkStoreAccess(storeId, user.id);
     if (!hasAccess) {
@@ -128,7 +128,7 @@ export class StoreService {
     return store;
   }
 
-  async update(storeId: string, updateStoreDto: UpdateStoreDto, user: IUSER) {
+  async update(storeId: string, updateStoreDto: UpdateStoreDto, user: IUser) {
     // Only store owner can update this store
     const isOwner = await this.checkIsOwner(storeId, user.id);
 
@@ -150,7 +150,7 @@ export class StoreService {
     });
   }
 
-  async remove(storeId: string, user: IUSER) {
+  async remove(storeId: string, user: IUser) {
     // Only store owner can delete this store
     const isOwner = await this.checkIsOwner(storeId, user.id);
     if (!isOwner) {
@@ -162,7 +162,7 @@ export class StoreService {
   }
 
   // Store member management methods
-  async addMemberToStore(storeId: string, userEmail: string, owner: IUSER) {
+  async addMemberToStore(storeId: string, userEmail: string, owner: IUser) {
     // Only owner can add members
     const isOwner = await this.checkIsOwner(storeId, owner.id);
 
@@ -202,7 +202,7 @@ export class StoreService {
     });
   }
 
-  async getMembersInStore(storeId: string, owner: IUSER) {
+  async getMembersInStore(storeId: string, owner: IUser) {
     const isOwner = await this.checkIsOwner(storeId, owner.id);
     if (!isOwner) {
       throw new ForbiddenError('Only store owner can get members');
@@ -223,7 +223,7 @@ export class StoreService {
     });
   }
 
-  async removeMember(storeId: string, memberUserId: string, owner: IUSER) {
+  async removeMember(storeId: string, memberUserId: string, owner: IUser) {
     // Only owner can remove members
     const isOwner = await this.checkIsOwner(storeId, owner.id);
 
@@ -246,7 +246,7 @@ export class StoreService {
       },
     });
   }
-  async getPermissionsInStore(storeId: string, user: IUSER) {
+  async getPermissionsInStore(storeId: string, user: IUser) {
     return await this.permissionService.getUserWithPermissions(storeId, user);
   }
 

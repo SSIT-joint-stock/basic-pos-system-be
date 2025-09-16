@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
 import { StoreMemberRole } from '@prisma/client';
-import { IUSER } from 'app/auth/token.service';
+import { IUser } from './user.type';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'all';
 export type PermissionResource =
@@ -38,6 +38,13 @@ export const PERMISSIONS = {
   PRODUCT_DELETE: 'product:delete' as Permission,
   PRODUCT_ALL: 'product:all' as Permission,
 
+  // Category permissions
+  CATEGORY_CREATE: 'category:create' as Permission,
+  CATEGORY_READ: 'category:read' as Permission,
+  CATEGORY_UPDATE: 'category:update' as Permission,
+  CATEGORY_DELETE: 'category:delete' as Permission,
+  CATEGORY_ALL: 'category:all' as Permission,
+
   // Order permissions
   ORDER_CREATE: 'order:create' as Permission,
   ORDER_READ: 'order:read' as Permission,
@@ -68,7 +75,7 @@ export const PERMISSIONS = {
   ALL: 'all:all' as Permission,
 } as const;
 
-export interface IUserWithPermissions extends IUSER {
+export interface IUserWithPermissions extends IUser {
   storeId?: string;
   storeRole?: StoreMemberRole | 'OWNER';
   permissions: Permission[];

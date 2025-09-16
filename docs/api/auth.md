@@ -597,3 +597,128 @@
   }
 }
 ```
+
+# 9 Oauth
+
+## 9.1 OAuth Init
+
+### 9.1.1 Mô tả
+
+| **Thuộc tính** | **Giá trị**                    |
+| -------------- | ------------------------------ |
+| Request URL    | `/api/v1/auth/init`            |
+| Request Method | GET                            |
+| Request Header | Content-Type: application/json |
+| Body data      | Không có                       |
+
+### 9.1.2 Dữ liệu đầu ra
+
+**Success Respone**
+
+Server sẽ redirect client sang trang đăng nhập của OAuth Provider(Hiện tại chỉ hỗ trợ google )
+
+**Error Response:**
+
+**400 Bad Request – chỉ google oauth được hỗ trợ**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Only Google OAuth is supported",
+    "details": {}
+  },
+  "meta": {
+    "timestamp": "2025-09-12T08:45:33.195Z",
+    "version": "v1"
+  }
+}
+```
+
+## 9.2 OAuth Callback
+
+### ℹ️ Note
+
+> Hiện tại chưa có URL callback của frontend, nên URL trả về đang là callback của backend.
+
+### 9.2.1 Mô tả
+
+Sau khi người dùng đăng nhập thành công, OAuth Provider sẽ redirect về endpoint callback kèm theo code và state trong query params.
+Server sẽ dùng code để lấy thông tin người dùng, sau đó trả về access_token + thông tin user.
+
+| **Thuộc tính** | **Giá trị**                    |
+| -------------- | ------------------------------ |
+| Request URL    | `/api/v1/auth/callback`        |
+| Request Method | GET                            |
+| Request Header | Content-Type: application/json |
+| Body data      | Không có                       |
+
+### 9.2.2 Dữ liệu nhận vào
+
+**code và state được trả trong callback url sau khi oauth trả về callback**
+
+| **Tên trường** | **Kiểu** | **Bắt buộc** | **Ghi chú**                             |
+| -------------- | -------- | ------------ | --------------------------------------- |
+| code           | string   | ✓            | Authorization code trả về từ provider   |
+| state          | string   | ✓            | Giá trị chống CSRF, phải trùng với init |
+
+### 9.2.3 Dữ liệu đầu ra
+
+**Success Respone**
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-09-12T08:59:27.490Z",
+    "version": "v1"
+  },
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.",
+    "user": {
+      "id": "5a99142a-14dc-4cc0-a275-fc96f8690000",
+      "email": "providminh24092004@gmail.com",
+      "username": "providminh24092004",
+      "role": "USER"
+    }
+  }
+}
+```
+
+**Error Response:**
+
+**Missing state**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Missing state",
+    "details": {}
+  },
+  "meta": {
+    "timestamp": "2025-09-12T09:06:25.412Z",
+    "version": "v1"
+  }
+}
+```
+
+**Missing code**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Missing state",
+    "details": {}
+  },
+  "meta": {
+    "timestamp": "2025-09-12T09:06:25.412Z",
+    "version": "v1"
+  }
+}
+```

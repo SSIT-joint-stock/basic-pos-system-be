@@ -6,5 +6,5 @@ export class VerifyEmailDto {
 
   @IsNotEmpty()
   @MinLength(6)
-  code: string;
+  verificationCode: string;
 }

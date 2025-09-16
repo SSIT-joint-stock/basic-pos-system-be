@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; // Giả sử PrismaService ở đây
+import { PrismaService } from '../prisma/prisma.service';
 import { User } from '@prisma/client'; // Import từ Prisma client
 import { nanoid } from 'nanoid';
 
@@ -19,28 +19,6 @@ export class UserRepository {
       },
     });
   }
-
-  // Check if user is active
-  // async isActive(id: string): Promise<boolean> {
-  //   const user = await this.findById(id);
-  //   return user?.isActive ?? false;
-  // }
-
-  // Email verification
-  // async verifyEmail(id: string): Promise<void> {
-  //   await this.update(id, { emailVerified: true });
-  // }
-
-  // Activate user
-  // async activate(id: string): Promise<void> {
-  //   await this.update(id, { isActive: true });
-  // }
-
-  // Deactivate user
-  // async deactivate(id: string): Promise<void> {
-  //   await this.update(id, { isActive: false });
-  // }
-
   // Create user
   async create(
     user: Omit<UserEntity, 'id' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>,
@@ -78,13 +56,6 @@ export class UserRepository {
       where: { providerId },
     });
   }
-
-  // // Find user by resetToken
-  // async findByResetToken(resetToken: string): Promise<UserEntity | null> {
-  //   return this.prisma.user.findFirst({
-  //     where: { resetToken },
-  //   });
-  // }
 
   // Find user by email
   async findByEmail(email: string): Promise<UserEntity | null> {

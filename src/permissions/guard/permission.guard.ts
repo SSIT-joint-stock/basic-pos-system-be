@@ -8,18 +8,19 @@ import {
   PermissionLogic,
   PERMISSIONS_KEY,
 } from 'app/common/decorators/permission.decorator';
-import { IUSER } from 'app/auth/token.service';
+
 import {
   ForbiddenError,
   ValidationError,
   NotFoundError,
 } from 'app/common/response';
+import { IUser } from 'app/common/types/user.type';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
   constructor(
     private readonly permissionService: PermissionService,
-    private readonly reflector: Reflector,
+    private readonly reflector: Reflector, // doc metadata
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -40,12 +41,7 @@ export class PermissionGuard implements CanActivate {
     );
 
     const request = context.switchToHttp().getRequest();
-    const user: IUSER = request.user;
-
-    //Check : User authentication
-    if (!user) {
-      throw new ForbiddenError('User not authenticated!');
-    }
+    const user: IUser = request.user;
 
     //Check : StoreId validation
     const storeId = this.extractStoreId(request);

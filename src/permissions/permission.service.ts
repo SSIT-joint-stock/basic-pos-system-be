@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { StoreMemberRole } from '@prisma/client';
-import { IUSER } from 'app/auth/token.service';
+
 import {
   IUserWithPermissions,
   Permission,
   PermissionAction,
   PERMISSIONS,
 } from 'app/common/types/permission.type';
+import { IUser } from 'app/common/types/user.type';
 import { PrismaService } from 'app/prisma/prisma.service';
 
 @Injectable()
@@ -27,6 +28,10 @@ export class PermissionService {
 
       PERMISSIONS.PRODUCT_READ,
       PERMISSIONS.PRODUCT_UPDATE,
+
+      PERMISSIONS.CATEGORY_CREATE,
+      PERMISSIONS.CATEGORY_UPDATE,
+      PERMISSIONS.CATEGORY_READ,
 
       PERMISSIONS.ORDER_CREATE,
       PERMISSIONS.ORDER_READ,
@@ -155,7 +160,7 @@ export class PermissionService {
   // lay user permissions cua store
   async getUserWithPermissions(
     storeId: string,
-    user: IUSER,
+    user: IUser,
   ): Promise<IUserWithPermissions> {
     const role = await this.getUserStoreRole(storeId, user.id);
 
@@ -212,23 +217,23 @@ export class PermissionService {
       },
     });
   }
-  async hasStoreAccess(storeId: string, userId: string) {
-    const role = await this.getUserStoreRole(storeId, userId);
+  // async hasStoreAccess(storeId: string, userId: string) {
+  //   const role = await this.getUserStoreRole(storeId, userId);
 
-    return role !== null;
-  }
-  async getStoreAccessInfo(storeId: string, userId: string) {
-    const store = await this.findStoreById(storeId);
-    const role = await this.getUserStoreRole(storeId, userId);
-    const permissions = await this.getUserPermissions(storeId, userId);
+  //   return role !== null;
+  // }
+  // async getStoreAccessInfo(storeId: string, userId: string) {
+  //   const store = await this.findStoreById(storeId);
+  //   const role = await this.getUserStoreRole(storeId, userId);
+  //   const permissions = await this.getUserPermissions(storeId, userId);
 
-    return {
-      store,
-      hasAccess: role !== null,
-      role,
-      permissions,
-      isOwner: role === 'OWNER',
-      isMember: role && role !== 'OWNER',
-    };
-  }
+  //   return {
+  //     store,
+  //     hasAccess: role !== null,
+  //     role,
+  //     permissions,
+  //     isOwner: role === 'OWNER',
+  //     isMember: role && role !== 'OWNER',
+  //   };
+  // }
 }

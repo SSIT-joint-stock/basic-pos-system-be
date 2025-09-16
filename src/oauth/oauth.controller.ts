@@ -7,18 +7,13 @@ import { Public } from 'app/common/decorators/public.decorator';
 import express from 'express';
 // import { User } from '@prisma/client';
 
-export interface AuthResponse {
-  accesstoken: string;
-  refreshtoken: string;
-  // user: User;
-}
 @Controller('auth')
 export class OAuthController {
   constructor(private readonly authService: OAuthService) {}
 
   @Public()
   @Get('init')
-  googleAuth(@Res() res) {
+  googleAuth(@Res() res: express.Response) {
     const initParams: OAuthInitDto = {
       provider: 'google',
       redirectUri: 'http://localhost:3000/api/v1/auth/callback',
@@ -32,11 +27,13 @@ export class OAuthController {
   @Get('callback')
   async googleAuthCallback(
     @Query('code') code: string,
+    @Query('state') state: string,
     @Res({ passthrough: true }) res: express.Response,
-  ): Promise<AuthResponse> {
+  ) {
     const callbackParams: OAuthCallbackDto = {
       provider: 'google',
       code,
+      state,
       redirectUri: 'http://localhost:3000/api/v1/auth/callback',
     };
     const result = await this.authService.callback(callbackParams);
@@ -45,10 +42,17 @@ export class OAuthController {
       sameSite: 'strict',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
+
     return {
-      accesstoken: result.accessToken || '',
-      refreshtoken: result.refreshToken || '',
-      // user: result.user,
+      accessToken: result.accessToken || '',
+      refreshToken: result.refreshToken || '',
+
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
+        role: result.user.role,
+      },
     };
   }
 }
