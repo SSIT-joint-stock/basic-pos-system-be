@@ -63,7 +63,8 @@ enum stock_movement_type {
   // Return the stock of a product from the customer to the supplier (for example: return 10 units of a product to the customer)
   RETURN_SALE
   // Transfer the stock of a product from one store to another store (for example: transfer 10 units of a product from one store to another store)
-  TRANSFER
+  TRANSFER_IMPORT
+  TRANSFER_EXPORT
 }
 
 enum payment_method {

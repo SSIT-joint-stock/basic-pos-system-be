@@ -24,9 +24,14 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { TokenService } from './auth/token.service';
 import { HealthModule } from './health/health.module';
+import { ProductModule } from './module/product/product.module';
 import { OAuthModule } from './oauth/oauth.module';
 import { StoreModule } from './store/store.module';
+import { CategoryModule } from './module/category/category.module';
 
+import { InventoryModule } from './module/inventory/inventory.module';
+import { StockMovementModule } from './module/stock-movement/stock-movement.module';
+import { OrdersModule } from './orders/orders.module';
 @Module({
   imports: [
     ServeStaticModule.forRoot(
@@ -67,12 +72,18 @@ import { StoreModule } from './store/store.module';
     PrismaModule,
     UsersModule,
     AuthModule,
+    StoreModule,
+    ProductModule,
+    OAuthModule,
     ScheduleModule.forRoot(),
     JobsModule,
-    DocsModule,
+    ProductModule,
+    StockMovementModule,
+    InventoryModule,
     HealthModule,
-    OAuthModule,
-    StoreModule,
+    CategoryModule,
+    DocsModule,
+    OrdersModule,
   ],
   providers: [
     TokenService,
