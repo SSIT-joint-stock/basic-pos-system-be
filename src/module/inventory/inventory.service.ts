@@ -68,6 +68,14 @@ export class InventoryService {
         skip: query.skip,
         take: query.take,
         orderBy: query.orderBy,
+        include: {
+          product: {
+            select: {
+              name: true,
+              price: true,
+            },
+          },
+        },
       }),
       this.prisma.inventory.count({
         where,
@@ -82,6 +90,14 @@ export class InventoryService {
   async findById(store_id: string, id: string) {
     const inventory = await this.prisma.inventory.findUnique({
       where: { id, product: { store_id } },
+      include: {
+        product: {
+          select: {
+            name: true,
+            price: true,
+          },
+        },
+      },
     });
     if (!inventory) {
       throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);

@@ -102,7 +102,11 @@
       "total": 100,
       "status": "INACTIVE",
       "createdAt": "2025-09-09T17:20:35.255Z",
-      "updatedAt": "2025-09-10T03:53:50.625Z"
+      "updatedAt": "2025-09-10T03:53:50.625Z",
+      "product": {
+        "name": "iPhone 16 Pro Max",
+        "price": 300
+      }
     }
   ],
   "message": "Find all inventory successfully"
@@ -178,7 +182,11 @@
     "total": 100,
     "status": "INACTIVE",
     "createdAt": "2025-09-09T17:20:35.255Z",
-    "updatedAt": "2025-09-10T03:53:50.625Z"
+    "updatedAt": "2025-09-10T03:53:50.625Z",
+    "product": {
+      "name": "iPhone 16 Pro Max",
+      "price": 300
+    }
   },
   "message": "Find invetory by Id successfully"
 }
