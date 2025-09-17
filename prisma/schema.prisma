@@ -123,6 +123,9 @@ model Store {
   owner_id    String   @db.Uuid
   name        String
   description String?
+  phone_number String?
+  address String?
+  business_hour String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

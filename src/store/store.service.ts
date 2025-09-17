@@ -118,6 +118,7 @@ export class StoreService {
             products: true,
             categories: true,
             customer: true,
+            members: true,
           },
         },
       },
