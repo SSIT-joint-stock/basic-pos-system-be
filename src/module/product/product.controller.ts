@@ -96,7 +96,10 @@ export class ProductController {
     })
     query,
   ) {
-    const { data, total } = await this.productService.findAll(storeId, query);
+    const { data, total } = await this.productService.findAll(
+      storeId,
+      query.prismaQuery,
+    );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 

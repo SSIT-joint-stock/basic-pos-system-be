@@ -45,16 +45,53 @@
 | Request Header | `Authorization: Bearer <token>`       |
 | Quyền yêu cầu  | `INVENTORY_READ` hoặc `INVENTORY_ALL` |
 
-### 1.2 Response
+> Controller:
+> `@Get()`
+> `@RequirePermissions([INVENTORY_READ, ALL], 'OR')`
 
-**200 OK**
+---
+
+## 1.2 Query Parameters
+
+### Phân trang, sắp xếp, khoảng ngày (từ `@FilterParse`)
+
+| Tên         | Kiểu              | Bắt buộc | Mặc định    | Mô tả                                                          |
+| ----------- | ----------------- | -------- | ----------- | -------------------------------------------------------------- |
+| `page`      | int (string)      | Không    | `1`         | Trang hiện tại                                                 |
+| `limit`     | int (string)      | Không    | `10`        | Số bản ghi mỗi trang                                           |
+| `sortBy`    | string            | Không    | `createdAt` | Trường sắp xếp. **Chỉ chấp nhận**: `createdAt`, `total_amount` |
+| `sort`      | `'asc' \| 'desc'` | Không    | `desc`      | Thứ tự sắp xếp                                                 |
+| `startDate` | string (ISO)      | Không    | —           | Lọc từ ngày bắt đầu (map `createdAt.gte`)                      |
+| `endDate`   | string (ISO)      | Không    | —           | Lọc đến ngày kết thúc (map `createdAt.lte`, endOf('day'))      |
+
+> Ghi chú: `startDate`/`endDate` được decorator convert sang `createdAt: { gte, lte }`.
+> Lọc luôn bị ràng buộc theo store qua quan hệ `product.store_id = :storeId`.
+
+### Trường lọc nghiệp vụ (từ `FindInventoryDto`)
+
+| Tên            | Kiểu                    | Bắt buộc | Mô tả                       |
+| -------------- | ----------------------- | -------- | --------------------------- |
+| `status`       | enum `inventory_status` | Không    | Lọc theo trạng thái tồn kho |
+| `min_quantity` | number (int ≥ 0)        | Không    | `quantity >= min_quantity`  |
+| `max_quantity` | number (int ≥ 0)        | Không    | `quantity <= max_quantity`  |
+| `min_discount` | number (int ≥ 0)        | Không    | `discount >= min_discount`  |
+| `max_discount` | number (int ≥ 0)        | Không    | `discount <= max_discount`  |
+| `min_total`    | number (int ≥ 0)        | Không    | `total >= min_total`        |
+| `max_total`    | number (int ≥ 0)        | Không    | `total <= max_total`        |
+
+---
+
+## 1.3 Dữ liệu đầu ra
+
+### 200 – OK
 
 ```json
 {
   "success": true,
   "meta": {
     "timestamp": "2025-09-11T14:31:06.377Z",
-    "version": "v1"
+    "version": "v1",
+    "pagination": { "page": 1, "limit": 20, "total": 1, "totalPages": 1 }
   },
   "data": [
     {
@@ -65,14 +102,30 @@
       "total": 100,
       "status": "INACTIVE",
       "createdAt": "2025-09-09T17:20:35.255Z",
-      "updatedAt": "2025-09-10T03:53:50.625Z"
+      "updatedAt": "2025-09-10T03:53:50.625Z",
+      "product": {
+        "name": "iPhone 16 Pro Max",
+        "price": 300
+      }
     }
   ],
   "message": "Find all inventory successfully"
 }
 ```
 
-**404 Not Found – Store không tồn tại**
+### Lỗi thường gặp
+
+**403 – Forbidden**
+
+```json
+{
+  "success": false,
+  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
+  "meta": { "timestamp": "2025-09-11T14:20:11.000Z", "version": "v1" }
+}
+```
+
+**404 – Store Not Found**
 
 ```json
 {
@@ -82,15 +135,20 @@
 }
 ```
 
-**403 Forbidden – Không có quyền**
+**422 – Unprocessable Entity** _(ví dụ: `sortBy` không thuộc danh sách cho phép)_
 
 ```json
 {
   "success": false,
-  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
+  "error": {
+    "code": "UNPROCESSABLE_ENTITY",
+    "message": "Invalid sortBy field: <field>"
+  },
   "meta": { "timestamp": "2025-09-11T14:20:11.000Z", "version": "v1" }
 }
 ```
+
+> Mẹo nhỏ: nếu bảng `inventory` **không có** cột `total_amount`, hãy đổi `allowedSortBy` thành các cột thật như `createdAt`, `quantity`, `total`, `discount` để tránh lỗi Prisma ở runtime.
 
 ---
 
@@ -124,7 +182,11 @@
     "total": 100,
     "status": "INACTIVE",
     "createdAt": "2025-09-09T17:20:35.255Z",
-    "updatedAt": "2025-09-10T03:53:50.625Z"
+    "updatedAt": "2025-09-10T03:53:50.625Z",
+    "product": {
+      "name": "iPhone 16 Pro Max",
+      "price": 300
+    }
   },
   "message": "Find invetory by Id successfully"
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BadRequestError, NotFoundError } from 'app/common/response';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { Prisma, stock_movement_type } from '@prisma/client';
+import { FindStockMovementDto } from './dto/find-stock-movement.dto';
 
 @Injectable()
 export class StockMovementService {
@@ -47,21 +48,38 @@ export class StockMovementService {
     return stockMovement;
   }
 
-  async findAll(store_id: string) {
-    const stockMovements = await this.prisma.stockMovement.findMany({
-      where: {
-        product: {
-          store_id: store_id,
-        },
+  async findAll(
+    store_id: string,
+    query: Prisma.StockMovementFindManyArgs,
+    data: FindStockMovementDto,
+  ) {
+    const where: Prisma.StockMovementWhereInput = {
+      AND: [
+        query.where ?? {},
+        data.type ? { type: data.type } : {},
+        data.min_quantity ? { quantity: { gte: data.min_quantity } } : {},
+        data.max_quantity ? { quantity: { lte: data.max_quantity } } : {},
+      ],
+      product: {
+        store_id,
       },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (stockMovements.length === 0) {
-      throw new NotFoundError(
-        this.errorMessages.NO_STOCK_MOVEMENT_FOUND_IN_STORE,
-      );
-    }
-    return stockMovements;
+    };
+
+    const [stock_movements, total] = await Promise.all([
+      this.prisma.stockMovement.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+      }),
+      this.prisma.stockMovement.count({
+        where,
+      }),
+    ]);
+    return {
+      data: stock_movements,
+      total,
+    };
   }
 
   async findOne(store_id: string, id: string) {

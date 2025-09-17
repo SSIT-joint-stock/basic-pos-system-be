@@ -26,18 +26,47 @@
 | Request URL    | `/api/stores/:storeId/stock-movements` |
 | Request Method | **GET**                                |
 | Request Header | `Authorization: Bearer <token>`        |
-| Quyền yêu cầu  | `STOCK_MOVEMENT_READ`                  |
+| Quyền yêu cầu  | `STOCK_MOVEMENT_READ` **hoặc** `ALL`   |
 
-### 1.2 Dữ liệu đầu ra
+---
 
-**Success Response (200):**
+## 1.2 Query Parameters
+
+### Phân trang, sắp xếp, khoảng ngày (từ `@FilterParse`)
+
+| Tên         | Kiểu              | Bắt buộc | Mặc định    | Mô tả                                                          |
+| ----------- | ----------------- | -------- | ----------- | -------------------------------------------------------------- |
+| `page`      | int (string)      | Không    | `1`         | Trang hiện tại                                                 |
+| `limit`     | int (string)      | Không    | `10`        | Số bản ghi mỗi trang                                           |
+| `sortBy`    | string            | Không    | `createdAt` | Trường sắp xếp. **Chỉ chấp nhận**: `createdAt`, `total_amount` |
+| `sort`      | `'asc' \| 'desc'` | Không    | `desc`      | Thứ tự sắp xếp                                                 |
+| `startDate` | string (ISO)      | Không    | —           | Lọc từ ngày bắt đầu (map `createdAt.gte`)                      |
+| `endDate`   | string (ISO)      | Không    | —           | Lọc đến ngày kết thúc (map `createdAt.lte`, endOf('day'))      |
+
+> Ghi chú: `startDate`/`endDate` được convert thành `createdAt: { gte, lte }`.
+> Lọc luôn bị ràng buộc theo cửa hàng qua quan hệ `product.store_id = :storeId`.
+
+### Trường lọc nghiệp vụ (từ `FindStockMovementDto`)
+
+| Tên            | Kiểu                       | Bắt buộc | Mô tả                                                                                   |
+| -------------- | -------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `type`         | enum `stock_movement_type` | Không    | Loại biến động: `ADJUSTMENT`, `PURCHASE`, `SALE`, `RETURN_IN`, `RETURN_OUT`, `TRANSFER` |
+| `min_quantity` | number (int ≥ 0)           | Không    | Số lượng tối thiểu (`quantity >= min_quantity`)                                         |
+| `max_quantity` | number (int ≥ 0)           | Không    | Số lượng tối đa (`quantity <= max_quantity`)                                            |
+
+---
+
+## 1.3 Dữ liệu đầu ra
+
+### 200 – Success
 
 ```json
 {
   "success": true,
   "meta": {
     "timestamp": "2025-09-11T15:12:51.487Z",
-    "version": "v1"
+    "version": "v1",
+    "pagination": { "page": 1, "limit": 20, "total": 3, "totalPages": 1 }
   },
   "data": [
     {
@@ -69,15 +98,28 @@
 }
 ```
 
-**Error Response:**
+### Lỗi thường gặp
 
-- **404 Not Found – Store không tồn tại**
+**404 – Store Not Found**
 
 ```json
 {
   "success": false,
   "error": { "code": "NOT_FOUND", "message": "Store not found" },
-  "meta": { "timestamp": "2025-09-11T08:20:11.000Z", "version": "v1" }
+  "meta": { "timestamp": "2025-09-11T15:12:51.487Z", "version": "v1" }
+}
+```
+
+**422 – Unprocessable Entity** _(ví dụ: `sortBy` không thuộc `['createdAt','total_amount']` hoặc tham số không hợp lệ)_
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "UNPROCESSABLE_ENTITY",
+    "message": "Invalid sortBy field: <field>"
+  },
+  "meta": { "timestamp": "2025-09-11T15:12:51.487Z", "version": "v1" }
 }
 ```
 
