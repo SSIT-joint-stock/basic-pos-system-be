@@ -179,6 +179,14 @@ export class StoreService {
     if (!userExists) {
       throw new ConflictError('User not found');
     }
+    if (userExists.is_verified === false) {
+      throw new ForbiddenError('User is not verified');
+    }
+    // Không cho owner tự add mình
+    if (userExists.id === owner.id) {
+      throw new ConflictError('Owner cannot be added as a member');
+    }
+
     const memberExits = await this.prismaService.storeMember.findFirst({
       where: {
         userId: userExists.id,
