@@ -39,9 +39,27 @@ export class InventoryService {
     private readonly stockMovementService: StockMovementService,
   ) {}
 
-  async findAll(store_id: string, query: Prisma.InventoryFindManyArgs) {
+  async findAll(
+    store_id: string,
+    query: Prisma.InventoryFindManyArgs,
+    product_name?: string,
+  ) {
     const where: Prisma.InventoryWhereInput = {
-      AND: [query.where ?? {}, { product: { store_id } }],
+      AND: [
+        query.where ?? {},
+        {
+          product: {
+            store_id,
+            ...(product_name
+              ? {
+                  OR: [
+                    { name: { contains: product_name, mode: 'insensitive' } },
+                  ],
+                }
+              : {}),
+          },
+        },
+      ],
     };
 
     const [inventories, total] = await Promise.all([

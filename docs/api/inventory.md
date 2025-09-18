@@ -69,15 +69,16 @@
 
 ### Trường lọc nghiệp vụ (từ `FindInventoryDto`)
 
-| Tên            | Kiểu                    | Bắt buộc | Mô tả                       |
-| -------------- | ----------------------- | -------- | --------------------------- |
-| `status`       | enum `inventory_status` | Không    | Lọc theo trạng thái tồn kho |
-| `min_quantity` | number (int ≥ 0)        | Không    | `quantity >= min_quantity`  |
-| `max_quantity` | number (int ≥ 0)        | Không    | `quantity <= max_quantity`  |
-| `min_discount` | number (int ≥ 0)        | Không    | `discount >= min_discount`  |
-| `max_discount` | number (int ≥ 0)        | Không    | `discount <= max_discount`  |
-| `min_total`    | number (int ≥ 0)        | Không    | `total >= min_total`        |
-| `max_total`    | number (int ≥ 0)        | Không    | `total <= max_total`        |
+| Tên            | Kiểu                    | Bắt buộc | Mô tả                                    |
+| -------------- | ----------------------- | -------- | ---------------------------------------- |
+| `status`       | enum `inventory_status` | Không    | Lọc theo trạng thái tồn kho              |
+| `min_quantity` | number (int ≥ 0)        | Không    | `quantity >= min_quantity`               |
+| `max_quantity` | number (int ≥ 0)        | Không    | `quantity <= max_quantity`               |
+| `min_discount` | number (int ≥ 0)        | Không    | `discount >= min_discount`               |
+| `max_discount` | number (int ≥ 0)        | Không    | `discount <= max_discount`               |
+| `min_total`    | number (int ≥ 0)        | Không    | `total >= min_total`                     |
+| `max_total`    | number (int ≥ 0)        | Không    | `total <= max_total`                     |
+| `productName`  | string                  | khong    | Ten product (không phân biệt hoa thường) |
 
 ---
 

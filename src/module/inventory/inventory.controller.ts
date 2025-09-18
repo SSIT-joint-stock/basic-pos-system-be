@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Patch,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
@@ -21,6 +23,7 @@ import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import z from 'zod';
 import { PaginatedResponse } from 'app/common/response';
 import { inventory_status } from '@prisma/client';
+import { ProductNameSchema } from './dto/find-all.dto';
 
 @Controller('stores/:storeId/inventories')
 @UseGuards(PermissionGuard)
@@ -69,10 +72,17 @@ export class InventoryController {
       }),
     })
     query,
+    @Query('productName') productName?: string,
   ) {
+    const result = ProductNameSchema.safeParse(productName);
+
+    if (!result.success) {
+      throw new BadRequestException(result.error.format());
+    }
     const { data, total } = await this.inventoryService.findAll(
       store_id,
       query.prismaQuery,
+      result.data,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }

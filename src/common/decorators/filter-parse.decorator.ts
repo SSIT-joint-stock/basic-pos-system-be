@@ -239,7 +239,7 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
         take: result.limit,
         orderBy,
       };
-      console.log(result);
+      // console.log(result);
       return result;
     },
   )();
