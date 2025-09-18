@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { BadRequestError, NotFoundError } from 'app/common/response';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { Prisma, stock_movement_type } from '@prisma/client';
-import { FindStockMovementDto } from './dto/find-stock-movement.dto';
 
 @Injectable()
 export class StockMovementService {
@@ -48,18 +47,9 @@ export class StockMovementService {
     return stockMovement;
   }
 
-  async findAll(
-    store_id: string,
-    query: Prisma.StockMovementFindManyArgs,
-    data: FindStockMovementDto,
-  ) {
+  async findAll(store_id: string, query: Prisma.StockMovementFindManyArgs) {
     const where: Prisma.StockMovementWhereInput = {
-      AND: [
-        query.where ?? {},
-        data.type ? { type: data.type } : {},
-        data.min_quantity ? { quantity: { gte: data.min_quantity } } : {},
-        data.max_quantity ? { quantity: { lte: data.max_quantity } } : {},
-      ],
+      AND: [query.where ?? {}],
       product: {
         store_id,
       },

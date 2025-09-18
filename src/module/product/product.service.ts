@@ -10,7 +10,6 @@ import {
   NotFoundError,
 } from 'app/common/response';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
-import { FilterProductsDto } from './dto/filter-product.dto';
 
 @Injectable()
 export class ProductService {
@@ -196,33 +195,10 @@ export class ProductService {
     await this.prisma.product.delete({ where: { id } });
   }
 
-  async filterProducts(
-    store_id: string,
-    data: FilterProductsDto,
-    query: Prisma.ProductFindManyArgs,
-  ) {
+  async filterProducts(store_id: string, query: Prisma.ProductFindManyArgs) {
     // TODO: chua co meta
     const where: Prisma.ProductWhereInput = {
-      AND: [
-        query.where ?? {},
-        { store_id },
-        data.sku ? { sku: data.sku } : {},
-        data.barcode ? { barcode: data.barcode } : {},
-        data.min_price ? { price: { gte: data.min_price } } : {},
-        data.max_price ? { price: { lte: data.max_price } } : {},
-        data.min_cost ? { cost: { gte: data.min_cost } } : {},
-        data.max_cost ? { cost: { lte: data.max_cost } } : {},
-        data.image_url ? { image_url: data.image_url } : {},
-        data.product_status ? { product_status: data.product_status } : {},
-        data.q
-          ? {
-              OR: [
-                { name: { contains: data.q, mode: 'insensitive' } },
-                { description: { contains: data.q, mode: 'insensitive' } },
-              ],
-            }
-          : {},
-      ],
+      AND: [query.where ?? {}, { store_id }],
     };
 
     const [products, total] = await Promise.all([

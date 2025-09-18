@@ -51,14 +51,15 @@ export class InventoryController {
       defaultSortBy: 'createdAt',
       defaultSort: 'asc',
       allowedSortBy: ['createdAt', 'total_amount'],
+      rangeFields: ['quantity', 'discount', 'total_amount'],
       schema: z.object({
         status: z.enum(inventory_status).optional(),
-        min_quantity: z.number().optional(),
-        max_quantity: z.number().optional(),
-        min_discount: z.number().optional(),
-        max_discount: z.number().optional(),
-        min_total: z.number().optional(),
-        max_total: z.number().optional(),
+        min_quantity: z.coerce.number().optional(),
+        max_quantity: z.coerce.number().optional(),
+        min_discount: z.coerce.number().optional(),
+        max_discount: z.coerce.number().optional(),
+        min_total: z.coerce.number().optional(),
+        max_total: z.coerce.number().optional(),
         createdAt: z
           .object({
             gte: z.string().optional(),

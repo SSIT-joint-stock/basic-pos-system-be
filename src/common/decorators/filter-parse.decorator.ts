@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   createParamDecorator,
   ExecutionContext,
@@ -32,7 +36,40 @@ interface FilterParseOptions<TSchema extends ZodObject<any>> {
   allowedSortBy?: string[];
   defaultSortBy: string;
   defaultSort: 'asc' | 'desc';
+  rangeFields?: string[]; // Hoa thêm dòng này
+  searchBy?: string[]; // ⬅️ thêm
+  searchKey?: string; // ⬅️ thêm (mặc định 'q')
 }
+
+////////////////////////////////////////////////////////////////// Hoa add
+// helpers gọn:
+const toNum = (v: unknown) => {
+  if (v === undefined || v === null || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+function foldMinMax(
+  where: Record<string, any>,
+  data: Record<string, any>,
+  fields: string[],
+) {
+  for (const f of fields) {
+    const min = toNum(data[`min_${f}`]);
+    const max = toNum(data[`max_${f}`]);
+    if (min != null || max != null) {
+      where[f] = {
+        ...(where[f] ?? {}),
+        ...(min != null ? { gte: min } : {}),
+        ...(max != null ? { lte: max } : {}),
+      };
+    }
+    // Không đưa min_*/max_* vào where thuần
+    delete (data as any)[`min_${f}`];
+    delete (data as any)[`max_${f}`];
+  }
+}
+/////////////////////////////////////////////////////////////////
 
 //
 // 🔹 Infer filters type from schema
@@ -82,11 +119,13 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
       const validatedQuery = parsed.data as DefaultUserQueryType &
         InferFilters<TSchema>;
 
-      console.log(validatedQuery);
+      // console.log(validatedQuery);
       const result = {} as FilterParseResult<InferFilters<TSchema>>;
       const filters = {} as Partial<InferFilters<TSchema>> & {
         createdAt?: { gte?: Date; lte?: Date };
       };
+
+      const qKey = options.searchKey ?? 'q'; // <-- thêm dòng này
 
       //
       // ✅ Pagination
@@ -108,16 +147,43 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
       (
         Object.keys(validatedQuery) as Array<keyof typeof validatedQuery>
       ).forEach((key) => {
+        const k = String(key); // ⬅️ ép về string
         if (
           !['page', 'limit', 'sort', 'sortBy', 'startDate', 'endDate'].includes(
-            key as string,
-          )
+            k,
+          ) &&
+          !k.startsWith('min_') && // Hoa add
+          !k.startsWith('max_') && // Hoa add
+          k !== 'createdAt' &&
+          k !== qKey // ⬅️ bỏ q ra để xử lý riêng
         ) {
           {
             filters[key as keyof InferFilters<TSchema>] = validatedQuery[key];
           }
         }
       });
+
+      ////////////////////////////////////////////////////
+      // ✅ Map min_/max_ thành range Prisma
+      if (options.rangeFields?.length) {
+        foldMinMax(filters, validatedQuery as any, options.rangeFields);
+      }
+
+      if (options.searchBy?.length) {
+        const qVal = (validatedQuery as any)[qKey] as string | undefined;
+        if (qVal && qVal.trim().length) {
+          const or = options.searchBy.map((field) => ({
+            [field]: { contains: qVal, mode: 'insensitive' as const },
+          }));
+          // gộp OR nếu đã có
+          if ((filters as any).OR?.length) {
+            (filters as any).OR = [...(filters as any).OR, ...or];
+          } else {
+            (filters as any).OR = or;
+          }
+        }
+      }
+      ///////////////////////////////////////////////////////
 
       if (options.allowGetBetweenDate) {
         filters.createdAt = {

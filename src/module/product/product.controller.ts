@@ -9,7 +9,6 @@ import {
   Param,
   Delete,
   UseGuards,
-  Query,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -20,10 +19,10 @@ import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
 import { ApiSuccess } from 'app/common/decorators';
-import { FilterProductsDto } from './dto/filter-product.dto';
 import z from 'zod';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
+import { product_status } from '@prisma/client';
 
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
@@ -41,22 +40,32 @@ export class ProductController {
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
       allowedSortBy: ['createdAt', 'total_amount'],
+      rangeFields: ['cost', 'price'], // thêm dòng này
+      searchBy: ['name', 'description'], // thêm dòng này
+      // searchKey: 'q',                       // FIX: nếu muốn đổi tên key tìm kiếm
       schema: z.object({
+        q: z.string().optional(), // ⬅️ thêm q vào schema
         createdAt: z
           .object({
             gte: z.string().optional(),
             lte: z.string().optional(),
           })
           .optional(),
+        min_price: z.coerce.number().optional(),
+        max_price: z.coerce.number().optional(),
+        min_cost: z.coerce.number().optional(),
+        max_cost: z.coerce.number().optional(),
+        sku: z.string().optional(),
+        barcode: z.string().optional(),
+        image_url: z.string().url().optional(),
+        product_status: z.enum(product_status).optional(),
       }),
     })
     query,
     @Param('storeId') storeId: string,
-    @Query() dto: FilterProductsDto,
   ) {
     const { data, total } = await this.productService.filterProducts(
       storeId,
-      dto,
       query.prismaQuery,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
