@@ -7,7 +7,6 @@ import {
   Param,
   Patch,
   Put,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
@@ -21,7 +20,7 @@ import { PermissionGuard } from 'app/permissions/guard/permission.guard';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import z from 'zod';
 import { PaginatedResponse } from 'app/common/response';
-import { FindInventoryDto } from './dto/find-all.dto';
+import { inventory_status } from '@prisma/client';
 
 @Controller('stores/:storeId/inventories')
 @UseGuards(PermissionGuard)
@@ -53,6 +52,13 @@ export class InventoryController {
       defaultSort: 'asc',
       allowedSortBy: ['createdAt', 'total_amount'],
       schema: z.object({
+        status: z.enum(inventory_status).optional(),
+        min_quantity: z.number().optional(),
+        max_quantity: z.number().optional(),
+        min_discount: z.number().optional(),
+        max_discount: z.number().optional(),
+        min_total: z.number().optional(),
+        max_total: z.number().optional(),
         createdAt: z
           .object({
             gte: z.string().optional(),
@@ -62,12 +68,10 @@ export class InventoryController {
       }),
     })
     query,
-    @Query() dto: FindInventoryDto,
   ) {
     const { data, total } = await this.inventoryService.findAll(
       store_id,
       query.prismaQuery,
-      dto,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
