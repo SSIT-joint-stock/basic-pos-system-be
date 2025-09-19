@@ -4,7 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 import { OAuthInitDto } from './dto/oauth-init.dto';
 import { OAuthCallbackDto } from './dto/oauth-callback.dto';
-import { TokenService } from 'app/auth/token.service';
+import { TokenService } from 'app/module/auth/token.service';
 import { PrismaService } from 'app/prisma/prisma.service';
 
 import {

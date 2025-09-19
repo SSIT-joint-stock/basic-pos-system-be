@@ -17,21 +17,22 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { JobsModule } from './jobs/jobs.module';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './module/auth/auth.module';
 import { DocsModule } from './docs/docs.module';
 import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesGuard } from './auth/guards/roles.guard';
-import { TokenService } from './auth/token.service';
+import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard';
+import { RolesGuard } from './module/auth/guards/roles.guard';
+import { TokenService } from './module/auth/token.service';
 import { HealthModule } from './health/health.module';
 import { ProductModule } from './module/product/product.module';
-import { OAuthModule } from './oauth/oauth.module';
-import { StoreModule } from './store/store.module';
+import { OAuthModule } from './module/oauth/oauth.module';
+import { StoreModule } from './module/store/store.module';
 import { CategoryModule } from './module/category/category.module';
 
 import { InventoryModule } from './module/inventory/inventory.module';
 import { StockMovementModule } from './module/stock-movement/stock-movement.module';
-import { OrdersModule } from './orders/orders.module';
+import { OrdersModule } from './module/orders/orders.module';
+
 @Module({
   imports: [
     ServeStaticModule.forRoot(

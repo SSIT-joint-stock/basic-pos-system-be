@@ -39,10 +39,10 @@ export class ProductController {
       allowGetBetweenDate: true,
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
-      allowedSortBy: ['createdAt', 'total_amount'],
+      allowedSortBy: ['createdAt', 'price', 'cost'],
       rangeFields: ['cost', 'price'], // thêm dòng này
       searchBy: ['name', 'description'], // thêm dòng này
-      // searchKey: 'q',                       // FIX: nếu muốn đổi tên key tìm kiếm
+      searchKey: 'q', // FIX: nếu muốn đổi tên key tìm kiếm
       schema: z.object({
         q: z.string().optional(), // ⬅️ thêm q vào schema
         createdAt: z
