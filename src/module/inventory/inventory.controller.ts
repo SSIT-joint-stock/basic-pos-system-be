@@ -24,22 +24,39 @@ import z from 'zod';
 import { PaginatedResponse } from 'app/common/response';
 import { inventory_status } from '@prisma/client';
 import { ProductNameSchema } from './dto/find-all.dto';
+import { ApplyStockMovementDto } from './dto/apply-stock-movement.dto';
 
 @Controller('stores/:storeId/inventories')
 @UseGuards(PermissionGuard)
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  @Put(':id')
+  @Put(':productId')
   @RequirePermissions([PERMISSIONS.INVENTORY_ADJUST, PERMISSIONS.ALL], 'OR')
   @ApiSuccess('Adjust quantity successfully')
   async adjustQuanity(
     @Param('storeId') storeId: string,
-    @Param('id') id: string,
+    @Param('productId') productId: string,
     @Body() adjustInventoryDto: AdjustInventoryDto,
   ) {
     const { delta } = adjustInventoryDto;
-    return this.inventoryService.adjustQuanity(storeId, id, delta);
+    return this.inventoryService.adjustQuanity(storeId, productId, delta);
+  }
+
+  @ApiSuccess('Apply Stock Movement successfully')
+  @Put('apllyStockMovement/:productId')
+  async apllyStockMovement(
+    @Param('storeId') storeId: string,
+    @Param('productId') productId: string,
+    @Body() apllyStockMovementDto: ApplyStockMovementDto,
+  ) {
+    const { delta, type } = apllyStockMovementDto;
+    return this.inventoryService.applyStockMovement(
+      type,
+      storeId,
+      productId,
+      delta,
+    );
   }
 
   @Get()

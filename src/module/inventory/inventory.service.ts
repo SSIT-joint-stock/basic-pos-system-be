@@ -18,13 +18,14 @@ export class InventoryService {
     INVALID_INVENTORY_STATUS: 'Invalid inventory status',
     INVALID_TYPE_MODIFY_INVENTORY: 'Invalid type modify inventory',
     NO_INVENTORY_FOUND_IN_STORE: 'No inventory found in store',
-    INVENTORY_OR_PRODUCT_NOT_ACTIVE: 'Inventory or product is not active',
+    INVENTORY_NOT_FOUNG_OR_NOT_ACTIVE: 'Inventory not found or not active',
     RESULT_QUANTY_CAN_NOT_NEGATIVE: 'Resulting quantity cannot be negative',
     CANNOT_MARK_SOLD_WHILE_STOCK_REMAINS:
       'Cannot mark as SOLD while quantity > 0',
 
     // Product Management
     PRODUCT_NOT_FOUND: 'Product not found',
+    PRODUCT_NOT_FOUND_OR_NOT_ACTIVE: 'Product not found or not active',
 
     // Store Management
     STORE_NOT_FOUND: 'Store not found',
@@ -32,6 +33,8 @@ export class InventoryService {
     // Authorization
     ONLY_STORE_OWNER_CAN_ADJUST: 'Only the store owner can adjust inventory',
     USER_NOT_IN_STORE: 'Only user in store can do this actions',
+    ADJUST_IS_NOT_ALLOW: 'ADJUSTMENT is not allowed here',
+    SALE_IS_NOT_ALLOW: 'SALE is not allowed here',
   };
 
   constructor(
@@ -64,7 +67,6 @@ export class InventoryService {
 
     const [inventories, total] = await Promise.all([
       this.prisma.inventory.findMany({
-        ...query,
         where,
         include: {
           product: {
@@ -104,40 +106,43 @@ export class InventoryService {
     return inventory;
   }
 
-  async adjustQuanity(store_id: string, id: string, delta: number) {
+  async adjustQuanity(store_id: string, productId: string, delta: number) {
     if (!Number.isFinite(delta) || delta === 0) {
       throw new BadRequestError(this.errorMessages.DELTA_NON_ZERO_NUMBER);
     }
     const updated = await this.prisma.$transaction(
       async (tx) => {
-        // 1) Kiem tra xem inventory co ton tai khong
-        const existing = await tx.inventory.findFirst({
+        // 1) Kiem tra xem product co ton tai hoac active khong khong
+        const product = await tx.product.findFirst({
           where: {
-            id,
+            id: productId,
+            store_id,
+            product_status: 'ACTIVE',
+          },
+          // select: { id: true, quantity: true },
+        });
+        if (!product)
+          throw new NotFoundError(
+            this.errorMessages.PRODUCT_NOT_FOUND_OR_NOT_ACTIVE,
+          );
+
+        //2) Kiem tra xem inventory co ton tai hoac active khong
+        const inventory = await tx.inventory.findFirst({
+          where: {
+            product_id: productId,
+            status: 'ACTIVE',
             product: {
               store_id,
             },
           },
-          select: { id: true, quantity: true },
         });
-        if (!existing)
-          throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
-
-        //2) Kiem tra xem inventory hoac product co active khong
-        const isActive = await tx.inventory.findFirst({
-          where: {
-            id: existing.id,
-            status: 'ACTIVE',
-            product: { store_id, product_status: 'ACTIVE' },
-          },
-        });
-        if (!isActive)
-          throw new BadRequestError(
-            this.errorMessages.INVENTORY_OR_PRODUCT_NOT_ACTIVE,
+        if (!inventory)
+          throw new NotFoundError(
+            this.errorMessages.INVENTORY_NOT_FOUNG_OR_NOT_ACTIVE,
           );
 
         // 3) Tính số lượng mới & validate
-        const newQty = existing.quantity + delta;
+        const newQty = inventory.quantity + delta;
         if (newQty < 0) {
           throw new ConflictError(
             this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
@@ -146,7 +151,7 @@ export class InventoryService {
 
         // 4) Cập nhật inventory trước, rồi tạo stock movement qua service có sẵn
         const updatedInv = await tx.inventory.update({
-          where: { id: existing.id },
+          where: { id: inventory.id },
           data: { quantity: newQty },
           select: {
             id: true,
@@ -157,7 +162,7 @@ export class InventoryService {
           },
         });
         await this.stockMovementService.create(
-          updatedInv.product_id,
+          productId,
           stock_movement_type.ADJUSTMENT,
           Math.abs(delta),
           tx,
@@ -292,6 +297,35 @@ export class InventoryService {
       throw new BadRequestError(this.errorMessages.DELTA_NON_ZERO_NUMBER);
     }
     const client = tx ?? this.prisma;
+    // 1) Kiem tra xem product co ton tai hoac active khong khong
+    const product = await client.product.findFirst({
+      where: {
+        id: productId,
+        store_id,
+        product_status: 'ACTIVE',
+      },
+      // select: { id: true, quantity: true },
+    });
+    if (!product)
+      throw new NotFoundError(
+        this.errorMessages.PRODUCT_NOT_FOUND_OR_NOT_ACTIVE,
+      );
+    console.log('asjhadkhakjdshajdshf:', product);
+
+    //2) Kiem tra xem inventory co ton tai hoac active khong
+    const inventory = await client.inventory.findFirst({
+      where: {
+        product_id: productId,
+        status: 'ACTIVE',
+        product: {
+          store_id,
+        },
+      },
+    });
+    if (!inventory)
+      throw new NotFoundError(
+        this.errorMessages.INVENTORY_NOT_FOUNG_OR_NOT_ACTIVE,
+      );
 
     //cac type nhap kho
     if (
@@ -299,21 +333,10 @@ export class InventoryService {
       type === stock_movement_type.PURCHASE ||
       type === stock_movement_type.TRANSFER_IMPORT
     ) {
-      const existing = await client.inventory.findFirst({
-        where: {
-          product_id: productId,
-          product: {
-            store_id,
-          },
-        },
-      });
-      if (!existing)
-        throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
-
-      const newQty = existing.quantity + delta;
+      const newQty = inventory.quantity + delta;
 
       const updated = await client.inventory.update({
-        where: { id: existing.id },
+        where: { id: inventory.id },
         data: {
           quantity: newQty,
         },
@@ -326,24 +349,13 @@ export class InventoryService {
       type === stock_movement_type.SALE ||
       type === stock_movement_type.TRANSFER_EXPORT
     ) {
-      const existing = await client.inventory.findFirst({
-        where: {
-          product_id: productId,
-          product: {
-            store_id,
-          },
-        },
-      });
-      if (!existing)
-        throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
-
-      const newQty = existing.quantity - delta;
+      const newQty = inventory.quantity - delta;
       if (newQty < 0)
         throw new BadRequestError(
           this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
         );
       const updated = await client.inventory.update({
-        where: { id: existing.id },
+        where: { id: inventory.id },
         data: {
           quantity: newQty,
         },
@@ -355,5 +367,39 @@ export class InventoryService {
       throw new BadRequestError(
         this.errorMessages.INVALID_TYPE_MODIFY_INVENTORY,
       );
+  }
+
+  // FIX: nhap theo lo thi sau nay phat trien
+  async applyStockMovement(
+    type: stock_movement_type,
+    store_id: string,
+    productId: string,
+    delta: number,
+  ) {
+    if (type === stock_movement_type.ADJUSTMENT) {
+      throw new BadRequestError(this.errorMessages.ADJUST_IS_NOT_ALLOW);
+    } else if (type === stock_movement_type.SALE) {
+      throw new BadRequestError(this.errorMessages.SALE_IS_NOT_ALLOW);
+    }
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const updatedInventory = await this.modify(
+          type,
+          store_id,
+          productId,
+          delta,
+          tx,
+        );
+        await this.stockMovementService.create(
+          productId,
+          type,
+          Math.abs(delta),
+          tx,
+        );
+        return updatedInventory;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 }

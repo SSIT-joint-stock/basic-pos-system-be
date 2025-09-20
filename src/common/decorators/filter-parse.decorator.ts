@@ -59,7 +59,6 @@ function foldMinMax(
     const max = toNum(data[`max_${f}`]);
     if (min != null || max != null) {
       where[f] = {
-        ...(where[f] ?? {}),
         ...(min != null ? { gte: min } : {}),
         ...(max != null ? { lte: max } : {}),
       };

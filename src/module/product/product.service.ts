@@ -80,6 +80,7 @@ export class ProductService {
     }
 
     // 2) Create + default inventory
+
     const created = await this.prisma.product.create({
       data: {
         ...data,

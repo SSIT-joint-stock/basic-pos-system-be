@@ -35,6 +35,7 @@ export class CreateProductDto {
   cost: number;
 
   @IsOptional()
+  @IsString()
   @IsUrl()
   image_url?: string;
 

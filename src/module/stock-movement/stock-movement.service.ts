@@ -18,6 +18,9 @@ export class StockMovementService {
     // Store Management
     STORE_NOT_FOUND: 'Store not found',
 
+    // Inventory Management
+    INVENTORY_NOT_FOUND: 'Inventory not found',
+
     // Authorization
     ONLY_STORE_OWNER_CAN_ADJUST: 'Only the store owner can adjust inventory',
     USER_NOT_IN_STORE: 'Only user in store can do this actions',
@@ -61,6 +64,15 @@ export class StockMovementService {
         skip: query.skip,
         take: query.take,
         orderBy: query.orderBy,
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+            },
+          },
+        },
       }),
       this.prisma.stockMovement.count({
         where,

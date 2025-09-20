@@ -211,7 +211,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/inventories/:id`                              |
+| Request URL    | `/api/stores/:storeId/inventories/:productId`                       |
 | Request Method | **PUT**                                                             |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | `AdjustQuantityDto`                                                 |
@@ -423,7 +423,89 @@
 
 ---
 
-# 6. Mẫu Lỗi chung
+# 6. Apply Stock Movement
+
+## 6.1 Mô tả
+
+| **Thuộc tính** | **Giá trị**                                                         |
+| -------------- | ------------------------------------------------------------------- |
+| Request URL    | `/api/stores/:storeId/inventories/apllyStockMovement/:productId`    |
+| Request Method | **PUT**                                                             |
+| Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
+| Body data      | `AdjustQuantityDto`                                                 |
+| Quyền yêu cầu  | `INVENTORY_ADJUST` (OWNER)                                          |
+
+**JSON Schema (Body):**
+
+```json
+{
+  "delta": "number",
+  "type": "stock_movement_type"
+}
+```
+
+> `delta` phải là số khác 0. Dương = nhập thêm; âm = xuất bớt.
+> Service kiểm tra quyền **OWNER** của store trước khi điều chỉnh.
+> type ngoai tru ADJUST va SALE
+
+### 6.2 Response
+
+**200 OK**
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-09-20T08:24:50.422Z",
+    "version": "v1"
+  },
+  "data": {
+    "id": "424a98c6-5ff7-4c59-8f6b-a777968ba275",
+    "product_id": "f53a1089-6e86-47e1-9d8a-d42574254100",
+    "quantity": 1000,
+    "discount": 0,
+    "total": 0,
+    "status": "ACTIVE",
+    "createdAt": "2025-09-20T04:16:16.312Z",
+    "updatedAt": "2025-09-20T08:24:50.414Z"
+  },
+  "message": "Apply Stock Movement successfully"
+}
+```
+
+**400 Bad Request – Product not found or not active not found**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Product not found or not active not found",
+    "details": {}
+  },
+  "meta": {
+    "timestamp": "2025-09-20T08:37:03.228Z",
+    "version": "v1"
+  }
+}
+```
+
+**403 Forbidden – Không có quyền**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Only the store owner can adjust"
+  },
+  "meta": { "timestamp": "2025-09-11T14:25:02.000Z", "version": "v1" }
+}
+```
+
+---
+
+# 7. Mẫu Lỗi chung
 
 Cấu trúc lỗi thống nhất (theo mẫu product):
 
@@ -444,7 +526,7 @@ Cấu trúc lỗi thống nhất (theo mẫu product):
 
 ---
 
-# 7. Ghi chú triển khai
+# 8. Ghi chú triển khai
 
 - `:storeId`, `:id` là **UUID**.
 - Các endpoint **đọc** hỗ trợ MEMBER; các endpoint **ghi** (adjust/revalue/set-status) giới hạn OWNER.
