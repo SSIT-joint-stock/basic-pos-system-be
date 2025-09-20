@@ -12,13 +12,14 @@
 
 > **Ghi chú:** Cột "Vai trò tối thiểu" nghĩa là vai trò thấp nhất có thể gọi được API đó. **OWNER** luôn có thể gọi tất cả các API.
 
-| **Endpoint**                                   | **Method** | **Vai trò tối thiểu** |
-| ---------------------------------------------- | ---------- | --------------------- |
-| `/api/stores/:storeId/inventories`             | GET        | MEMBER                |
-| `/api/stores/:storeId/inventories/:id`         | GET        | MEMBER                |
-| `/api/stores/:storeId/inventories/:id`         | PUT        | OWNER                 |
-| `/api/stores/:storeId/inventories/revalue/:id` | PATCH      | OWNER                 |
-| `/api/stores/:storeId/inventories/status/:id`  | PUT        | OWNER                 |
+| **Endpoint**                                                    | **Method** | **Vai trò tối thiểu** |
+| --------------------------------------------------------------- | ---------- | --------------------- |
+| `/api/stores/:storeId/inventories`                              | GET        | MEMBER                |
+| `/api/stores/:storeId/inventories/:id`                          | GET        | MEMBER                |
+| `/api/stores/:storeId/inventories/:id`                          | PUT        | OWNER                 |
+| `/api/stores/:storeId/inventories/revalue/:id`                  | PATCH      | OWNER                 |
+| `/api/stores/:storeId/inventories/status/:id`                   | PUT        | OWNER                 |
+| `/api/stores/:storeId/products/:productId/inventory/set-status` | PUT        | MEMBER                |
 
 **Mapping quyền gợi ý:**
 
@@ -205,93 +206,6 @@
 
 ---
 
-# 3. Điều chỉnh số lượng (Adjust Quantity)
-
-## 3.1 Mô tả
-
-| **Thuộc tính** | **Giá trị**                                                         |
-| -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/inventories/:productId`                       |
-| Request Method | **PUT**                                                             |
-| Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
-| Body data      | `AdjustQuantityDto`                                                 |
-| Quyền yêu cầu  | `INVENTORY_ADJUST` (OWNER)                                          |
-
-**JSON Schema (Body):**
-
-```json
-{
-  "delta": "number"
-}
-```
-
-> `delta` phải là số khác 0. Dương = nhập thêm; âm = xuất bớt.
-> Service kiểm tra quyền **OWNER** của store trước khi điều chỉnh.
-
-### 3.2 Response
-
-**200 OK**
-
-```json
-{
-  "success": true,
-  "meta": {
-    "timestamp": "2025-09-11T14:46:07.198Z",
-    "version": "v1"
-  },
-  "data": {
-    "id": "83d23ff8-39e0-42ee-a552-0a53832a3774",
-    "quantity": 40,
-    "product_id": "a9ede775-748c-4be1-8180-a994829bb6eb",
-    "status": "ACTIVE",
-    "updatedAt": "2025-09-11T14:46:07.190Z"
-  },
-  "message": "Adjust quantity successfully"
-}
-```
-
-**400 Bad Request – Inventory or product is not active**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "BAD_REQUEST",
-    "message": "Inventory or product is not active",
-    "details": {}
-  },
-  "meta": {
-    "timestamp": "2025-09-11T14:47:43.170Z",
-    "version": "v1"
-  }
-}
-```
-
-**404 Not Found – Inventory không tồn tại**
-
-```json
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Inventory not found" },
-  "meta": { "timestamp": "2025-09-11T14:25:02.000Z", "version": "v1" }
-}
-```
-
-**403 Forbidden – Không có quyền**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "Only the store owner can adjust"
-  },
-  "meta": { "timestamp": "2025-09-11T14:25:02.000Z", "version": "v1" }
-}
-```
-
----
-
 # 4. Điều chỉnh giá trị (Revalue)
 
 ## 4.1 Mô tả
@@ -433,7 +347,7 @@
 | Request Method | **PUT**                                                             |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | `AdjustQuantityDto`                                                 |
-| Quyền yêu cầu  | `INVENTORY_ADJUST` (OWNER)                                          |
+| Quyền yêu cầu  | `INVENTORY_ALL` (MEMBER)                                            |
 
 **JSON Schema (Body):**
 
@@ -444,9 +358,8 @@
 }
 ```
 
-> `delta` phải là số khác 0. Dương = nhập thêm; âm = xuất bớt.
+> `delta` phải là số khác 0. Dương = nhập thêm; âm = xuất bớt doi voi adjust.
 > Service kiểm tra quyền **OWNER** của store trước khi điều chỉnh.
-> type ngoai tru ADJUST va SALE
 
 ### 6.2 Response
 

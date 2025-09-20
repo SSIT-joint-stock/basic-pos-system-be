@@ -43,7 +43,7 @@ export class PermissionService {
 
       PERMISSIONS.STOCK_MOVEMENT_READ,
 
-      PERMISSIONS.INVENTORY_READ,
+      PERMISSIONS.INVENTORY_ALL,
       // sau nay co the them nhung quyen khac nhu tao category, tags, inentory, stok movement................
     ],
   };

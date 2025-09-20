@@ -10,7 +10,7 @@ import { order_status, payment_method } from '@prisma/client';
 import { PaginatedResponse } from 'app/common/response';
 import type { IUser } from 'app/common/types/user.type';
 
-@Controller('store/:storeId/orders')
+@Controller('stores/:storeId/orders')
 export class OrdersController {
   constructor(private readonly order: OrdersService) {}
 
@@ -30,6 +30,7 @@ export class OrdersController {
 
   @Get()
   async findAll(
+    @Param('storeId') store_id: string,
     @FilterParse({
       allowPagination: true,
       allowSorting: true,
@@ -50,7 +51,10 @@ export class OrdersController {
     })
     query,
   ) {
-    const { data, total } = await this.order.findAll(query.prismaQuery);
+    const { data, total } = await this.order.findAll(
+      store_id,
+      query.prismaQuery,
+    );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 }

@@ -12,7 +12,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
-import { AdjustInventoryDto } from './dto/adjust-quantity.dto';
 import { SetStatusDto } from './dto/set-status.dto';
 import { RevalueInventoryDto } from './dto/revalue.dto';
 import { ApiSuccess } from 'app/common/decorators';
@@ -31,18 +30,7 @@ import { ApplyStockMovementDto } from './dto/apply-stock-movement.dto';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  @Put(':productId')
-  @RequirePermissions([PERMISSIONS.INVENTORY_ADJUST, PERMISSIONS.ALL], 'OR')
-  @ApiSuccess('Adjust quantity successfully')
-  async adjustQuanity(
-    @Param('storeId') storeId: string,
-    @Param('productId') productId: string,
-    @Body() adjustInventoryDto: AdjustInventoryDto,
-  ) {
-    const { delta } = adjustInventoryDto;
-    return this.inventoryService.adjustQuanity(storeId, productId, delta);
-  }
-
+  @RequirePermissions([PERMISSIONS.INVENTORY_ALL, PERMISSIONS.ALL], 'OR')
   @ApiSuccess('Apply Stock Movement successfully')
   @Put('apllyStockMovement/:productId')
   async apllyStockMovement(
@@ -112,7 +100,7 @@ export class InventoryController {
   }
 
   @Put('status/:id')
-  @RequirePermissions([PERMISSIONS.INVENTORY_ADJUST, PERMISSIONS.ALL], 'OR')
+  @RequirePermissions([PERMISSIONS.INVENTORY_ALL, PERMISSIONS.ALL], 'OR')
   @ApiSuccess('Set status successfully')
   async setStatus(
     @Param('storeId') store_id: string,
@@ -124,7 +112,7 @@ export class InventoryController {
   }
 
   @Patch('revalue/:id')
-  @RequirePermissions([PERMISSIONS.INVENTORY_ADJUST, PERMISSIONS.ALL], 'OR')
+  @RequirePermissions([PERMISSIONS.INVENTORY_ALL, PERMISSIONS.ALL], 'OR')
   @ApiSuccess('Revalue successfully')
   async revalue(
     @Param('storeId') store_id: string,

@@ -137,6 +137,7 @@ model Store {
   categories       Category[]
   customer         Customer[]
   statistics_daily StatisticsDaily[]
+  orders           Order[]
 
   // indexes
   @@index([owner_id])
@@ -330,6 +331,7 @@ model Order {
   cashier_id      String         @db.Uuid
   customer_id     String?        @db.Uuid
   customer_name   String?
+  store_id        String          @db.Uuid
   // amount
   // the total amount of the order before discount and tax: subtotal_amount = quantity * price
   subtotal_amount Int            @default(0)
@@ -346,6 +348,7 @@ model Order {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   // relations
+  store           Store            @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   cashier         User           @relation(fields: [cashier_id], references: [id], onDelete: Cascade)
   customer        Customer?      @relation(fields: [customer_id], references: [id], onDelete: Cascade)
   order_item      OrderItem[]

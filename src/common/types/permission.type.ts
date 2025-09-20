@@ -67,7 +67,6 @@ export const PERMISSIONS = {
   STOCK_MOVEMENT_ALL: 'stock-movement:all' as Permission,
 
   // Inventory permissions
-  INVENTORY_ADJUST: 'inventory:adjust' as Permission,
   INVENTORY_READ: 'inventory:read' as Permission,
   INVENTORY_ALL: 'inventory:all' as Permission,
 

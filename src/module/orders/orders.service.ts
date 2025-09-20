@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -19,6 +21,7 @@ export class OrdersService {
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
+          store_id: storeId,
           code: dto.code,
           cashier_id: user.id,
           customer_name: dto.customer_name,
@@ -67,7 +70,7 @@ export class OrdersService {
   async delete(orderId: string, storeId: string) {
     return await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
-        where: { id: orderId },
+        where: { id: orderId, store_id: storeId },
         include: { order_item: true },
       });
 
@@ -101,12 +104,14 @@ export class OrdersService {
     });
   }
 
-  async findAll(query: Prisma.OrderFindManyArgs) {
+  async findAll(store_id: string, query: Prisma.OrderFindManyArgs) {
     // Prevent negative or zero values
-
+    const where: Prisma.OrderWhereInput = {
+      AND: [query.where ?? {}, { store_id }],
+    };
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
-        ...query,
+        where,
         include: {
           order_item: true, // include order items if needed
         },

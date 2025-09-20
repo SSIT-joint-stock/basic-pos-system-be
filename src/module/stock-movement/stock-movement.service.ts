@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BadRequestError, NotFoundError } from 'app/common/response';
+import { NotFoundError } from 'app/common/response';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { Prisma, stock_movement_type } from '@prisma/client';
 
@@ -34,10 +34,6 @@ export class StockMovementService {
     quantity: number,
     tx: Prisma.TransactionClient | PrismaService,
   ) {
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      throw new BadRequestError(this.errorMessages.QUANTITY_NON_ZERO_NUMBER);
-    }
-
     const client = tx ?? this.prisma;
 
     const stockMovement = await client.stockMovement.create({

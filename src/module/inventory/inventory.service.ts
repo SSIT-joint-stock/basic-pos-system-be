@@ -106,75 +106,6 @@ export class InventoryService {
     return inventory;
   }
 
-  async adjustQuanity(store_id: string, productId: string, delta: number) {
-    if (!Number.isFinite(delta) || delta === 0) {
-      throw new BadRequestError(this.errorMessages.DELTA_NON_ZERO_NUMBER);
-    }
-    const updated = await this.prisma.$transaction(
-      async (tx) => {
-        // 1) Kiem tra xem product co ton tai hoac active khong khong
-        const product = await tx.product.findFirst({
-          where: {
-            id: productId,
-            store_id,
-            product_status: 'ACTIVE',
-          },
-          // select: { id: true, quantity: true },
-        });
-        if (!product)
-          throw new NotFoundError(
-            this.errorMessages.PRODUCT_NOT_FOUND_OR_NOT_ACTIVE,
-          );
-
-        //2) Kiem tra xem inventory co ton tai hoac active khong
-        const inventory = await tx.inventory.findFirst({
-          where: {
-            product_id: productId,
-            status: 'ACTIVE',
-            product: {
-              store_id,
-            },
-          },
-        });
-        if (!inventory)
-          throw new NotFoundError(
-            this.errorMessages.INVENTORY_NOT_FOUNG_OR_NOT_ACTIVE,
-          );
-
-        // 3) Tính số lượng mới & validate
-        const newQty = inventory.quantity + delta;
-        if (newQty < 0) {
-          throw new ConflictError(
-            this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
-          );
-        }
-
-        // 4) Cập nhật inventory trước, rồi tạo stock movement qua service có sẵn
-        const updatedInv = await tx.inventory.update({
-          where: { id: inventory.id },
-          data: { quantity: newQty },
-          select: {
-            id: true,
-            quantity: true,
-            product_id: true,
-            status: true,
-            updatedAt: true,
-          },
-        });
-        await this.stockMovementService.create(
-          productId,
-          stock_movement_type.ADJUSTMENT,
-          Math.abs(delta),
-          tx,
-        );
-
-        return updatedInv;
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
-    return updated;
-  }
-
   async setStatus(store_id: string, id: string, status: inventory_status) {
     // 1) Lấy inventory hiện tại
     const inventory = await this.prisma.inventory.findUnique({
@@ -316,24 +247,35 @@ export class InventoryService {
     const inventory = await client.inventory.findFirst({
       where: {
         product_id: productId,
-        status: 'ACTIVE',
         product: {
           store_id,
         },
       },
     });
     if (!inventory)
-      throw new NotFoundError(
-        this.errorMessages.INVENTORY_NOT_FOUNG_OR_NOT_ACTIVE,
-      );
+      throw new NotFoundError(this.errorMessages.INVENTORY_NOT_FOUND);
 
-    //cac type nhap kho
-    if (
+    //cac type stock movement
+    if (type === stock_movement_type.ADJUSTMENT) {
+      const newQty = inventory.quantity + delta;
+      if (newQty < 0) {
+        throw new ConflictError(
+          this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
+        );
+      }
+      const updated = await client.inventory.update({
+        where: { id: inventory.id },
+        data: {
+          quantity: newQty,
+        },
+      });
+      return updated;
+    } else if (
       type === stock_movement_type.RETURN_SALE ||
       type === stock_movement_type.PURCHASE ||
       type === stock_movement_type.TRANSFER_IMPORT
     ) {
-      const newQty = inventory.quantity + delta;
+      const newQty = inventory.quantity + Math.abs(delta);
 
       const updated = await client.inventory.update({
         where: { id: inventory.id },
@@ -349,7 +291,7 @@ export class InventoryService {
       type === stock_movement_type.SALE ||
       type === stock_movement_type.TRANSFER_EXPORT
     ) {
-      const newQty = inventory.quantity - delta;
+      const newQty = inventory.quantity - Math.abs(delta);
       if (newQty < 0)
         throw new BadRequestError(
           this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
@@ -376,12 +318,6 @@ export class InventoryService {
     productId: string,
     delta: number,
   ) {
-    if (type === stock_movement_type.ADJUSTMENT) {
-      throw new BadRequestError(this.errorMessages.ADJUST_IS_NOT_ALLOW);
-    } else if (type === stock_movement_type.SALE) {
-      throw new BadRequestError(this.errorMessages.SALE_IS_NOT_ALLOW);
-    }
-
     return this.prisma.$transaction(
       async (tx) => {
         const updatedInventory = await this.modify(
@@ -391,12 +327,31 @@ export class InventoryService {
           delta,
           tx,
         );
-        await this.stockMovementService.create(
-          productId,
-          type,
-          Math.abs(delta),
-          tx,
-        );
+        if (type === stock_movement_type.ADJUSTMENT) {
+          await this.stockMovementService.create(productId, type, delta, tx);
+        } else if (
+          type === stock_movement_type.RETURN_SALE ||
+          type === stock_movement_type.PURCHASE ||
+          type === stock_movement_type.TRANSFER_IMPORT
+        ) {
+          await this.stockMovementService.create(
+            productId,
+            type,
+            Math.abs(delta),
+            tx,
+          );
+        } else if (
+          type === stock_movement_type.RETURN_PURCHASE ||
+          type === stock_movement_type.SALE ||
+          type === stock_movement_type.TRANSFER_EXPORT
+        ) {
+          await this.stockMovementService.create(
+            productId,
+            type,
+            -Math.abs(delta),
+            tx,
+          );
+        }
         return updatedInventory;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
