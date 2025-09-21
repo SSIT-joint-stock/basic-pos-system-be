@@ -79,7 +79,7 @@ async function bootstrap() {
 
     // Start the application
     const port = appCfg.port;
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
 
     console.log(`Server ${appCfg.name} running on http://localhost:${port}`);
     return app;
