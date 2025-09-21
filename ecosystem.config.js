@@ -2,7 +2,7 @@
 module.exports = {
   apps: [
     {
-      name: 'my-app',
+      name: 'basic-pos-system-be',
       script: 'make prod',
       max_memory_restart: '512M',
       watch: false,
