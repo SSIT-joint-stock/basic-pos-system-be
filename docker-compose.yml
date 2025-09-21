@@ -22,6 +22,8 @@ services:
       - app-network
     volumes:
       - ./:/app
+    profiles:
+      - production-with-app
 
   db:
     image: postgres:16
