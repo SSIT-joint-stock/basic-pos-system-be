@@ -305,6 +305,7 @@ async function main() {
     prisma.order.create({
       data: {
         code: 'ORD-001',
+        store_id: store.id,
         cashier_id: users[2].id, // staff/cashier
         customer_id: customers[0].id,
         customer_name: 'John Doe',
@@ -319,6 +320,7 @@ async function main() {
     prisma.order.create({
       data: {
         code: 'ORD-002',
+        store_id: store.id,
         cashier_id: users[2].id,
         customer_id: customers[1].id,
         customer_name: 'Jane Smith',
@@ -333,6 +335,7 @@ async function main() {
     prisma.order.create({
       data: {
         code: 'ORD-003',
+        store_id: store.id,
         cashier_id: users[2].id,
         subtotal_amount: 249900, // $2499.00
         discount_amount: 24990, // $249.90 (10% discount)

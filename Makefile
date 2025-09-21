@@ -1,5 +1,5 @@
 # Application commands
-.PHONY: dev debug prod dev-full test test-watch test-cov test-e2e test-users-dev test-users-test test-users-prod format lint
+.PHONY: dev debug prod dev-full test test-watch test-cov test-e2e test-users-dev test-users-test test-users-prod format lint build
 
 dev:
 	npm run start:dev
@@ -9,6 +9,9 @@ debug:
 
 prod:
 	npm run start:prod
+
+build:
+	npm run build
 
 test:
 	npm run test
@@ -69,7 +72,7 @@ build-full-dev:
 	npm run build:full:dev
 
 # Docker commands
-.PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down
+.PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down docker-build docker-build-no-cache docker-logs docker-logs-app docker-logs-db docker-ps docker-clean docker-debug docker-shell
 
 docker-dev-up:
 	docker-compose -f docker-compose.dev.yml --env-file .env.development up -d
@@ -82,6 +85,79 @@ docker-prod-up:
 
 docker-prod-down:
 	docker-compose --env-file .env.production down
+
+docker-build:
+	chmod +x ./scripts/docker-build.sh
+	./scripts/docker-build.sh
+
+docker-build-no-cache:
+	chmod +x ./scripts/docker-build.sh
+	./scripts/docker-build.sh --no-cache
+
+docker-logs:
+	docker-compose --env-file .env.production logs -f
+
+docker-logs-app:
+	docker-compose --env-file .env.production logs -f app
+
+docker-logs-db:
+	docker-compose --env-file .env.production logs -f db
+
+docker-ps:
+	docker-compose --env-file .env.production ps
+
+docker-clean:
+	docker system prune -f
+	docker volume prune -f
+	docker image prune -f
+
+docker-debug:
+	@echo "🔍 Debugging Docker container permissions..."
+	docker-compose --env-file .env.production exec app ls -la /app/
+	docker-compose --env-file .env.production exec app whoami
+	docker-compose --env-file .env.production exec app id
+
+docker-shell:
+	@echo "🐚 Opening shell in app container..."
+	docker-compose --env-file .env.production exec app sh
+
+# Production deployment
+.PHONY: deploy-prod deploy-prod-build deploy-prod-restart deploy-prod-migrate deploy-prod-seed
+
+deploy-prod:
+	@echo "🚀 Deploying to production..."
+	$(MAKE) docker-build
+	$(MAKE) docker-prod-up
+	@echo "⏳ Waiting for services to be ready..."
+	sleep 10
+	$(MAKE) deploy-prod-migrate
+	@echo "✅ Production deployment complete!"
+
+deploy-prod-build:
+	@echo "🔨 Building and deploying to production..."
+	$(MAKE) docker-build-no-cache
+	$(MAKE) docker-prod-down
+	$(MAKE) docker-prod-up
+	@echo "⏳ Waiting for services to be ready..."
+	sleep 15
+	$(MAKE) deploy-prod-migrate
+	@echo "✅ Production build and deployment complete!"
+
+deploy-prod-restart:
+	@echo "🔄 Restarting production services..."
+	$(MAKE) docker-prod-down
+	$(MAKE) docker-prod-up
+	@echo "✅ Production services restarted!"
+
+deploy-prod-migrate:
+	@echo "📊 Running production database migrations..."
+	docker-compose --env-file .env.production exec app npm run db:push:prod
+	@echo "✅ Database migrations complete!"
+
+deploy-prod-seed:
+	@echo "🌱 Seeding production database..."
+	docker-compose --env-file .env.production exec app npm run db:seed:prod
+	@echo "✅ Database seeding complete!"
 
 # Database commands
 .PHONY: db-migrate db-studio db-push-dev db-push-test db-push-prod db-seed-dev db-seed-test db-seed-prod db-reset-dev db-reset-force
@@ -117,7 +193,7 @@ db-reset-force:
 	npm run prisma:migrate:reset:force
 
 # Script commands
-.PHONY: script-setup-dev script-setup-test script-setup-prod script-clear-dev
+.PHONY: script-setup-dev script-setup-test script-setup-prod script-clear-dev script-health-prod script-fix-permissions
 
 script-setup-dev:
 	chmod +x ./scripts/setup_dev_env.sh
@@ -135,8 +211,16 @@ script-clear-dev:
 	chmod +x ./scripts/clear_dev_env.sh
 	./scripts/clear_dev_env.sh
 
+script-health-prod:
+	chmod +x ./scripts/health-check-prod.sh
+	./scripts/health-check-prod.sh
+
+script-fix-permissions:
+	chmod +x ./scripts/fix-docker-permissions.sh
+	./scripts/fix-docker-permissions.sh
+
 # Combined commands
-.PHONY: setup-dev setup-test setup-prod clear-dev
+.PHONY: setup-dev setup-test setup-prod clear-dev health-prod fix-permissions
 
 setup-dev:
 	$(MAKE) script-setup-dev
@@ -150,6 +234,12 @@ setup-prod:
 clear-dev:
 	$(MAKE) script-clear-dev
 
+health-prod:
+	$(MAKE) script-health-prod
+
+fix-permissions:
+	$(MAKE) script-fix-permissions
+
 # Help
 .PHONY: help
 
@@ -159,6 +249,7 @@ help:
 	@echo "    make dev         - Run app in development mode"
 	@echo "    make debug       - Run app in debug mode"
 	@echo "    make prod        - Run app in production mode"
+	@echo "    make build       - Build app for production"
 	@echo "    make test        - Run tests"
 	@echo "    make test-watch  - Run tests in watch mode"
 	@echo "    make test-cov    - Run tests with coverage"
@@ -178,10 +269,25 @@ help:
 	@echo "    make build-full  - Build Tailwind + NestJS for production"
 	@echo "    make build-full-dev - Build Tailwind + NestJS for development"
 	@echo "  Docker:"
-	@echo "    make docker-dev-up    - Start dev database container"
-	@echo "    make docker-dev-down  - Stop dev database container"
-	@echo "    make docker-prod-up   - Start production containers"
-	@echo "    make docker-prod-down - Stop production containers"
+	@echo "    make docker-dev-up      - Start dev database container"
+	@echo "    make docker-dev-down    - Stop dev database container"
+	@echo "    make docker-prod-up     - Start production containers"
+	@echo "    make docker-prod-down   - Stop production containers"
+	@echo "    make docker-build       - Build Docker image for production"
+	@echo "    make docker-build-no-cache - Build Docker image without cache"
+	@echo "    make docker-logs        - View all production container logs"
+	@echo "    make docker-logs-app    - View app container logs"
+	@echo "    make docker-logs-db     - View database container logs"
+	@echo "    make docker-ps          - Show running containers status"
+	@echo "    make docker-clean       - Clean up Docker system and volumes"
+	@echo "    make docker-debug       - Debug container permissions and user"
+	@echo "    make docker-shell       - Open shell in app container"
+	@echo "  Production Deployment:"
+	@echo "    make deploy-prod        - Deploy to production (build + up + migrate)"
+	@echo "    make deploy-prod-build  - Build and deploy with no cache"
+	@echo "    make deploy-prod-restart - Restart production services"
+	@echo "    make deploy-prod-migrate - Run database migrations in production"
+	@echo "    make deploy-prod-seed   - Seed production database"
 	@echo "  Database:"
 	@echo "    make db-migrate       - Run database migrations"
 	@echo "    make db-studio        - Open Prisma Studio"
@@ -194,12 +300,16 @@ help:
 	@echo "    make db-seed-test     - Seed test database with sample data"
 	@echo "    make db-seed-prod     - Seed production database with sample data"
 	@echo "  Script commands:"
-	@echo "    make script-setup-dev  - Run development setup script"
-	@echo "    make script-setup-test - Run test setup script"
-	@echo "    make script-setup-prod - Run production setup script"
-	@echo "    make script-clear-dev  - Run development clear script"
+	@echo "    make script-setup-dev      - Run development setup script"
+	@echo "    make script-setup-test     - Run test setup script"
+	@echo "    make script-setup-prod     - Run production setup script"
+	@echo "    make script-clear-dev      - Run development clear script"
+	@echo "    make script-health-prod    - Run production health check script"
+	@echo "    make script-fix-permissions - Fix Docker container permissions"
 	@echo "  Combined:"
-	@echo "    make setup-dev        - Setup development environment"
-	@echo "    make setup-test       - Setup test environment"
-	@echo "    make setup-prod       - Setup production environment"
-	@echo "    make clear-dev        - Clear development environment"
+	@echo "    make setup-dev         - Setup development environment"
+	@echo "    make setup-test        - Setup test environment"
+	@echo "    make setup-prod        - Setup production environment"
+	@echo "    make clear-dev         - Clear development environment"
+	@echo "    make health-prod       - Check production services health"
+	@echo "    make fix-permissions   - Fix Docker permissions issues"
