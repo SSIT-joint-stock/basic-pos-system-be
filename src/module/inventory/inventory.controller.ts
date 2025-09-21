@@ -32,7 +32,7 @@ export class InventoryController {
 
   @RequirePermissions([PERMISSIONS.INVENTORY_ALL, PERMISSIONS.ALL], 'OR')
   @ApiSuccess('Apply Stock Movement successfully')
-  @Put('apllyStockMovement/:productId')
+  @Put('applyStockMovement/:productId')
   async apllyStockMovement(
     @Param('storeId') storeId: string,
     @Param('productId') productId: string,

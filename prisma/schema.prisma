@@ -209,7 +209,7 @@ model Customer {
  * Product has one user
  */
 model Product {
-  id              String           @id @default(uuid()) @db.Uuid
+  id              String           @id @default(uuid()) @db.Uuid 
   store_id        String           @db.Uuid
   name            String
   sku             String           @unique
@@ -227,7 +227,7 @@ model Product {
   created_by_user User             @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Cascade)
   store           Store            @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   categories      Category[]
-  inventories     Inventory[]
+  inventory     Inventory?
   tags            Tag[]
   stock_movements StockMovement[]
   order_item      OrderItem[]
@@ -245,7 +245,7 @@ model Product {
  */
 model Inventory {
   id         String           @id @default(uuid()) @db.Uuid
-  product_id String           @db.Uuid
+  product_id String           @db.Uuid @unique
   quantity   Int              @default(0)
   discount   Int              @default(0)
   total      Int              @default(0)
