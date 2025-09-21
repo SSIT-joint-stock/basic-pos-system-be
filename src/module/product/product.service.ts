@@ -86,7 +86,7 @@ export class ProductService {
         ...data,
         store_id: storeId,
         created_by: user.id,
-        inventories: { create: {} },
+        inventory: { create: {} },
       },
     });
     return created;
@@ -98,6 +98,11 @@ export class ProductService {
         where: {
           ...(query.where ?? {}),
           store_id: storeId,
+        },
+        include: {
+          inventory: {
+            select: { quantity: true, id: true },
+          },
         },
       }),
       this.prisma.product.count({
@@ -118,7 +123,7 @@ export class ProductService {
       where: { store_id: storeId, id },
       include: {
         // nếu muốn trả kèm quan hệ // FIX co the fix later
-        inventories: true,
+        inventory: true,
         categories: true,
         tags: true,
       },
@@ -176,7 +181,7 @@ export class ProductService {
     const updated = await this.prisma.product.update({
       where: { id },
       data: { ...data },
-      include: { inventories: true }, // FIX: Sau co the bo
+      include: { inventory: true }, // FIX: Sau co the bo
     });
     return updated;
   }
@@ -208,6 +213,11 @@ export class ProductService {
         skip: query.skip,
         take: query.take,
         orderBy: query.orderBy,
+        include: {
+          inventory: {
+            select: { quantity: true },
+          },
+        },
       }),
       this.prisma.product.count({
         where,

@@ -18,8 +18,8 @@ export class InventoryService {
     INVALID_INVENTORY_STATUS: 'Invalid inventory status',
     INVALID_TYPE_MODIFY_INVENTORY: 'Invalid type modify inventory',
     NO_INVENTORY_FOUND_IN_STORE: 'No inventory found in store',
-    INVENTORY_NOT_FOUNG_OR_NOT_ACTIVE: 'Inventory not found or not active',
-    RESULT_QUANTY_CAN_NOT_NEGATIVE: 'Resulting quantity cannot be negative',
+    INVENTORY_NOT_FOUND_OR_NOT_ACTIVE: 'Inventory not found or not active',
+    RESULT_QUANTITY_CAN_NOT_NEGATIVE: 'Resulting quantity cannot be negative',
     CANNOT_MARK_SOLD_WHILE_STOCK_REMAINS:
       'Cannot mark as SOLD while quantity > 0',
 
@@ -241,7 +241,6 @@ export class InventoryService {
       throw new NotFoundError(
         this.errorMessages.PRODUCT_NOT_FOUND_OR_NOT_ACTIVE,
       );
-    console.log('asjhadkhakjdshajdshf:', product);
 
     //2) Kiem tra xem inventory co ton tai hoac active khong
     const inventory = await client.inventory.findFirst({
@@ -260,7 +259,7 @@ export class InventoryService {
       const newQty = inventory.quantity + delta;
       if (newQty < 0) {
         throw new ConflictError(
-          this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
+          this.errorMessages.RESULT_QUANTITY_CAN_NOT_NEGATIVE,
         );
       }
       const updated = await client.inventory.update({
@@ -294,7 +293,7 @@ export class InventoryService {
       const newQty = inventory.quantity - Math.abs(delta);
       if (newQty < 0)
         throw new BadRequestError(
-          this.errorMessages.RESULT_QUANTY_CAN_NOT_NEGATIVE,
+          this.errorMessages.RESULT_QUANTITY_CAN_NOT_NEGATIVE,
         );
       const updated = await client.inventory.update({
         where: { id: inventory.id },

@@ -50,7 +50,7 @@ export class OrdersService {
         await this.stockMovement.create(
           item.product_id,
           stock_movement_type.SALE,
-          item.quantity,
+          -Math.abs(item.quantity),
           tx,
         );
 
@@ -104,22 +104,35 @@ export class OrdersService {
     });
   }
 
-  async findAll(store_id: string, query: Prisma.OrderFindManyArgs) {
-    // Prevent negative or zero values
-    const where: Prisma.OrderWhereInput = {
-      AND: [query.where ?? {}, { store_id }],
+  async findAll(store_id: string, query?: Prisma.OrderFindManyArgs) {
+    // ensure store filter is always applied
+    const baseWhere: Prisma.OrderWhereInput = {
+      AND: [query?.where ?? {}, { store_id }],
     };
+
+    // build args for findMany: keep everything from query but use baseWhere
+    const findArgs: Prisma.OrderFindManyArgs = {
+      ...(query ?? {}),
+      where: baseWhere,
+    };
+
+    // If user passed `select`, Prisma forbids `include` at same time.
+    // So ensure include is only set when select isn't present.
+    if (query?.select) {
+      delete (findArgs as any).include;
+    } else {
+      (findArgs as any).include = {
+        order_item: true,
+        ...(query?.include ?? {}),
+      };
+    }
+
     const [orders, total] = await Promise.all([
-      this.prisma.order.findMany({
-        where,
-        include: {
-          order_item: true, // include order items if needed
-        },
-      }),
-      this.prisma.order.count({
-        where: query.where,
-      }),
+      this.prisma.order.findMany(findArgs),
+      // count must use the same baseWhere (so it counts with store_id filter)
+      this.prisma.order.count({ where: baseWhere }),
     ]);
+
     return {
       data: orders,
       total,
