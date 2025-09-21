@@ -127,6 +127,7 @@ docker-shell:
 deploy-prod:
 	@echo "🚀 Deploying to production..."
 	$(MAKE) docker-build
+	$(MAKE) docker-prod-down
 	$(MAKE) docker-prod-up
 	@echo "⏳ Waiting for services to be ready..."
 	sleep 10
@@ -136,12 +137,6 @@ deploy-prod:
 deploy-prod-build:
 	@echo "🔨 Building and deploying to production..."
 	$(MAKE) docker-build-no-cache
-	$(MAKE) docker-prod-down
-	$(MAKE) docker-prod-up
-	@echo "⏳ Waiting for services to be ready..."
-	sleep 15
-	$(MAKE) deploy-prod-migrate
-	@echo "✅ Production build and deployment complete!"
 
 deploy-prod-restart:
 	@echo "🔄 Restarting production services..."
