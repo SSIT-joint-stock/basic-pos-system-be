@@ -10,6 +10,9 @@ module.exports = {
       out_file: './logs/out.log',
       error_file: './logs/error.log',
       time: true,
+      env_production: {
+        NODE_ENV: 'production',
+      },
     },
   ],
 };
