@@ -4,5 +4,6 @@
     "declaration": true,
     "removeComments": true
   },
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "scripts/**/*", "prisma/**/*"]
 }
