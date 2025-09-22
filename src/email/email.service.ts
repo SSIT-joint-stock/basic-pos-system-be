@@ -1,19 +1,23 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
+import emailConfig from 'app/config/email.config';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly transporter: nodemailer.Transporter;
 
-  constructor() {
+  constructor(
+    @Inject(emailConfig.KEY) private config: ReturnType<typeof emailConfig>
+  ) {
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: this.config.smtpHost,
+      port: this.config.smtpPort,
       auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        user: this.config.smtpUser,
+        pass: this.config.smtpPass,
       },
     });
   }
