@@ -41,8 +41,9 @@ export class EmailService {
 
   async sendMail(to: string, subject: string, text: string, html?: string) {
     try {
-
-      this.logger.log(`Sending email to ${to} with subject "${subject}" from ${this.config.smtpFrom}`);
+      this.logger.log(
+        `Sending email to ${to} with subject "${subject}" from ${this.config.smtpFrom}`,
+      );
       await this.transporter.sendMail({
         from: `"${process.env.APP_NAME}" <${this.config.smtpFrom}>`,
         to,
