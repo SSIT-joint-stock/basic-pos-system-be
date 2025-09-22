@@ -1,11 +1,12 @@
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 
 // config
-import { appConfig, databaseConfig, jobsConfig, validateEnv } from './config';
+import { appConfig, databaseConfig, emailConfig, jobsConfig, validateEnv } from './config';
 
 // common
 import { LoggerCoreModule, LoggerModule } from './common/logger';
@@ -19,7 +20,6 @@ import { UsersModule } from './users/users.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AuthModule } from './module/auth/auth.module';
 import { DocsModule } from './docs/docs.module';
-import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './module/auth/guards/roles.guard';
 import { TokenService } from './module/auth/token.service';
@@ -66,7 +66,7 @@ import { OrdersModule } from './module/orders/orders.module';
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`],
       // validate with Zod
       validate: validateEnv, // use Zod to validate and type
-      load: [appConfig, databaseConfig, jobsConfig],
+      load: [appConfig, databaseConfig, jobsConfig, emailConfig],
     }),
     LoggerCoreModule,
     LoggerModule.forFeature(['HTTP', 'DATABASE', 'APP', 'EMAIL']),

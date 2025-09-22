@@ -4,13 +4,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
 import emailConfig from 'app/config/email.config';
+import type { ConfigType } from '@nestjs/config';
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly transporter: nodemailer.Transporter;
 
   constructor(
-    @Inject(emailConfig.KEY) private config: ReturnType<typeof emailConfig>,
+    @Inject(emailConfig.KEY) private readonly config: ConfigType<typeof emailConfig>,
   ) {
     this.transporter = nodemailer.createTransport({
       host: this.config.smtpHost,
