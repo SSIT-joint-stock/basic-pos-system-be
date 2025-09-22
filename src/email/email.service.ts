@@ -13,7 +13,7 @@ export class EmailService {
     @Inject(emailConfig.KEY) private config: ReturnType<typeof emailConfig>,
   ) {
     this.transporter = nodemailer.createTransport({
-      service: this.config.smtpHost,
+      host: this.config.smtpHost,
       port: this.config.smtpPort,
       auth: {
         user: this.config.smtpUser,
