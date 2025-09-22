@@ -137,7 +137,7 @@ export function getCorsOrigins(env: Env): string[] {
   if (!env.CORS_ORIGINS) {
     return ['http://localhost:3000']; // default
   }
-  return env.CORS_ORIGINS.split(',').map(origin => origin.trim());
+  return env.CORS_ORIGINS.split(',').map((origin) => origin.trim());
 }
 
 // Helper function to check if email is configured

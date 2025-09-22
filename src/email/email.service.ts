@@ -10,7 +10,7 @@ export class EmailService {
   private readonly transporter: nodemailer.Transporter;
 
   constructor(
-    @Inject(emailConfig.KEY) private config: ReturnType<typeof emailConfig>
+    @Inject(emailConfig.KEY) private config: ReturnType<typeof emailConfig>,
   ) {
     this.transporter = nodemailer.createTransport({
       service: this.config.smtpHost,
