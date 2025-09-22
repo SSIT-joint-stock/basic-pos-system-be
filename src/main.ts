@@ -82,7 +82,9 @@ async function bootstrap() {
     const env = appCfg.env;
     await app.listen(port, '0.0.0.0');
 
-    console.log(`Server ${appCfg.name} running on http://localhost:${port} in env: ${env}`);
+    console.log(
+      `Server ${appCfg.name} running on http://localhost:${port} in env: ${env}`,
+    );
     return app;
   } catch (error) {
     console.error('Failed to start application', {
