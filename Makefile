@@ -72,7 +72,7 @@ build-full-dev:
 	npm run build:full:dev
 
 # Docker commands
-.PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down docker-build docker-build-no-cache docker-logs docker-logs-app docker-logs-db docker-ps docker-clean docker-debug docker-shell
+.PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down docker-build docker-build-no-cache docker-logs docker-logs-app docker-logs-db docker-ps docker-clean docker-debug docker-shell docker-clean-project
 
 docker-dev-up:
 	docker-compose -f docker-compose.dev.yml --env-file .env.development up -d
@@ -87,8 +87,12 @@ docker-prod-down:
 	docker-compose --env-file .env.production down
 
 docker-build:
-	chmod +x ./scripts/docker-build.sh
-	./scripts/docker-build.sh
+	@echo "🔨 Building production Docker image..."
+	docker build -t pos-system:latest .
+
+docker-build-no-cache:
+	@echo "🔨 Building production Docker image (no cache)..."
+	docker build --no-cache -t pos-system:latest .
 
 docker-build-no-cache:
 	chmod +x ./scripts/docker-build.sh
@@ -110,6 +114,13 @@ docker-clean:
 	docker system prune -f
 	docker volume prune -f
 	docker image prune -f
+
+docker-clean-project:
+	@echo "🧹 Cleaning project Docker resources..."
+	docker-compose -f docker-compose.dev.yml --env-file .env.development down -v || true
+	docker-compose --env-file .env.production down -v || true
+	docker image rm pos-system:latest 2>/dev/null || true
+	@echo "✅ Project Docker resources cleaned!"
 
 docker-debug:
 	@echo "🔍 Debugging Docker container permissions..."
@@ -215,7 +226,7 @@ script-fix-permissions:
 	./scripts/fix-docker-permissions.sh
 
 # Combined commands
-.PHONY: setup-dev setup-test setup-prod clear-dev health-prod fix-permissions
+.PHONY: setup-dev setup-test setup-prod clear-dev health-prod fix-permissions recreate-dev recreate-prod recreate-db-dev recreate-db-prod
 
 setup-dev:
 	$(MAKE) script-setup-dev
@@ -234,6 +245,50 @@ health-prod:
 
 fix-permissions:
 	$(MAKE) script-fix-permissions
+
+# Recreate commands
+recreate-dev:
+	@echo "🔄 Recreating development environment..."
+	$(MAKE) clear-dev
+	$(MAKE) setup-dev
+	@echo "✅ Development environment recreated!"
+
+recreate-prod:
+	@echo "🔄 Recreating production environment..."
+	@echo "⚠️  WARNING: This will destroy all production data!"
+	@read -p "Are you sure? Type 'yes' to continue: " confirm && [ "$$confirm" = "yes" ]
+	$(MAKE) docker-prod-down
+	docker-compose --env-file .env.production down -v
+	docker image rm pos-system:latest 2>/dev/null || true
+	$(MAKE) docker-build-no-cache
+	$(MAKE) docker-prod-up
+	@echo "⏳ Waiting for services to be ready..."
+	sleep 10
+	$(MAKE) deploy-prod-migrate
+	@echo "✅ Production environment recreated!"
+
+recreate-db-dev:
+	@echo "🗄️ Recreating development database..."
+	$(MAKE) docker-dev-down
+	docker-compose -f docker-compose.dev.yml --env-file .env.development down -v
+	$(MAKE) docker-dev-up
+	sleep 5
+	$(MAKE) db-push-dev
+	$(MAKE) db-seed-dev
+	@echo "✅ Development database recreated!"
+
+recreate-db-prod:
+	@echo "🗄️ Recreating production database..."
+	@echo "⚠️  WARNING: This will destroy all production data!"
+	@read -p "Are you sure? Type 'yes' to continue: " confirm && [ "$$confirm" = "yes" ]
+	$(MAKE) docker-prod-down
+	docker-compose --env-file .env.production down -v
+	docker image rm pos-system:latest 2>/dev/null || true
+	$(MAKE) docker-build-no-cache
+	$(MAKE) docker-prod-up
+	sleep 10
+	$(MAKE) deploy-prod-migrate
+	@echo "✅ Production database recreated!"
 
 # Help
 .PHONY: help
@@ -275,6 +330,7 @@ help:
 	@echo "    make docker-logs-db     - View database container logs"
 	@echo "    make docker-ps          - Show running containers status"
 	@echo "    make docker-clean       - Clean up Docker system and volumes"
+	@echo "    make docker-clean-project - Clean up only this project's Docker resources"
 	@echo "    make docker-debug       - Debug container permissions and user"
 	@echo "    make docker-shell       - Open shell in app container"
 	@echo "  Production Deployment:"
@@ -308,3 +364,8 @@ help:
 	@echo "    make clear-dev         - Clear development environment"
 	@echo "    make health-prod       - Check production services health"
 	@echo "    make fix-permissions   - Fix Docker permissions issues"
+	@echo "  Recreate Commands:"
+	@echo "    make recreate-dev      - Recreate entire development environment"
+	@echo "    make recreate-prod     - Recreate entire production environment (with confirmation)"
+	@echo "    make recreate-db-dev   - Recreate development database only"
+	@echo "    make recreate-db-prod  - Recreate production database only (with confirmation)"

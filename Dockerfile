@@ -56,6 +56,9 @@ COPY --from=build --chown=nodejs:nodejs /app/node_modules/.prisma ./node_modules
 # Copy Prisma schema (needed for migrations in production)
 COPY --from=build --chown=nodejs:nodejs /app/prisma ./prisma
 
+# Copy source templates for docs service
+COPY --from=build --chown=nodejs:nodejs /app/src ./src
+
 # Copy health check script
 COPY --from=build --chown=nodejs:nodejs /app/docker-health-check.js ./docker-health-check.js
 
@@ -75,4 +78,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD node docker-health-check.js || exit 1
 
 # Use dumb-init to handle signals properly
-CMD ["dumb-init", "node", "dist/src/main.js"]
+CMD ["dumb-init", "npm", "run", "start:prod"]

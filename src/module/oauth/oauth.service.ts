@@ -55,10 +55,11 @@ export class OAuthService {
     private readonly prismaService: PrismaService,
     private readonly usersService: UsersService,
   ) {
+    console.log('OAuthService initialized with config: ', process.env);
     const clientId = process.env.CLIENT_ID;
     const clientSecret = process.env.CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-      throw new BadRequestError(this.errorMessages.MISSING_AUTH_CODE);
+      throw new Error(this.errorMessages.MISSING_AUTH_CODE);
     }
 
     this.oauth2Client = new OAuth2Client(clientId, clientSecret);

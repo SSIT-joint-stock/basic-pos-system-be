@@ -23,8 +23,7 @@ services:
     volumes:
       - ./:/app
     profiles:
-      - production-with-app
-
+      - app-prod
   db:
     image: postgres:16
     container_name: nest_basic_prisma_pg
@@ -37,7 +36,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
     ports:
-      - "127.0.0.1:${DB_PORT}:5432"
+      - "127.0.0.1:${PROD_DB_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

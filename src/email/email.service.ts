@@ -23,6 +23,8 @@ export class EmailService {
         pass: this.config.smtpPass,
       },
     });
+
+    console.log('Email transport created with config: ', this.config);
   }
   private renderTemplate(templateName: string, context: any) {
     const templatePath = path.join(
@@ -39,6 +41,8 @@ export class EmailService {
 
   async sendMail(to: string, subject: string, text: string, html?: string) {
     try {
+
+      this.logger.log(`Sending email to ${to} with subject "${subject}" from ${this.config.smtpFrom}`);
       await this.transporter.sendMail({
         from: `"${process.env.APP_NAME}" <${this.config.smtpFrom}>`,
         to,
