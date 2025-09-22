@@ -6,7 +6,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 
 // config
-import { appConfig, databaseConfig, emailConfig, jobsConfig, validateEnv } from './config';
+import {
+  appConfig,
+  databaseConfig,
+  emailConfig,
+  jobsConfig,
+  validateEnv,
+} from './config';
 
 // common
 import { LoggerCoreModule, LoggerModule } from './common/logger';

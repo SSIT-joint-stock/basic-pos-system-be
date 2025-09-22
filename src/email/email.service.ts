@@ -12,7 +12,8 @@ export class EmailService {
   private readonly transporter: nodemailer.Transporter;
 
   constructor(
-    @Inject(emailConfig.KEY) private readonly config: ConfigType<typeof emailConfig>,
+    @Inject(emailConfig.KEY)
+    private readonly config: ConfigType<typeof emailConfig>,
   ) {
     this.transporter = nodemailer.createTransport({
       host: this.config.smtpHost,
