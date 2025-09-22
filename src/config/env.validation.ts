@@ -50,7 +50,7 @@ export const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-
+  SMTP_FROM: z.string().optional(),
   // Redis Configuration (Optional - for caching)
   REDIS_URL: z.string().url().optional(),
 

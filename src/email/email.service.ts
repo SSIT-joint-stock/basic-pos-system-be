@@ -40,7 +40,7 @@ export class EmailService {
   async sendMail(to: string, subject: string, text: string, html?: string) {
     try {
       await this.transporter.sendMail({
-        from: `"${process.env.APP_NAME}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.APP_NAME}" <${this.config.smtpFrom}>`,
         to,
         subject,
         text,
