@@ -19,9 +19,13 @@ import { Public } from 'app/common/decorators/public.decorator';
 import { User } from 'app/common/decorators/user.decorator';
 import { ApiSuccess } from 'app/common/decorators';
 import type { IUser } from 'app/common/types/user.type';
+import { ConfigService } from '@nestjs/config';
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Public()
   @Post('register')
@@ -48,11 +52,18 @@ export class AuthController {
     @Res({ passthrough: true }) res: express.Response,
   ) {
     const result = await this.authService.login(dto);
+
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
-      sameSite: 'strict',
-      domain: 'localhost',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: this.configService.get<'lax' | 'strict' | 'none'>(
+        'COOKIE_SAME_SITE',
+        'strict',
+      ),
+      domain: this.configService.get<string>('COOKIE_DOMAIN') || undefined,
+      maxAge: this.configService.get<number>(
+        'COOKIE_MAX_AGE',
+        7 * 24 * 60 * 60 * 1000,
+      ),
     });
     return {
       access_token: result.access_token,
@@ -113,7 +124,6 @@ export class AuthController {
       res.cookie('refresh_token', result.refresh_token, {
         httpOnly: true,
         sameSite: 'strict',
-        domain: 'localhost',
         maxAge: 1000 * 60 * 60 * 24 * 7,
       });
 
@@ -163,7 +173,6 @@ export class AuthController {
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
       sameSite: 'strict',
-      domain: 'localhost',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
     return {
