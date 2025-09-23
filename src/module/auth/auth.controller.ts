@@ -123,8 +123,15 @@ export class AuthController {
 
       res.cookie('refresh_token', result.refresh_token, {
         httpOnly: true,
-        sameSite: 'strict',
-        maxAge: 1000 * 60 * 60 * 24 * 7,
+        sameSite: this.configService.get<'lax' | 'strict' | 'none'>(
+          'COOKIE_SAME_SITE',
+          'strict',
+        ),
+        domain: this.configService.get<string>('COOKIE_DOMAIN') || undefined,
+        maxAge: this.configService.get<number>(
+          'COOKIE_MAX_AGE',
+          7 * 24 * 60 * 60 * 1000,
+        ),
       });
 
       return {
@@ -172,8 +179,15 @@ export class AuthController {
     const result = await this.authService.setCurrentStore(user.id, storeId);
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
-      sameSite: 'strict',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      sameSite: this.configService.get<'lax' | 'strict' | 'none'>(
+        'COOKIE_SAME_SITE',
+        'strict',
+      ),
+      domain: this.configService.get<string>('COOKIE_DOMAIN') || undefined,
+      maxAge: this.configService.get<number>(
+        'COOKIE_MAX_AGE',
+        7 * 24 * 60 * 60 * 1000,
+      ),
     });
     return {
       access_token: result.access_token,
