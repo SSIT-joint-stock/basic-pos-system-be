@@ -8,6 +8,7 @@ import {
   Req,
   UnauthorizedException,
   Param,
+  Inject,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -19,13 +20,16 @@ import { Public } from 'app/common/decorators/public.decorator';
 import { User } from 'app/common/decorators/user.decorator';
 import { ApiSuccess } from 'app/common/decorators';
 import type { IUser } from 'app/common/types/user.type';
-import { ConfigService } from '@nestjs/config';
+import type { ConfigType } from '@nestjs/config';
+import { cookieConfig } from 'app/config';
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly configService: ConfigService,
+    @Inject(cookieConfig.KEY)
+    private readonly configCookie: ConfigType<typeof cookieConfig>,
   ) {}
+  // Helper method to get cookie options
 
   @Public()
   @Post('register')
@@ -54,16 +58,10 @@ export class AuthController {
     const result = await this.authService.login(dto);
 
     res.cookie('refresh_token', result.refresh_token, {
-      httpOnly: true,
-      sameSite: this.configService.get<'lax' | 'strict' | 'none'>(
-        'COOKIE_SAME_SITE',
-        'strict',
-      ),
-      domain: this.configService.get<string>('COOKIE_DOMAIN') || undefined,
-      maxAge: this.configService.get<number>(
-        'COOKIE_MAX_AGE',
-        7 * 24 * 60 * 60 * 1000,
-      ),
+      httpOnly: this.configCookie.httpOnly,
+      sameSite: this.configCookie.sameSite,
+      domain: this.configCookie.domain || undefined,
+      maxAge: this.configCookie.maxAge,
     });
     return {
       access_token: result.access_token,
@@ -122,16 +120,10 @@ export class AuthController {
       const result = await this.authService.refreshToken(refreshToken);
 
       res.cookie('refresh_token', result.refresh_token, {
-        httpOnly: true,
-        sameSite: this.configService.get<'lax' | 'strict' | 'none'>(
-          'COOKIE_SAME_SITE',
-          'strict',
-        ),
-        domain: this.configService.get<string>('COOKIE_DOMAIN') || undefined,
-        maxAge: this.configService.get<number>(
-          'COOKIE_MAX_AGE',
-          7 * 24 * 60 * 60 * 1000,
-        ),
+        httpOnly: this.configCookie.httpOnly,
+        sameSite: this.configCookie.sameSite,
+        domain: this.configCookie.domain || undefined,
+        maxAge: this.configCookie.maxAge,
       });
 
       return {
@@ -159,7 +151,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: express.Response,
   ) {
     res.clearCookie('refresh_token');
-    res.clearCookie('current_store');
     return this.authService.logout(user.id);
   }
 
@@ -178,16 +169,10 @@ export class AuthController {
   ) {
     const result = await this.authService.setCurrentStore(user.id, storeId);
     res.cookie('refresh_token', result.refresh_token, {
-      httpOnly: true,
-      sameSite: this.configService.get<'lax' | 'strict' | 'none'>(
-        'COOKIE_SAME_SITE',
-        'strict',
-      ),
-      domain: this.configService.get<string>('COOKIE_DOMAIN') || undefined,
-      maxAge: this.configService.get<number>(
-        'COOKIE_MAX_AGE',
-        7 * 24 * 60 * 60 * 1000,
-      ),
+      httpOnly: this.configCookie.httpOnly,
+      sameSite: this.configCookie.sameSite,
+      domain: this.configCookie.domain || undefined,
+      maxAge: this.configCookie.maxAge,
     });
     return {
       access_token: result.access_token,

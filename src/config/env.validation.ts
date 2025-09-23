@@ -85,6 +85,23 @@ export const envSchema = z.object({
   // OAuth2 Configuration (Optional)
   CLIENT_ID: z.string().optional(),
   CLIENT_SECRET: z.string().optional(),
+
+  // Cookie Configuration
+  COOKIE_DOMAIN: z.string().default('localhost'),
+  COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('strict'),
+  COOKIE_SECURE: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(false),
+  COOKIE_HTTP_ONLY: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(true),
+  COOKIE_MAX_AGE: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(7 * 24 * 60 * 60 * 1000), // 7 days
 });
 
 // define the environment variables type
