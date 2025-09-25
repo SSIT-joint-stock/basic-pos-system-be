@@ -2,7 +2,7 @@ import { registerAs } from '@nestjs/config';
 
 // Register the cookie config
 export default registerAs('cookie', () => ({
-  domain: process.env.COOKIE_DOMAIN || 'localhost',
+  domain: process.env.COOKIE_DOMAIN || '.ssit.company',
   sameSite:
     (process.env.COOKIE_SAME_SITE as 'lax' | 'strict' | 'none') || 'strict',
   secure: process.env.COOKIE_SECURE === 'true',
