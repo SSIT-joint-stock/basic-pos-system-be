@@ -87,7 +87,7 @@ export const envSchema = z.object({
   CLIENT_SECRET: z.string().optional(),
 
   // Cookie Configuration
-  COOKIE_DOMAIN: z.string().default('localhost'),
+  COOKIE_DOMAIN: z.string().default('.ssit.company'),
   COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('strict'),
   COOKIE_SECURE: z
     .string()
