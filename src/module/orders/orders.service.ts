@@ -122,7 +122,11 @@ export class OrdersService {
       delete (findArgs as any).include;
     } else {
       (findArgs as any).include = {
-        order_item: true,
+        order_item: {
+          include: {
+            product: true,
+          },
+        },
         ...(query?.include ?? {}),
       };
     }
