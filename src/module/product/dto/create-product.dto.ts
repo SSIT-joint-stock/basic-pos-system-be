@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsUrl,
   IsObject,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { product_status } from '@prisma/client';
@@ -50,4 +51,9 @@ export class CreateProductDto {
   @IsOptional()
   @IsObject()
   meta?: Record<string, any>;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 }

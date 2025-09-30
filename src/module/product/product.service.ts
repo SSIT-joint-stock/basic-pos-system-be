@@ -10,6 +10,8 @@ import {
   NotFoundError,
 } from 'app/common/response';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService {
@@ -51,21 +53,7 @@ export class ProductService {
   async create(
     user: IUserWithPermissions,
     storeId: string,
-    data: Omit<
-      Prisma.ProductUncheckedCreateInput,
-      | 'id'
-      | 'store_id'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'created_by_user'
-      | 'store'
-      | 'inventories'
-      | 'tags'
-      | 'stock_movements'
-      | 'order'
-      | 'order_item'
-      | 'created_by'
-    >,
+    data: CreateProductDto,
   ) {
     // 1) Pre-check unique
     const exists = await this.prisma.product.findFirst({
@@ -80,13 +68,23 @@ export class ProductService {
     }
 
     // 2) Create + default inventory
-
+    const { categoryIds, ...res } = data;
     const created = await this.prisma.product.create({
       data: {
-        ...data,
+        ...res,
         store_id: storeId,
         created_by: user.id,
         inventory: { create: {} },
+        categories: categoryIds?.length
+          ? {
+              connect: categoryIds.map((id) => ({ id })),
+            }
+          : undefined,
+      },
+      include: {
+        inventory: true,
+        categories: true,
+        // tags: true,
       },
     });
     return created;
@@ -135,27 +133,31 @@ export class ProductService {
     return product;
   }
 
-  async update(
-    storeId: string,
-    id: string,
-    data: Omit<
-      Prisma.ProductUpdateInput,
-      | 'id'
-      | 'store_id'
-      | 'created_by'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'created_by_user'
-      | 'store'
-      | 'tags'
-      | 'stock_movements'
-      | 'order'
-      | 'order_item'
-    >,
-  ) {
+  async update(storeId: string, id: string, data: UpdateProductDto) {
     // 1) Lấy product hiện tại để kiểm tra tồn tại
     const existing = await this.prisma.product.findUnique({
       where: { store_id: storeId, id },
+      include: {
+        inventory: {
+          select: {
+            quantity: true,
+          },
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            updatedAt: true,
+          },
+        },
+        tags: {
+          select: {
+            id: true,
+            name: true,
+            updatedAt: true,
+          },
+        },
+      },
     });
     if (!existing) {
       throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
@@ -176,12 +178,20 @@ export class ProductService {
         throw new ConflictError(this.errorMessages.PRODUCT_SKU_EXISTS);
       }
     }
-
+    const { categoryIds, ...res } = data;
     // 3) Thực hiện update
     const updated = await this.prisma.product.update({
       where: { id },
-      data: { ...data },
-      include: { inventory: true }, // FIX: Sau co the bo
+      data: {
+        ...res,
+        categories:
+          categoryIds !== undefined
+            ? {
+                set: categoryIds.map((id) => ({ id })),
+              }
+            : undefined,
+      },
+      include: { inventory: true, categories: true, tags: true }, // FIX: Sau co the bo
     });
     return updated;
   }
@@ -217,6 +227,8 @@ export class ProductService {
           inventory: {
             select: { quantity: true },
           },
+          categories: true,
+          tags: true,
         },
       }),
       this.prisma.product.count({
