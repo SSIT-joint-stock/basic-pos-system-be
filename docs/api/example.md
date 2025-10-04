@@ -6,7 +6,7 @@
 
 | **Thuộc tính** | **Giá trị**                       |
 | -------------- | --------------------------------- |
-| Request URL    | `/api/auth/login`                 |
+| Request URL    | `/auth/login`                     |
 | Request Method | POST                              |
 | Request Header | Content-Type: application/json    |
 | Body data      | Xem chi tiết JSON schema bên dưới |
@@ -74,7 +74,7 @@
 
 | **Thuộc tính** | **Giá trị**                       |
 | -------------- | --------------------------------- |
-| Request URL    | `/api/auth/refresh`               |
+| Request URL    | `/auth/refresh`                   |
 | Request Method | POST                              |
 | Request Header | Content-Type: application/json    |
 | Body data      | Xem chi tiết JSON schema bên dưới |
@@ -116,7 +116,7 @@
 
 | **Thuộc tính** | **Giá trị**                          |
 | -------------- | ------------------------------------ |
-| Request URL    | `/api/auth/me`                       |
+| Request URL    | `/auth/me`                           |
 | Request Method | GET                                  |
 | Request Header | Authorization: Bearer {access_token} |
 | Body data      | Không có                             |
@@ -152,7 +152,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                             |
 | -------------- | ----------------------------------------------------------------------- |
-| Request URL    | `/api/auth/profile`                                                     |
+| Request URL    | `/auth/profile`                                                         |
 | Request Method | PUT                                                                     |
 | Request Header | Content-Type: application/json<br/>Authorization: Bearer {access_token} |
 | Body data      | Xem chi tiết JSON schema bên dưới                                       |
@@ -183,7 +183,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                             |
 | -------------- | ----------------------------------------------------------------------- |
-| Request URL    | `/api/auth/password`                                                    |
+| Request URL    | `/auth/password`                                                        |
 | Request Method | PUT                                                                     |
 | Request Header | Content-Type: application/json<br/>Authorization: Bearer {access_token} |
 | Body data      | Xem chi tiết JSON schema bên dưới                                       |
@@ -212,7 +212,7 @@
 
 | **Thuộc tính** | **Giá trị**                          |
 | -------------- | ------------------------------------ |
-| Request URL    | `/api/auth/logout`                   |
+| Request URL    | `/auth/logout`                       |
 | Request Method | POST                                 |
 | Request Header | Authorization: Bearer {access_token} |
 | Body data      | Không có                             |

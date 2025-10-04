@@ -26,7 +26,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/register`           |
+| Request URL    | `/auth/register`               |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -92,7 +92,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/login`              |
+| Request URL    | `/auth/login`                  |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -178,7 +178,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/verify-email`       |
+| Request URL    | `/auth/verify-email`           |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -272,7 +272,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/reverify-email`     |
+| Request URL    | `/auth/reverify-email`         |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -347,7 +347,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/forgot-password`    |
+| Request URL    | `/auth/forgot-password`        |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -406,7 +406,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/reset-password`     |
+| Request URL    | `/auth/reset-password`         |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -505,7 +505,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/logout`             |
+| Request URL    | `/auth/logout`                 |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -550,7 +550,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/auth/profile`            |
+| Request URL    | `/auth/profile`                |
 | Request Method | POST                           |
 | Request Header | Content-Type: application/json |
 | Body data      | JSON schema bên dưới           |
@@ -606,7 +606,7 @@
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/v1/auth/init`            |
+| Request URL    | `/v1/auth/init`                |
 | Request Method | GET                            |
 | Request Header | Content-Type: application/json |
 | Body data      | Không có                       |
@@ -649,7 +649,7 @@ Server sẽ dùng code để lấy thông tin người dùng, sau đó trả v�
 
 | **Thuộc tính** | **Giá trị**                    |
 | -------------- | ------------------------------ |
-| Request URL    | `/api/v1/auth/callback`        |
+| Request URL    | `/v1/auth/callback`            |
 | Request Method | GET                            |
 | Request Header | Content-Type: application/json |
 | Body data      | Không có                       |

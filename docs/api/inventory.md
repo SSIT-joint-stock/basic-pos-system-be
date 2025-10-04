@@ -12,14 +12,14 @@
 
 > **Ghi chú:** Cột "Vai trò tối thiểu" nghĩa là vai trò thấp nhất có thể gọi được API đó. **OWNER** luôn có thể gọi tất cả các API.
 
-| **Endpoint**                                                    | **Method** | **Vai trò tối thiểu** |
-| --------------------------------------------------------------- | ---------- | --------------------- |
-| `/api/stores/:storeId/inventories`                              | GET        | MEMBER                |
-| `/api/stores/:storeId/inventories/:id`                          | GET        | MEMBER                |
-| `/api/stores/:storeId/inventories/:id`                          | PUT        | OWNER                 |
-| `/api/stores/:storeId/inventories/revalue/:id`                  | PATCH      | OWNER                 |
-| `/api/stores/:storeId/inventories/status/:id`                   | PUT        | OWNER                 |
-| `/api/stores/:storeId/products/:productId/inventory/set-status` | PUT        | MEMBER                |
+| **Endpoint**                                                | **Method** | **Vai trò tối thiểu** |
+| ----------------------------------------------------------- | ---------- | --------------------- |
+| `/stores/:storeId/inventories`                              | GET        | MEMBER                |
+| `/stores/:storeId/inventories/:id`                          | GET        | MEMBER                |
+| `/stores/:storeId/inventories/:id`                          | PUT        | OWNER                 |
+| `/stores/:storeId/inventories/revalue/:id`                  | PATCH      | OWNER                 |
+| `/stores/:storeId/inventories/status/:id`                   | PUT        | OWNER                 |
+| `/stores/:storeId/products/:productId/inventory/set-status` | PUT        | MEMBER                |
 
 **Mapping quyền gợi ý:**
 
@@ -41,7 +41,7 @@
 
 | **Thuộc tính** | **Giá trị**                           |
 | -------------- | ------------------------------------- |
-| Request URL    | `/api/stores/:storeId/inventories`    |
+| Request URL    | `/stores/:storeId/inventories`        |
 | Request Method | **GET**                               |
 | Request Header | `Authorization: Bearer <token>`       |
 | Quyền yêu cầu  | `INVENTORY_READ` hoặc `INVENTORY_ALL` |
@@ -158,12 +158,12 @@
 
 ## 2.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                            |
-| -------------- | -------------------------------------- |
-| Request URL    | `/api/stores/:storeId/inventories/:id` |
-| Request Method | **GET**                                |
-| Request Header | `Authorization: Bearer <token>`        |
-| Quyền yêu cầu  | `INVENTORY_READ` hoặc `INVENTORY_ALL`  |
+| **Thuộc tính** | **Giá trị**                           |
+| -------------- | ------------------------------------- |
+| Request URL    | `/stores/:storeId/inventories/:id`    |
+| Request Method | **GET**                               |
+| Request Header | `Authorization: Bearer <token>`       |
+| Quyền yêu cầu  | `INVENTORY_READ` hoặc `INVENTORY_ALL` |
 
 ### 2.2 Response
 
@@ -212,7 +212,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/inventories/revalue/:id`                      |
+| Request URL    | `/stores/:storeId/inventories/revalue/:id`                          |
 | Request Method | **PATCH**                                                           |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | `RevalueDto`                                                        |
@@ -281,7 +281,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/products/:productId/inventory/set-status`     |
+| Request URL    | `/stores/:storeId/products/:productId/inventory/set-status`         |
 | Request Method | **POST**                                                            |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | `SetStatusDto`                                                      |
@@ -343,7 +343,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/inventories/apllyStockMovement/:productId`    |
+| Request URL    | `/stores/:storeId/inventories/apllyStockMovement/:productId`        |
 | Request Method | **PUT**                                                             |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | `AdjustQuantityDto`                                                 |

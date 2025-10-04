@@ -10,13 +10,13 @@
 
 > **Ghi chú:** Cột "Vai trò tối thiểu" nghĩa là vai trò thấp nhất có thể gọi được API đó. **OWNER** luôn có thể gọi tất cả các API.
 
-| **Endpoint**                               | **Method** | **Vai trò tối thiểu** |
-| ------------------------------------------ | ---------- | --------------------- |
-| `/api/stores/:storeId/products`            | POST       | OWNER                 |
-| `/api/stores/:storeId/products`            | GET        | MEMBER                |
-| `/api/stores/:storeId/products/:productId` | GET        | MEMBER                |
-| `/api/stores/:storeId/products/:productId` | PATCH      | MEMBER                |
-| `/api/stores/:storeId/products/:productId` | DELETE     | OWNER                 |
+| **Endpoint**                           | **Method** | **Vai trò tối thiểu** |
+| -------------------------------------- | ---------- | --------------------- |
+| `/stores/:storeId/products`            | POST       | OWNER                 |
+| `/stores/:storeId/products`            | GET        | MEMBER                |
+| `/stores/:storeId/products/:productId` | GET        | MEMBER                |
+| `/stores/:storeId/products/:productId` | PATCH      | MEMBER                |
+| `/stores/:storeId/products/:productId` | DELETE     | OWNER                 |
 
 --- | --- |
 | **OWNER** | **ALL** (`PRODUCT_ALL` ,`PRODUCT_READ`, `PRODUCT_CREATE`, `PRODUCT_UPDATE`, `PRODUCT_DELETE`) |
@@ -40,7 +40,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/products`                                     |
+| Request URL    | `/stores/:storeId/products`                                         |
 | Request Method | **POST**                                                            |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | JSON schema bên dưới                                                |
@@ -161,7 +161,7 @@
 
 | **Thuộc tính** | **Giá trị**                       |
 | -------------- | --------------------------------- |
-| Request URL    | `/api/stores/:storeId/products`   |
+| Request URL    | `/stores/:storeId/products`       |
 | Request Method | **GET**                           |
 | Request Header | `Authorization: Bearer <token>`   |
 | Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL` |
@@ -245,12 +245,12 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ## 3.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                |
-| -------------- | ------------------------------------------ |
-| Request URL    | `/api/stores/:storeId/products/:productId` |
-| Request Method | **GET**                                    |
-| Request Header | `Authorization: Bearer <token>`            |
-| Quyền yêu cầu  | `PRODUCT_READ` or `PRODUCT_ALL`            |
+| **Thuộc tính** | **Giá trị**                            |
+| -------------- | -------------------------------------- |
+| Request URL    | `/stores/:storeId/products/:productId` |
+| Request Method | **GET**                                |
+| Request Header | `Authorization: Bearer <token>`        |
+| Quyền yêu cầu  | `PRODUCT_READ` or `PRODUCT_ALL`        |
 
 ### 3.2 Dữ liệu đầu ra
 
@@ -305,7 +305,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/products/:productId`                          |
+| Request URL    | `/stores/:storeId/products/:productId`                              |
 | Request Method | **PATCH**                                                           |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | JSON schema (partial) bên dưới                                      |
@@ -405,12 +405,12 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ## 5.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                |
-| -------------- | ------------------------------------------ |
-| Request URL    | `/api/stores/:storeId/products/:productId` |
-| Request Method | **DELETE**                                 |
-| Request Header | `Authorization: Bearer <token>`            |
-| Quyền yêu cầu  | `PRODUCT_DELETE`                           |
+| **Thuộc tính** | **Giá trị**                            |
+| -------------- | -------------------------------------- |
+| Request URL    | `/stores/:storeId/products/:productId` |
+| Request Method | **DELETE**                             |
+| Request Header | `Authorization: Bearer <token>`        |
+| Quyền yêu cầu  | `PRODUCT_DELETE`                       |
 
 ### 5.2 Dữ liệu đầu ra
 
@@ -459,12 +459,12 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ## 6.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                    |
-| -------------- | ---------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/products/filter-product` |
-| Request Method | **GET**                                        |
-| Request Header | `Authorization: Bearer <token>`                |
-| Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL`              |
+| **Thuộc tính** | **Giá trị**                                |
+| -------------- | ------------------------------------------ |
+| Request URL    | `/stores/:storeId/products/filter-product` |
+| Request Method | **GET**                                    |
+| Request Header | `Authorization: Bearer <token>`            |
+| Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL`          |
 
 ---
 

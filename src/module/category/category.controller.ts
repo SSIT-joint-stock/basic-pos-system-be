@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
   Get,
@@ -15,6 +17,9 @@ import { PermissionGuard } from 'app/permissions/guard/permission.guard';
 import { RequirePermission } from 'app/common/decorators/permission.decorator';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import { ApiSuccess } from 'app/common/decorators';
+import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
+import z from 'zod';
+import { PaginatedResponse } from 'app/common/response';
 
 @Controller('stores/:storeId/categories')
 @UseGuards(PermissionGuard)
@@ -34,8 +39,34 @@ export class CategoryController {
   @Get()
   @RequirePermission([PERMISSIONS.CATEGORY_READ])
   @ApiSuccess('Categories retrieved successfully')
-  findAll(@Param('storeId') storeId: string) {
-    return this.categoryService.findAll(storeId);
+  async findAll(
+    @Param('storeId') storeId: string,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'asc',
+      allowedSortBy: ['createdAt', 'total_amount'],
+      searchBy: ['name'], // thêm dòng này
+      searchKey: 'q', // FIX: nếu muốn đổi tên key tìm kiếm
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query,
+  ) {
+    const { data, total } = await this.categoryService.findAll(
+      storeId,
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   @Get(':id')
