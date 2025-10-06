@@ -87,12 +87,14 @@ export const envSchema = z.object({
   CLIENT_SECRET: z.string().optional(),
 
   // Cookie Configuration
-  COOKIE_DOMAIN: z.string().default('.ssit.company'),
+  COOKIE_DOMAIN: z.string().default('localhost'),
   COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('none'),
   COOKIE_SECURE: z
     .string()
     .transform((val) => val === 'true')
-    .default(false),
+    .default(false)
+    .pipe(z.boolean())
+    .pipe(z.boolean()),
   COOKIE_HTTP_ONLY: z
     .string()
     .transform((val) => val === 'true')
