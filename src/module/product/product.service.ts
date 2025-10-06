@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, StreamableFile } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, Product } from '@prisma/client';
 import {
   BadRequestError,
   ConflictError,
@@ -12,6 +12,8 @@ import {
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { Response } from 'express';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class ProductService {
@@ -46,6 +48,11 @@ export class ProductService {
     FORBIDDEN: 'Access forbidden',
     BAD_REQUEST: 'Invalid request data',
     INTERNAL_ERROR: 'An unexpected error occurred. Please try again later',
+
+    // File
+    FILE_NOT_FOUND: 'File not found',
+    FILE_EMPTY: 'File is empty',
+    FILE_TOO_LARGE: 'File size is too large, maximum allowed is 500 rows',
   };
 
   constructor(private readonly prisma: PrismaService) {}
@@ -237,5 +244,134 @@ export class ProductService {
     ]);
 
     return { data: products, total };
+  }
+  async createProductByExcel(
+    file: Express.Multer.File,
+    storeId: string,
+    userId: string,
+  ) {
+    if (!file) {
+      throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
+    }
+
+    // Đọc Excel
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    if (jsonData.length === 0) {
+      throw new BadRequestError(this.errorMessages.FILE_EMPTY);
+    }
+    if (jsonData.length >= 500) {
+      throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
+    }
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const createdProducts: Product[] = [];
+
+        for (const row of jsonData) {
+          // Tìm hoặc tạo category theo tên
+          let category = await tx.category.findFirst({
+            where: {
+              store_id: storeId,
+              name: row['category'],
+            },
+          });
+
+          if (!category) {
+            category = await tx.category.create({
+              data: {
+                name: row['category'],
+                store_id: storeId,
+              },
+            });
+          }
+
+          // Check product tồn tại
+          const existingSku = await tx.product.findFirst({
+            where: {
+              sku: row['sku'],
+              store_id: storeId,
+            },
+          });
+          if (existingSku) {
+            throw new ConflictError(
+              `Product with sku ${row['sku']} already exists`,
+            );
+          }
+
+          // Tạo product
+          const product = await tx.product.create({
+            data: {
+              name: row['name'],
+              sku: row['sku'],
+              barcode: row['barcode']?.toString(),
+              price: Number(row['price'] ?? 0),
+              cost: Number(row['cost'] ?? 0),
+              description: row['description'],
+              image_url: row['image_url'],
+              product_status: row['product_status'] ?? 'ACTIVE',
+              store_id: storeId,
+              created_by: userId,
+              inventory: { create: {} },
+              categories: {
+                connect: [{ id: category.id }],
+              },
+            },
+            include: {
+              categories: true,
+              inventory: true,
+            },
+          });
+
+          createdProducts.push(product);
+        }
+
+        return createdProducts;
+      },
+      {
+        timeout: 30000,
+      },
+    );
+
+    return { data: result };
+  }
+  downloadExampleExcel(): StreamableFile {
+    const headers = [
+      'name*',
+      'sku*',
+      'barcode',
+      'price*',
+      'cost',
+      'description',
+      'image_url',
+      'product_status',
+      'category*',
+    ];
+    const sample = [
+      {
+        'name*': 'Sample Product',
+        'sku*': 'SKU001',
+        barcode: '123456789',
+        'price*': 10000,
+        cost: 8000,
+        description: 'This is a sample product',
+        image_url: 'http://example.com/image.jpg',
+        product_status: 'ACTIVE',
+        'category*': 'Sample Category',
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sample, { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Products');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    return new StreamableFile(buffer, {
+      disposition: 'attachment; filename="example_products.xlsx"',
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
   }
 }

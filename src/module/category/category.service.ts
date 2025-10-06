@@ -12,15 +12,6 @@ export class CategoryService {
   };
   constructor(private readonly prismaService: PrismaService) {}
   async create(createCategoryDto: CreateCategoryDto, storeId: string) {
-    const existingCategory = await this.prismaService.category.findFirst({
-      where: {
-        name: createCategoryDto.name,
-        store_id: storeId,
-      },
-    });
-    if (existingCategory) {
-      throw new ConflictError(this.errorMessages.CATEGORY_ALREADY_EXISTS);
-    }
     return await this.prismaService.category.create({
       data: {
         ...createCategoryDto,
