@@ -214,30 +214,38 @@ export class StatisticsService {
     } else {
       startDate = dayjs().startOf('month').toDate();
     }
-    const grouped = await this.prismaService.order.groupBy({
-      by: ['status'],
-      _count: true,
-      _sum: { total_amount: true },
+
+    const orders = await this.prismaService.order.findMany({
       where: {
-        status: order_status.COMPLETED,
         store_id: storeId,
+        status: order_status.COMPLETED,
         createdAt: {
           gte: startDate,
           lte: endDate,
         },
       },
-    });
-
-    return grouped.reduce(
-      (acc, item) => {
-        acc[item.status] = {
-          count: item._count,
-          revenue: item._sum.total_amount ?? 0,
-        };
-        return acc;
+      include: {
+        order_item: true,
       },
-      {} as Record<string, { count: number; revenue: number }>,
-    );
+    });
+    const orderCount = orders.length;
+    const totalRevenue = orders.reduce((acc, order) => {
+      return acc + Number(order.total_amount ?? 0);
+    }, 0);
+    const customerCount = new Set(orders.map((order) => order.customer_id));
+    const totalProduct = orders.reduce((acc, order) => {
+      const totalQty = order.order_item.reduce((sum, i) => {
+        return sum + i.quantity;
+      }, 0);
+      return acc + totalQty;
+    }, 0);
+
+    return {
+      orderCount,
+      totalRevenue,
+      customerCount: customerCount.size,
+      totalProduct,
+    };
   }
   async getTopProducts(storeId: string) {
     const orders = await this.prismaService.order.findMany({
@@ -341,7 +349,7 @@ export class StatisticsService {
       const daysRemaining =
         avgDailySales > 0 ? inventory / avgDailySales : Infinity;
       let status: 'critical' | 'warning' | 'normal' = 'normal';
-      if (daysRemaining < 7) status = 'critical';
+      if (daysRemaining < 20) status = 'critical';
       else if (daysRemaining < 30) status = 'warning';
       return {
         product: {

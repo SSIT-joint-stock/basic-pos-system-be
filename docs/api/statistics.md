@@ -12,14 +12,14 @@
 
 > **Ghi chú:** Cột "Vai trò tối thiểu" nghĩa là vai trò thấp nhất có thể gọi được API đó. **OWNER** luôn có thể gọi tất cả các API.
 
-| **Endpoint**                                          | **Method** | **Vai trò tối thiểu** |
-| ----------------------------------------------------- | ---------- | --------------------- |
-| `/api/stores/:storeId/statistics/revenue`             | GET        | MEMBER                |
-| `/api/stores/:storeId/statistics/notifications`       | GET        | MEMBER                |
-| `/api/stores/:storeId/statistics/revenue-by-category` | GET        | MEMBER                |
-| `/api/stores/:storeId/statistics/summary-revenue`     | GET        | MEMBER                |
-| `/api/stores/:storeId/statistics/top-products`        | GET        | MEMBER                |
-| `/api/stores/:storeId/statistics/low-stock-product`   | GET        | MEMBER                |
+| **Endpoint**                                     | **Method** | **Vai trò tối thiểu** |
+| ------------------------------------------------ | ---------- | --------------------- |
+| `stores/:storeId/statistics/revenue`             | GET        | MEMBER                |
+| `stores/:storeId/statistics/notifications`       | GET        | MEMBER                |
+| `stores/:storeId/statistics/revenue-by-category` | GET        | MEMBER                |
+| `stores/:storeId/statistics/summary-revenue`     | GET        | MEMBER                |
+| `stores/:storeId/statistics/top-products`        | GET        | MEMBER                |
+| `stores/:storeId/statistics/low-stock-product`   | GET        | MEMBER                |
 
 **Phân quyền:**
 
@@ -183,12 +183,12 @@
 
 ## 2.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                     |
-| -------------- | ----------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/statistics/notifications` |
-| Request Method | **GET**                                         |
-| Request Header | `Authorization: Bearer <token>`                 |
-| Quyền yêu cầu  | `STATISTICS_READ`                               |
+| **Thuộc tính** | **Giá trị**                                 |
+| -------------- | ------------------------------------------- |
+| Request URL    | `/stores/:storeId/statistics/notifications` |
+| Request Method | **GET**                                     |
+| Request Header | `Authorization: Bearer <token>`             |
+| Quyền yêu cầu  | `STATISTICS_READ`                           |
 
 ---
 
@@ -262,12 +262,12 @@
 
 ## 3.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                           |
-| -------------- | ----------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/statistics/revenue-by-category` |
-| Request Method | **GET**                                               |
-| Request Header | `Authorization: Bearer <token>`                       |
-| Quyền yêu cầu  | `STATISTICS_READ`                                     |
+| **Thuộc tính** | **Giá trị**                                       |
+| -------------- | ------------------------------------------------- |
+| Request URL    | `/stores/:storeId/statistics/revenue-by-category` |
+| Request Method | **GET**                                           |
+| Request Header | `Authorization: Bearer <token>`                   |
+| Quyền yêu cầu  | `STATISTICS_READ`                                 |
 
 ---
 
@@ -342,12 +342,12 @@
 
 ## 4.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                       |
-| -------------- | ------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/statistics/summary-revenue` |
-| Request Method | **GET**                                           |
-| Request Header | `Authorization: Bearer <token>`                   |
-| Quyền yêu cầu  | `STATISTICS_READ`                                 |
+| **Thuộc tính** | **Giá trị**                                   |
+| -------------- | --------------------------------------------- |
+| Request URL    | `/stores/:storeId/statistics/summary-revenue` |
+| Request Method | **GET**                                       |
+| Request Header | `Authorization: Bearer <token>`               |
+| Quyền yêu cầu  | `STATISTICS_READ`                             |
 
 ---
 
@@ -367,14 +367,14 @@
 {
   "success": true,
   "meta": {
-    "timestamp": "2025-10-06T10:45:00.000Z",
+    "timestamp": "2025-10-07T08:57:27.133Z",
     "version": "v1"
   },
   "data": {
-    "COMPLETED": {
-      "count": 45,
-      "revenue": 15800000
-    }
+    "orderCount": 5,
+    "totalRevenue": 468976,
+    "customerCount": 1,
+    "totalProduct": 31
   },
   "message": "Notifications retrieved successfully"
 }
@@ -382,9 +382,10 @@
 
 **Giải thích:**
 
-- `COMPLETED`: Đơn hàng đã hoàn thành
-- `count`: Số lượng đơn hàng
-- `revenue`: Tổng doanh thu (đơn vị: VNĐ)
+- `orderCount`: Số lượng đơn hàng đã hoàn thành
+- `totalRevenue`: Tổng doanh thu (đơn vị: VNĐ)
+- `customerCount`: Tổng số lượng khách hàng
+- `totalProduct`: Tổng số lượng sản phẩm được mua
 
 ### Error Responses
 
@@ -424,12 +425,12 @@
 
 ## 5.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                    |
-| -------------- | ---------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/statistics/top-products` |
-| Request Method | **GET**                                        |
-| Request Header | `Authorization: Bearer <token>`                |
-| Quyền yêu cầu  | `STATISTICS_READ`                              |
+| **Thuộc tính** | **Giá trị**                                |
+| -------------- | ------------------------------------------ |
+| Request URL    | `/stores/:storeId/statistics/top-products` |
+| Request Method | **GET**                                    |
+| Request Header | `Authorization: Bearer <token>`            |
+| Quyền yêu cầu  | `STATISTICS_READ`                          |
 
 ---
 
@@ -527,12 +528,12 @@
 
 ## 6.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                         |
-| -------------- | --------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/statistics/low-stock-product` |
-| Request Method | **GET**                                             |
-| Request Header | `Authorization: Bearer <token>`                     |
-| Quyền yêu cầu  | `STATISTICS_READ`                                   |
+| **Thuộc tính** | **Giá trị**                                     |
+| -------------- | ----------------------------------------------- |
+| Request URL    | `/stores/:storeId/statistics/low-stock-product` |
+| Request Method | **GET**                                         |
+| Request Header | `Authorization: Bearer <token>`                 |
+| Quyền yêu cầu  | `STATISTICS_READ`                               |
 
 ---
 
