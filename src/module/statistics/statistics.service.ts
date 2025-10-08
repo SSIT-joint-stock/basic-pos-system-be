@@ -1,3 +1,4 @@
+import { NotificationType } from './../../common/types/notification.type';
 import { Injectable } from '@nestjs/common';
 import { order_status } from '@prisma/client';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -7,7 +8,7 @@ import 'dayjs/locale/vi';
 @Injectable()
 export class StatisticsService {
   constructor(private readonly prismaService: PrismaService) {}
-  async getNotifications(storeId: string) {
+  async getNotifications(storeId: string, type: 'all' | 'order' | 'stock') {
     dayjs.extend(relativeTime);
     dayjs.locale('vi');
 
@@ -51,19 +52,21 @@ export class StatisticsService {
     });
     const notifications = [
       ...orders.map((order) => ({
+        type: NotificationType.order,
         title: `Đơn hàng ${order.code ?? order.id} vừa tạo (${order.total_amount}đ)`,
         time: dayjs(order.createdAt).fromNow(),
       })),
       ...getStatusInStock.map((item) => ({
+        type: NotificationType.stock,
         title: `Số lượng ${item.quantity} sản phẩm ${item.product.name} đã được ${item.type}`,
         time: dayjs(item.createdAt).fromNow(),
       })),
     ]
       .sort((a, b) => +new Date(b.time) - +new Date(a.time))
-      .slice(0, 15);
-    return {
-      notifications,
-    };
+      .slice(0, 60);
+    return type === 'all'
+      ? notifications
+      : notifications.filter((item) => item.type === type);
   }
   async getRevenue(storeId: string, type: 'day' | 'week' | 'month') {
     const now = dayjs();

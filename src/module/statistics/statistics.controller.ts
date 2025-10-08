@@ -15,8 +15,11 @@ export class StatisticsController {
 
   @Get('notifications')
   @ApiSuccess('Notifications retrieved successfully')
-  async getNotifications(@Param('storeId') storeId: string) {
-    return this.statisticsService.getNotifications(storeId);
+  async getNotifications(
+    @Param('storeId') storeId: string,
+    @Query('type') type: 'all' | 'order' | 'stock',
+  ) {
+    return this.statisticsService.getNotifications(storeId, type);
   }
   @Get('revenue-by-category')
   @ApiSuccess('Notifications retrieved successfully')
