@@ -39,6 +39,7 @@ import { CategoryModule } from './module/category/category.module';
 import { InventoryModule } from './module/inventory/inventory.module';
 import { StockMovementModule } from './module/stock-movement/stock-movement.module';
 import { OrdersModule } from './module/orders/orders.module';
+import { CustomerModule } from './module/customer/customer.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { OrdersModule } from './module/orders/orders.module';
     CategoryModule,
     DocsModule,
     OrdersModule,
+    CustomerModule,
   ],
   providers: [
     TokenService,
