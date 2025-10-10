@@ -1,11 +1,4 @@
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Matches,
-} from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
@@ -15,14 +8,9 @@ export class CreateCustomerDto {
 
   @IsOptional()
   @IsString()
-  // Regex điện thoại "mềm": cho phép +, khoảng trắng, dấu gạch, ngoặc, và 9–20 chữ số
-  @Matches(/^\+?[\d\s\-()]{9,20}$/, {
-    message: 'Số điện thoại không hợp lệ',
-  })
   phone?: string;
 
   @IsOptional()
-  @IsEmail({}, { message: 'Email không hợp lệ' })
   email?: string;
 
   @IsOptional()
@@ -42,7 +30,6 @@ export class CreateCustomerDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^\d{5}$/, { message: 'Mã ZIP phải gồm đúng 5 chữ số' })
   zip?: string;
 
   @IsOptional()
