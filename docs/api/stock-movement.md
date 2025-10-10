@@ -10,10 +10,10 @@
 
 ## Yêu cầu vai trò theo API (trong store)
 
-| **Endpoint**                               | **Method** | **Vai trò tối thiểu** |
-| ------------------------------------------ | ---------- | --------------------- |
-| `/api/stores/:storeId/stock-movements`     | GET        | MEMBER                |
-| `/api/stores/:storeId/stock-movements/:id` | GET        | MEMBER                |
+| **Endpoint**                           | **Method** | **Vai trò tối thiểu** |
+| -------------------------------------- | ---------- | --------------------- |
+| `/stores/:storeId/stock-movements`     | GET        | MEMBER                |
+| `/stores/:storeId/stock-movements/:id` | GET        | MEMBER                |
 
 ---
 
@@ -21,12 +21,12 @@
 
 ## 1.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                            |
-| -------------- | -------------------------------------- |
-| Request URL    | `/api/stores/:storeId/stock-movements` |
-| Request Method | **GET**                                |
-| Request Header | `Authorization: Bearer <token>`        |
-| Quyền yêu cầu  | `STOCK_MOVEMENT_READ` **hoặc** `ALL`   |
+| **Thuộc tính** | **Giá trị**                          |
+| -------------- | ------------------------------------ |
+| Request URL    | `/stores/:storeId/stock-movements`   |
+| Request Method | **GET**                              |
+| Request Header | `Authorization: Bearer <token>`      |
+| Quyền yêu cầu  | `STOCK_MOVEMENT_READ` **hoặc** `ALL` |
 
 ---
 
@@ -129,12 +129,12 @@
 
 ## 2.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                |
-| -------------- | ------------------------------------------ |
-| Request URL    | `/api/stores/:storeId/stock-movements/:id` |
-| Request Method | **GET**                                    |
-| Request Header | `Authorization: Bearer <token>`            |
-| Quyền yêu cầu  | `STOCK_MOVEMENT_READ`                      |
+| **Thuộc tính** | **Giá trị**                            |
+| -------------- | -------------------------------------- |
+| Request URL    | `/stores/:storeId/stock-movements/:id` |
+| Request Method | **GET**                                |
+| Request Header | `Authorization: Bearer <token>`        |
+| Quyền yêu cầu  | `STOCK_MOVEMENT_READ`                  |
 
 ### 2.2 Dữ liệu đầu ra
 

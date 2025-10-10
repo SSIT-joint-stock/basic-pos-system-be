@@ -144,6 +144,17 @@ export class ProductController {
     return this.productService.remove(storeId, id);
   }
 
+  @Post('invoice-create-product')
+  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
+  @ApiSuccess('Create product successfully')
+  createProductsBatch(
+    @Param('storeId') storeId: string,
+    @UserWithPermissions() user: IUserWithPermissions,
+    @Body() items: CreateProductDto[],
+  ) {
+    return this.productService.createProductsBatch(storeId, user, items);
+  }
+
   @Post('import-excel')
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @UseInterceptors(FileInterceptor('file'))

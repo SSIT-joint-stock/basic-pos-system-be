@@ -3,6 +3,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ConflictError, NotFoundError } from 'app/common/response';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class CategoryService {
@@ -20,12 +21,24 @@ export class CategoryService {
     });
   }
 
-  findAll(storeId: string) {
-    return this.prismaService.category.findMany({
-      where: {
-        store_id: storeId,
-      },
-    });
+  async findAll(store_id: string, query: Prisma.CategoryFindManyArgs) {
+    const where: Prisma.CategoryWhereInput = {
+      AND: [query.where ?? {}, { store_id }],
+    };
+
+    const [categories, total] = await Promise.all([
+      this.prismaService.category.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+      }),
+      this.prismaService.category.count({
+        where,
+      }),
+    ]);
+
+    return { data: categories, total };
   }
 
   async findOne(id: string, storeId: string) {

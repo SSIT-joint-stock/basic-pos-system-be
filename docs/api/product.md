@@ -10,13 +10,13 @@
 
 > **Ghi chú:** Cột "Vai trò tối thiểu" nghĩa là vai trò thấp nhất có thể gọi được API đó. **OWNER** luôn có thể gọi tất cả các API.
 
-| **Endpoint**                               | **Method** | **Vai trò tối thiểu** |
-| ------------------------------------------ | ---------- | --------------------- |
-| `/api/stores/:storeId/products`            | POST       | OWNER                 |
-| `/api/stores/:storeId/products`            | GET        | MEMBER                |
-| `/api/stores/:storeId/products/:productId` | GET        | MEMBER                |
-| `/api/stores/:storeId/products/:productId` | PATCH      | MEMBER                |
-| `/api/stores/:storeId/products/:productId` | DELETE     | OWNER                 |
+| **Endpoint**                           | **Method** | **Vai trò tối thiểu** |
+| -------------------------------------- | ---------- | --------------------- |
+| `/stores/:storeId/products`            | POST       | OWNER                 |
+| `/stores/:storeId/products`            | GET        | MEMBER                |
+| `/stores/:storeId/products/:productId` | GET        | MEMBER                |
+| `/stores/:storeId/products/:productId` | PATCH      | MEMBER                |
+| `/stores/:storeId/products/:productId` | DELETE     | OWNER                 |
 
 --- | --- |
 | **OWNER** | **ALL** (`PRODUCT_ALL` ,`PRODUCT_READ`, `PRODUCT_CREATE`, `PRODUCT_UPDATE`, `PRODUCT_DELETE`) |
@@ -40,7 +40,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/products`                                     |
+| Request URL    | `/stores/:storeId/products`                                         |
 | Request Method | **POST**                                                            |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | JSON schema bên dưới                                                |
@@ -161,7 +161,7 @@
 
 | **Thuộc tính** | **Giá trị**                       |
 | -------------- | --------------------------------- |
-| Request URL    | `/api/stores/:storeId/products`   |
+| Request URL    | `/stores/:storeId/products`       |
 | Request Method | **GET**                           |
 | Request Header | `Authorization: Bearer <token>`   |
 | Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL` |
@@ -245,12 +245,12 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ## 3.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                |
-| -------------- | ------------------------------------------ |
-| Request URL    | `/api/stores/:storeId/products/:productId` |
-| Request Method | **GET**                                    |
-| Request Header | `Authorization: Bearer <token>`            |
-| Quyền yêu cầu  | `PRODUCT_READ` or `PRODUCT_ALL`            |
+| **Thuộc tính** | **Giá trị**                            |
+| -------------- | -------------------------------------- |
+| Request URL    | `/stores/:storeId/products/:productId` |
+| Request Method | **GET**                                |
+| Request Header | `Authorization: Bearer <token>`        |
+| Quyền yêu cầu  | `PRODUCT_READ` or `PRODUCT_ALL`        |
 
 ### 3.2 Dữ liệu đầu ra
 
@@ -305,7 +305,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/products/:productId`                          |
+| Request URL    | `/stores/:storeId/products/:productId`                              |
 | Request Method | **PATCH**                                                           |
 | Request Header | `Authorization: Bearer <token>`<br>`Content-Type: application/json` |
 | Body data      | JSON schema (partial) bên dưới                                      |
@@ -405,12 +405,12 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ## 5.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                |
-| -------------- | ------------------------------------------ |
-| Request URL    | `/api/stores/:storeId/products/:productId` |
-| Request Method | **DELETE**                                 |
-| Request Header | `Authorization: Bearer <token>`            |
-| Quyền yêu cầu  | `PRODUCT_DELETE`                           |
+| **Thuộc tính** | **Giá trị**                            |
+| -------------- | -------------------------------------- |
+| Request URL    | `/stores/:storeId/products/:productId` |
+| Request Method | **DELETE**                             |
+| Request Header | `Authorization: Bearer <token>`        |
+| Quyền yêu cầu  | `PRODUCT_DELETE`                       |
 
 ### 5.2 Dữ liệu đầu ra
 
@@ -459,12 +459,12 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ## 6.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                                    |
-| -------------- | ---------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/products/filter-product` |
-| Request Method | **GET**                                        |
-| Request Header | `Authorization: Bearer <token>`                |
-| Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL`              |
+| **Thuộc tính** | **Giá trị**                                |
+| -------------- | ------------------------------------------ |
+| Request URL    | `/stores/:storeId/products/filter-product` |
+| Request Method | **GET**                                    |
+| Request Header | `Authorization: Bearer <token>`            |
+| Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL`          |
 
 ---
 
@@ -555,7 +555,201 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-# 7. Mẫu Lỗi chung
+# 7. Tạo Nhiều Sản phẩm (Batch)
+
+## 7.1 Mo ta
+
+| **Thuộc tính** | **Giá trị**                                                        |
+| -------------- | ------------------------------------------------------------------ |
+| Request URL    | `/stores/:storeId/products/batch`                                  |
+| Request Method | **POST**                                                           |
+| Request Header | `Authorization: Bearer <token>` · `Content-Type: application/json` |
+| Body data      | JSON theo schema bên dưới                                          |
+| Quyền yêu cầu  | `PRODUCT_CREATE` (OWNER)                                           |
+
+**JSON Schema (Body):**
+
+```json
+[
+  {
+    "name": "iPhone 15 Pro Max",
+    "sku": "IP15PM-128GB123456",
+    "barcode": "8931234567890",
+    "price": 33990000,
+    "cost": 28990000,
+    "image_url": "https://example.com/images/iphone-15-pro-max.png",
+    "description": "Apple iPhone 15 Pro Max 256GB - Titanium Black",
+    "product_status": "ACTIVE",
+    "meta": {
+      "color": "Titanium Black",
+      "storage": "256GB",
+      "warranty": "12 months"
+    }
+  },
+  {
+    "name": "Samsung Galaxy S24 Ultra",
+    "sku": "SSG-S24U-512GB",
+    "barcode": "8939876543210",
+    "price": 32990000,
+    "cost": 27990000,
+    "image_url": "https://example.com/images/samsung-s24-ultra.png",
+    "description": "Samsung Galaxy S24 Ultra 512GB - Titanium Gray",
+    "product_status": "ACTIVE",
+    "meta": {
+      "color": "Titanium Gray",
+      "storage": "512GB",
+      "warranty": "12 months"
+    }
+  }
+]
+```
+
+## 7.2 Dữ liệu đầu vào
+
+| **Tên trường** | **Kiểu** | **Bắt buộc** | **Ghi chú**                                                               |
+| -------------- | -------- | ------------ | ------------------------------------------------------------------------- |
+| name           | string   | ✓            | Tên sản phẩm                                                              |
+| sku            | string   | ✓            | **Duy nhất trong 1 store**                                                |
+| barcode        | string   |              | Có thể để trống; nếu dùng thì **nên** duy nhất                            |
+| price          | number   | ✓            | ≥ 0                                                                       |
+| cost           | number   | ✓            | ≥ 0                                                                       |
+| image_url      | string   |              | URL hợp lệ                                                                |
+| description    | string   |              | Mô tả                                                                     |
+| meta           | string   |              | **JSON string hợp lệ**. Ví dụ: "{\"brand\":\"Nike\",\"color\":\"Black\"}" |
+| product_status | enum     |              | `ACTIVE` (mặc định) \| `INACTIVE`                                         |
+
+## 7.3 Dữ liệu đầu ra
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-10-06T04:51:00.632Z",
+    "version": "v1"
+  },
+  "data": {
+    "createdCount": 3,
+    "created": [
+      {
+        "id": "7bec783e-2ec7-4748-b9ec-5a8d3cf5377d",
+        "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
+        "name": "iPhone 15 Pro Max",
+        "sku": "IP15PM-128GB123456789",
+        "barcode": "8931234567890",
+        "price": 33990000,
+        "cost": 28990000,
+        "image_url": "https://example.com/images/iphone-15-pro-max.png",
+        "description": "Apple iPhone 15 Pro Max 256GB - Titanium Black",
+        "product_status": "ACTIVE",
+        "meta": {
+          "color": "Titanium Black",
+          "storage": "256GB",
+          "warranty": "12 months"
+        },
+        "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
+        "createdAt": "2025-10-06T04:51:00.620Z",
+        "updatedAt": "2025-10-06T04:51:00.620Z"
+      },
+      {
+        "id": "91c736f0-c85d-4331-adb7-3090323f3a7f",
+        "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
+        "name": "Samsung Galaxy S24 Ultra",
+        "sku": "SSG-S24U-512GB89",
+        "barcode": "89398765432108",
+        "price": 32990000,
+        "cost": 27990000,
+        "image_url": "https://example.com/images/samsung-s24-ultra.png",
+        "description": "Samsung Galaxy S24 Ultra 512GB - Titanium Gray",
+        "product_status": "ACTIVE",
+        "meta": {
+          "color": "Titanium Gray",
+          "storage": "512GB",
+          "warranty": "12 months"
+        },
+        "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
+        "createdAt": "2025-10-06T04:51:00.622Z",
+        "updatedAt": "2025-10-06T04:51:00.622Z"
+      },
+      {
+        "id": "ad3a5d44-dd50-4ade-83a6-00b96cd1a457",
+        "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
+        "name": "Xiaomi 14 Ultra",
+        "sku": "SSG-S24U-512GB899",
+        "barcode": "8935558889991",
+        "price": 28990000,
+        "cost": 24990000,
+        "image_url": "https://example.com/images/xiaomi-14-ultra.png",
+        "description": "Xiaomi 14 Ultra 512GB - Black Edition",
+        "product_status": "ACTIVE",
+        "meta": {
+          "color": "Black",
+          "storage": "512GB",
+          "warranty": "18 months"
+        },
+        "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
+        "createdAt": "2025-10-06T04:51:00.624Z",
+        "updatedAt": "2025-10-06T04:51:00.624Z"
+      }
+    ]
+  },
+  "message": "Create product successfully"
+}
+```
+
+**Error Response:**
+
+- **409 Conflict – SKU đã tồn tại**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "A product with this SKU already exists",
+    "details": {}
+  },
+  "meta": {
+    "timestamp": "2025-09-10T09:22:54.387Z",
+    "version": "v1"
+  }
+}
+```
+
+- **400 Bad Request – Dữ liệu không hợp lệ**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "DUPLICATE_SKU",
+    "message": "Duplicated SKU(s) detected",
+    "details": {
+      "duplicated_in_payload": ["SSG-S24U-512GB89"],
+      "duplicated_in_database": ["IP15PM-128GB123456789", "SSG-S24U-512GB89"]
+    }
+  },
+  "meta": {
+    "timestamp": "2025-10-06T04:55:38.283Z",
+    "version": "v1"
+  }
+}
+```
+
+- **403 Forbidden – Không có quyền**
+
+```json
+{
+  "success": false,
+  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
+  "meta": { "timestamp": "2025-09-10T08:12:34.000Z", "version": "v1" }
+}
+```
+
+---
+
+# 8. Mẫu Lỗi chung
 
 Các lỗi có cấu trúc:
 
@@ -576,6 +770,6 @@ Các lỗi có cấu trúc:
 
 ---
 
-# 8. Ghi chú triển khai
+# 9. Ghi chú triển khai
 
 - `:storeId` và `:id` là **UUID**.

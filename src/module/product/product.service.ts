@@ -245,6 +245,86 @@ export class ProductService {
 
     return { data: products, total };
   }
+
+  async createProductsBatch(
+    store_id: string,
+    user: IUserWithPermissions,
+    items: Omit<
+      Prisma.ProductUncheckedCreateInput,
+      | 'id'
+      | 'store_id'
+      | 'createdAt'
+      | 'updatedAt'
+      | 'created_by_user'
+      | 'store'
+      | 'inventories'
+      | 'tags'
+      | 'stock_movements'
+      | 'order'
+      | 'order_item'
+      | 'created_by'
+    >[],
+  ) {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new BadRequestError('Items must not be empty');
+    }
+
+    // 1) Chuẩn hoá & lấy SKU
+    const payloadSkus = items
+      .map((i) => i.sku?.trim())
+      .filter((s): s is string => !!s && s.length > 0);
+
+    if (payloadSkus.length !== items.length) {
+      throw new BadRequestError('Every item must have a non-empty sku');
+    }
+
+    // 2) Gom trùng trong payload (không dừng giữa chừng)
+    const seen = new Set<string>();
+    const duplicatedInPayload = new Set<string>();
+    for (const s of payloadSkus) {
+      if (seen.has(s)) duplicatedInPayload.add(s);
+      else seen.add(s);
+    }
+
+    // 3) Gom trùng trong DB (theo store_id)
+    const existing = await this.prisma.product.findMany({
+      where: { store_id, sku: { in: payloadSkus } },
+      select: { sku: true },
+    });
+    const duplicatedInDb = new Set(existing.map((e) => e.sku));
+
+    // 4) Nếu có bất kỳ trùng nào -> ném lỗi một lần, liệt kê đầy đủ
+    if (duplicatedInPayload.size > 0 || duplicatedInDb.size > 0) {
+      throw new BadRequestError('Duplicated SKU(s) detected', 'DUPLICATE_SKU', {
+        duplicated_in_payload: Array.from(duplicatedInPayload),
+        duplicated_in_database: Array.from(duplicatedInDb),
+      });
+    }
+
+    // 5) Không trùng -> tạo từng bản ghi trong transaction (để nested inventory)
+    //    Lưu ý: dùng field audit đúng schema của bạn (created_by hoặc created_by_user)
+    const created = await this.prisma.$transaction(async (tx) => {
+      // const rows = [];
+      const rows: Product[] = [];
+      for (const p of items) {
+        const row = await tx.product.create({
+          data: {
+            ...p,
+            store_id,
+            created_by: user.id, // nếu schema bạn là `created_by_user` thì đổi lại tại đây
+            inventory: { create: {} },
+          },
+        });
+        rows.push(row);
+      }
+      return rows;
+    });
+
+    return {
+      createdCount: created.length,
+      created,
+    };
+  }
   async createProductByExcel(
     file: Express.Multer.File,
     storeId: string,

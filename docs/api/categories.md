@@ -6,7 +6,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                             |
 | -------------- | ----------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/categories`                                       |
+| Request URL    | `/stores/:storeId/categories`                                           |
 | Request Method | POST                                                                    |
 | Request Header | Content-Type: application/json<br/>Authorization: Bearer {access_token} |
 | Body data      | Xem chi tiết JSON schema bên dưới                                       |
@@ -73,13 +73,29 @@
 
 | **Thuộc tính** | **Giá trị**                          |
 | -------------- | ------------------------------------ |
-| Request URL    | `/api/stores/:storeId/categories`    |
+| Request URL    | `/stores/:storeId/categories`        |
 | Request Method | GET                                  |
 | Request Header | Authorization: Bearer {access_token} |
 | Body data      | Không có                             |
 | Permission     | CATEGORY_READ                        |
 
-### 2.2 Dữ liệu đầu ra
+### 2.2. Query Parameters
+
+### Phân trang, sắp xếp, khoảng ngày (từ `@FilterParse`)
+
+| Tên         | Kiểu              | Bắt buộc | Mặc định                                                     | Mô tả                                                          |
+| ----------- | ----------------- | -------- | ------------------------------------------------------------ | -------------------------------------------------------------- |
+| `page`      | int (string)      | Không    | `1`                                                          | Trang hiện tại                                                 |
+| `limit`     | int (string)      | Không    | `10`                                                         | Số bản ghi mỗi trang                                           |
+| `sortBy`    | string            | Không    | `createdAt`                                                  | Trường sắp xếp. **Chỉ chấp nhận**: `createdAt`, `total_amount` |
+| `sort`      | `'asc' \| 'desc'` | Không    | `desc`                                                       | Thứ tự sắp xếp                                                 |
+| `startDate` | string (ISO)      | Không    | —                                                            | Lọc từ ngày bắt đầu (map vào `createdAt.gte`)                  |
+| `endDate`   | string (ISO)      | Không    | —                                                            | Lọc đến ngày kết thúc (map vào `createdAt.lte`, endOf('day'))  |
+| `q`         | string            | Không    | Tìm kiếm toàn văn trong **name**(không phân biệt hoa thường) |
+
+> `startDate`/`endDate` được decorator convert sang `createdAt: { gte, lte }`.
+
+### 2.3 Dữ liệu đầu ra
 
 **Success Response (200):**
 
@@ -87,28 +103,35 @@
 {
   "success": true,
   "meta": {
-    "timestamp": "2025-09-10T09:14:51.660Z",
+    "timestamp": "2025-10-04T14:45:23.812Z",
     "version": "v1"
   },
   "data": [
     {
-      "id": "95aba268-8ebf-4cfc-a9b5-9ab33c16ed1c",
-      "store_id": "ee46b704-9cb8-4997-bd0f-a19e1289a316",
-      "name": "test cateogries",
-      "description": "test description",
-      "createdAt": "2025-09-10T07:25:51.878Z",
-      "updatedAt": "2025-09-10T07:25:51.878Z"
+      "id": "606a59f9-bd00-4304-a12e-efdb9e53d52d",
+      "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
+      "name": "rau ma",
+      "description": null,
+      "createdAt": "2025-10-04T03:10:37.654Z",
+      "updatedAt": "2025-10-04T03:10:08.906Z"
     },
     {
-      "id": "a34b0696-2ecc-47ff-92d9-278369d6ff26",
-      "store_id": "ee46b704-9cb8-4997-bd0f-a19e1289a316",
-      "name": "test cateogries s34",
-      "description": "test description",
-      "createdAt": "2025-09-10T09:12:35.042Z",
-      "updatedAt": "2025-09-10T09:12:35.042Z"
+      "id": "606a59f9-bd00-4304-a12e-efdb9e53d52f",
+      "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
+      "name": "",
+      "description": null,
+      "createdAt": "2025-10-04T03:14:47.933Z",
+      "updatedAt": "2025-10-04T03:14:21.640Z"
     }
   ],
-  "message": "Categories retrieved successfully"
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 2,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
 }
 ```
 
@@ -133,13 +156,13 @@
 
 ### 3.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                           |
-| -------------- | ------------------------------------- |
-| Request URL    | `/api/stores/:storeId/categories/:id` |
-| Request Method | GET                                   |
-| Request Header | Authorization: Bearer {access_token}  |
-| Body data      | Không có                              |
-| Permission     | CATEGORY_READ                         |
+| **Thuộc tính** | **Giá trị**                          |
+| -------------- | ------------------------------------ |
+| Request URL    | `/stores/:storeId/categories/:id`    |
+| Request Method | GET                                  |
+| Request Header | Authorization: Bearer {access_token} |
+| Body data      | Không có                             |
+| Permission     | CATEGORY_READ                        |
 
 ### 3.2 Dữ liệu đầu ra
 
@@ -204,7 +227,7 @@
 
 | **Thuộc tính** | **Giá trị**                                                             |
 | -------------- | ----------------------------------------------------------------------- |
-| Request URL    | `/api/stores/:storeId/categories/:id`                                   |
+| Request URL    | `/stores/:storeId/categories/:id`                                       |
 | Request Method | PATCH                                                                   |
 | Request Header | Content-Type: application/json<br/>Authorization: Bearer {access_token} |
 | Body data      | Xem chi tiết JSON schema bên dưới                                       |
@@ -287,13 +310,13 @@
 
 ### 5.1 Mô tả
 
-| **Thuộc tính** | **Giá trị**                           |
-| -------------- | ------------------------------------- |
-| Request URL    | `/api/stores/:storeId/categories/:id` |
-| Request Method | DELETE                                |
-| Request Header | Authorization: Bearer {access_token}  |
-| Body data      | Không có                              |
-| Permission     | CATEGORY_DELETE                       |
+| **Thuộc tính** | **Giá trị**                          |
+| -------------- | ------------------------------------ |
+| Request URL    | `/stores/:storeId/categories/:id`    |
+| Request Method | DELETE                               |
+| Request Header | Authorization: Bearer {access_token} |
+| Body data      | Không có                             |
+| Permission     | CATEGORY_DELETE                      |
 
 ### 5.2 Dữ liệu đầu ra
 
