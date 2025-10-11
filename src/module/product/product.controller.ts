@@ -27,7 +27,6 @@ import z from 'zod';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
 import { product_status } from '@prisma/client';
-
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
@@ -146,7 +145,7 @@ export class ProductController {
 
   @Post('invoice-create-product')
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @ApiSuccess('Create product successfully')
+  @ApiSuccess('Create invoice product successfully!!')
   createProductsBatch(
     @Param('storeId') storeId: string,
     @UserWithPermissions() user: IUserWithPermissions,

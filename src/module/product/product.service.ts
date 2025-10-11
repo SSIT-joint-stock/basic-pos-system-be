@@ -3,7 +3,12 @@
 
 import { Injectable, Logger, StreamableFile } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { Prisma, Product } from '@prisma/client';
+import {
+  Inventory,
+  Prisma,
+  Product,
+  stock_movement_type,
+} from '@prisma/client';
 import {
   BadRequestError,
   ConflictError,
@@ -249,80 +254,104 @@ export class ProductService {
   async createProductsBatch(
     store_id: string,
     user: IUserWithPermissions,
-    items: Omit<
-      Prisma.ProductUncheckedCreateInput,
-      | 'id'
-      | 'store_id'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'created_by_user'
-      | 'store'
-      | 'inventories'
-      | 'tags'
-      | 'stock_movements'
-      | 'order'
-      | 'order_item'
-      | 'created_by'
-    >[],
+    items: CreateProductDto[],
   ) {
     if (!Array.isArray(items) || items.length === 0) {
       throw new BadRequestError('Items must not be empty');
     }
 
-    // 1) Chuẩn hoá & lấy SKU
-    const payloadSkus = items
-      .map((i) => i.sku?.trim())
-      .filter((s): s is string => !!s && s.length > 0);
-
+    const payloadSkus = items.map((i) => i.sku?.trim()).filter(Boolean);
     if (payloadSkus.length !== items.length) {
       throw new BadRequestError('Every item must have a non-empty sku');
     }
 
-    // 2) Gom trùng trong payload (không dừng giữa chừng)
-    const seen = new Set<string>();
-    const duplicatedInPayload = new Set<string>();
-    for (const s of payloadSkus) {
-      if (seen.has(s)) duplicatedInPayload.add(s);
-      else seen.add(s);
-    }
-
-    // 3) Gom trùng trong DB (theo store_id)
-    const existing = await this.prisma.product.findMany({
+    // Lấy danh sách SKU đã có trong DB
+    const existingProducts = await this.prisma.product.findMany({
       where: { store_id, sku: { in: payloadSkus } },
-      select: { sku: true },
+      include: { inventory: true },
     });
-    const duplicatedInDb = new Set(existing.map((e) => e.sku));
 
-    // 4) Nếu có bất kỳ trùng nào -> ném lỗi một lần, liệt kê đầy đủ
-    if (duplicatedInPayload.size > 0 || duplicatedInDb.size > 0) {
-      throw new BadRequestError('Duplicated SKU(s) detected', 'DUPLICATE_SKU', {
-        duplicated_in_payload: Array.from(duplicatedInPayload),
-        duplicated_in_database: Array.from(duplicatedInDb),
-      });
-    }
+    const existingSkuSet = new Set(existingProducts.map((p) => p.sku));
 
-    // 5) Không trùng -> tạo từng bản ghi trong transaction (để nested inventory)
-    //    Lưu ý: dùng field audit đúng schema của bạn (created_by hoặc created_by_user)
-    const created = await this.prisma.$transaction(async (tx) => {
-      // const rows = [];
-      const rows: Product[] = [];
-      for (const p of items) {
-        const row = await tx.product.create({
-          data: {
-            ...p,
-            store_id,
-            created_by: user.id, // nếu schema bạn là `created_by_user` thì đổi lại tại đây
-            inventory: { create: {} },
-          },
+    // Chia nhóm
+    const newProducts = items.filter((i) => !existingSkuSet.has(i.sku));
+    const updateProducts = items.filter((i) => existingSkuSet.has(i.sku));
+
+    const results = await this.prisma.$transaction(async (tx) => {
+      const updated: (Product & { inventory: Inventory })[] = [];
+      const created: (Product & { inventory: Inventory })[] = [];
+
+      // 1. Update sản phẩm có sẵn
+      for (const p of updateProducts) {
+        const existing = existingProducts.find((e) => e.sku === p.sku);
+        const qtyToAdd = p.initial_quantity ?? 0;
+
+        if (!existing) continue;
+        if (qtyToAdd > 0) {
+          await tx.inventory.update({
+            where: { id: existing.inventory?.id },
+            data: {
+              quantity: { increment: qtyToAdd },
+            },
+          });
+
+          await tx.stockMovement.create({
+            data: {
+              product_id: existing.id,
+              type: stock_movement_type.PURCHASE,
+              quantity: qtyToAdd,
+            },
+          });
+        }
+
+        const refreshed = await tx.product.findUnique({
+          where: { id: existing.id },
+          include: { inventory: true },
         });
-        rows.push(row);
+        if (refreshed) updated.push(refreshed as any);
       }
-      return rows;
+
+      // 2. Tạo sản phẩm mới
+      for (const p of newProducts) {
+        const initialQty = p.initial_quantity ?? 0;
+
+        const product = await tx.product.create({
+          data: {
+            name: p.name,
+            sku: p.sku,
+            price: p.price,
+            store_id,
+            created_by: user.id,
+            inventory: {
+              create: {
+                quantity: initialQty,
+              },
+            },
+          },
+          include: { inventory: true },
+        });
+
+        if (initialQty > 0) {
+          await tx.stockMovement.create({
+            data: {
+              product_id: product.id,
+              type: stock_movement_type.PURCHASE,
+              quantity: initialQty,
+            },
+          });
+        }
+
+        created.push(product as any);
+      }
+
+      return { updated, created };
     });
 
     return {
-      createdCount: created.length,
-      created,
+      updatedCount: results.updated.length,
+      createdCount: results.created.length,
+      updated: results.updated,
+      created: results.created,
     };
   }
   async createProductByExcel(

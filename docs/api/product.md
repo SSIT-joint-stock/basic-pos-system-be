@@ -555,13 +555,15 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
+Ah được, bạn muốn sửa lại **tài liệu** dựa vào **code**. Đây là tài liệu đã sửa:
+
 # 7. Tạo Nhiều Sản phẩm (Batch)
 
-## 7.1 Mo ta
+## 7.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                                                        |
 | -------------- | ------------------------------------------------------------------ |
-| Request URL    | `/stores/:storeId/products/batch`                                  |
+| Request URL    | `/stores/:storeId/products/invoice-create-product`                 |
 | Request Method | **POST**                                                           |
 | Request Header | `Authorization: Bearer <token>` · `Content-Type: application/json` |
 | Body data      | JSON theo schema bên dưới                                          |
@@ -580,6 +582,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
     "image_url": "https://example.com/images/iphone-15-pro-max.png",
     "description": "Apple iPhone 15 Pro Max 256GB - Titanium Black",
     "product_status": "ACTIVE",
+    "initial_quantity": 100,
     "meta": {
       "color": "Titanium Black",
       "storage": "256GB",
@@ -595,6 +598,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
     "image_url": "https://example.com/images/samsung-s24-ultra.png",
     "description": "Samsung Galaxy S24 Ultra 512GB - Titanium Gray",
     "product_status": "ACTIVE",
+    "initial_quantity": 50,
     "meta": {
       "color": "Titanium Gray",
       "storage": "512GB",
@@ -606,17 +610,18 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ## 7.2 Dữ liệu đầu vào
 
-| **Tên trường** | **Kiểu** | **Bắt buộc** | **Ghi chú**                                                               |
-| -------------- | -------- | ------------ | ------------------------------------------------------------------------- |
-| name           | string   | ✓            | Tên sản phẩm                                                              |
-| sku            | string   | ✓            | **Duy nhất trong 1 store**                                                |
-| barcode        | string   |              | Có thể để trống; nếu dùng thì **nên** duy nhất                            |
-| price          | number   | ✓            | ≥ 0                                                                       |
-| cost           | number   | ✓            | ≥ 0                                                                       |
-| image_url      | string   |              | URL hợp lệ                                                                |
-| description    | string   |              | Mô tả                                                                     |
-| meta           | string   |              | **JSON string hợp lệ**. Ví dụ: "{\"brand\":\"Nike\",\"color\":\"Black\"}" |
-| product_status | enum     |              | `ACTIVE` (mặc định) \| `INACTIVE`                                         |
+| **Tên trường**   | **Kiểu** | **Bắt buộc** | **Ghi chú**                                          |
+| ---------------- | -------- | ------------ | ---------------------------------------------------- |
+| name             | string   | ✓            | Tên sản phẩm                                         |
+| sku              | string   | ✓            | **Duy nhất trong 1 store**                           |
+| barcode          | string   |              | Có thể để trống; nếu dùng thì **nên** duy nhất       |
+| price            | number   | ✓            | ≥ 0                                                  |
+| cost             | number   | ✓            | ≥ 0                                                  |
+| image_url        | string   |              | URL hợp lệ                                           |
+| description      | string   |              | Mô tả                                                |
+| initial_quantity | number   |              | Số lượng tồn kho ban đầu (mặc định: 0)               |
+| meta             | object   |              | Object JSON. Ví dụ: {"brand":"Nike","color":"Black"} |
+| product_status   | enum     |              | `ACTIVE` (mặc định) \| `INACTIVE`                    |
 
 ## 7.3 Dữ liệu đầu ra
 
@@ -630,13 +635,13 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
     "version": "v1"
   },
   "data": {
-    "createdCount": 3,
+    "createdCount": 2,
     "created": [
       {
         "id": "7bec783e-2ec7-4748-b9ec-5a8d3cf5377d",
         "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
         "name": "iPhone 15 Pro Max",
-        "sku": "IP15PM-128GB123456789",
+        "sku": "IP15PM-128GB123456",
         "barcode": "8931234567890",
         "price": 33990000,
         "cost": 28990000,
@@ -648,6 +653,13 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
           "storage": "256GB",
           "warranty": "12 months"
         },
+        "inventory": {
+          "id": "inv-001",
+          "product_id": "7bec783e-2ec7-4748-b9ec-5a8d3cf5377d",
+          "quantity": 100,
+          "createdAt": "2025-10-06T04:51:00.620Z",
+          "updatedAt": "2025-10-06T04:51:00.620Z"
+        },
         "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
         "createdAt": "2025-10-06T04:51:00.620Z",
         "updatedAt": "2025-10-06T04:51:00.620Z"
@@ -656,8 +668,8 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
         "id": "91c736f0-c85d-4331-adb7-3090323f3a7f",
         "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
         "name": "Samsung Galaxy S24 Ultra",
-        "sku": "SSG-S24U-512GB89",
-        "barcode": "89398765432108",
+        "sku": "SSG-S24U-512GB",
+        "barcode": "8939876543210",
         "price": 32990000,
         "cost": 27990000,
         "image_url": "https://example.com/images/samsung-s24-ultra.png",
@@ -668,29 +680,16 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
           "storage": "512GB",
           "warranty": "12 months"
         },
+        "inventory": {
+          "id": "inv-002",
+          "product_id": "91c736f0-c85d-4331-adb7-3090323f3a7f",
+          "quantity": 50,
+          "createdAt": "2025-10-06T04:51:00.622Z",
+          "updatedAt": "2025-10-06T04:51:00.622Z"
+        },
         "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
         "createdAt": "2025-10-06T04:51:00.622Z",
         "updatedAt": "2025-10-06T04:51:00.622Z"
-      },
-      {
-        "id": "ad3a5d44-dd50-4ade-83a6-00b96cd1a457",
-        "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
-        "name": "Xiaomi 14 Ultra",
-        "sku": "SSG-S24U-512GB899",
-        "barcode": "8935558889991",
-        "price": 28990000,
-        "cost": 24990000,
-        "image_url": "https://example.com/images/xiaomi-14-ultra.png",
-        "description": "Xiaomi 14 Ultra 512GB - Black Edition",
-        "product_status": "ACTIVE",
-        "meta": {
-          "color": "Black",
-          "storage": "512GB",
-          "warranty": "18 months"
-        },
-        "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
-        "createdAt": "2025-10-06T04:51:00.624Z",
-        "updatedAt": "2025-10-06T04:51:00.624Z"
       }
     ]
   },
@@ -700,24 +699,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 **Error Response:**
 
-- **409 Conflict – SKU đã tồn tại**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "BAD_REQUEST",
-    "message": "A product with this SKU already exists",
-    "details": {}
-  },
-  "meta": {
-    "timestamp": "2025-09-10T09:22:54.387Z",
-    "version": "v1"
-  }
-}
-```
-
-- **400 Bad Request – Dữ liệu không hợp lệ**
+- **400 Bad Request – SKU trùng lặp**
 
 ```json
 {
@@ -726,9 +708,25 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
     "code": "DUPLICATE_SKU",
     "message": "Duplicated SKU(s) detected",
     "details": {
-      "duplicated_in_payload": ["SSG-S24U-512GB89"],
-      "duplicated_in_database": ["IP15PM-128GB123456789", "SSG-S24U-512GB89"]
+      "duplicated_in_payload": ["SSG-S24U-512GB"],
+      "duplicated_in_database": ["IP15PM-128GB123456"]
     }
+  },
+  "meta": {
+    "timestamp": "2025-10-06T04:55:38.283Z",
+    "version": "v1"
+  }
+}
+```
+
+- **400 Bad Request – Items rỗng hoặc thiếu SKU**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Every item must have a non-empty sku"
   },
   "meta": {
     "timestamp": "2025-10-06T04:55:38.283Z",
@@ -742,10 +740,26 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 ```json
 {
   "success": false,
-  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
-  "meta": { "timestamp": "2025-09-10T08:12:34.000Z", "version": "v1" }
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Insufficient permission"
+  },
+  "meta": {
+    "timestamp": "2025-09-10T08:12:34.000Z",
+    "version": "v1"
+  }
 }
 ```
+
+## 7.4 Lưu ý đặc biệt
+
+- **Tự động tạo inventory**: Khi tạo product, hệ thống sẽ tự động tạo record `inventory` với số lượng = `initial_quantity` (mặc định 0)
+- **Tự động tạo stock_movement**: Nếu `initial_quantity > 0`, hệ thống sẽ ghi lại 1 stock movement với type = `PURCHASE`
+- **Transaction**: Toàn bộ quá trình tạo product + inventory + stock_movement được thực hiện trong 1 transaction, đảm bảo tính toàn vẹn dữ liệu
+- **SKU validation**:
+  - Kiểm tra trùng trong payload
+  - Kiểm tra trùng với database
+  - Nếu có bất kỳ trùng lặp nào, toàn bộ batch sẽ bị reject
 
 ---
 

@@ -53,6 +53,10 @@ export class CreateProductDto {
   meta?: Record<string, any>;
 
   @IsOptional()
+  @IsInt()
+  initial_quantity?: number;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   categoryIds?: string[];
