@@ -9,7 +9,11 @@ import {
   Param,
   Delete,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  StreamableFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -18,12 +22,11 @@ import { RequirePermissions } from 'app/common/decorators/permission.decorator';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
-import { ApiSuccess } from 'app/common/decorators';
+import { ApiSuccess, RawResponse } from 'app/common/decorators';
 import z from 'zod';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
 import { product_status } from '@prisma/client';
-
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
@@ -142,12 +145,30 @@ export class ProductController {
 
   @Post('invoice-create-product')
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @ApiSuccess('Create product successfully')
+  @ApiSuccess('Create invoice product successfully!!')
   createProductsBatch(
     @Param('storeId') storeId: string,
     @UserWithPermissions() user: IUserWithPermissions,
     @Body() items: CreateProductDto[],
   ) {
     return this.productService.createProductsBatch(storeId, user, items);
+  }
+
+  @Post('import-excel')
+  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiSuccess('Import product successfully')
+  async importExcel(
+    @Param('storeId') storeId: string,
+    @UserWithPermissions() user: IUserWithPermissions,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.productService.createProductByExcel(file, storeId, user.id);
+  }
+
+  @Post('example-product-excel')
+  @RawResponse()
+  getExampleProductExcel(): StreamableFile {
+    return this.productService.downloadExampleExcel();
   }
 }

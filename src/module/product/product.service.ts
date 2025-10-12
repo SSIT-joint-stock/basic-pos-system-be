@@ -1,15 +1,24 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, StreamableFile } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { Prisma, Product } from '@prisma/client';
+import {
+  Inventory,
+  Prisma,
+  Product,
+  stock_movement_type,
+} from '@prisma/client';
 import {
   BadRequestError,
   ConflictError,
   NotFoundError,
 } from 'app/common/response';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { Response } from 'express';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class ProductService {
@@ -44,6 +53,11 @@ export class ProductService {
     FORBIDDEN: 'Access forbidden',
     BAD_REQUEST: 'Invalid request data',
     INTERNAL_ERROR: 'An unexpected error occurred. Please try again later',
+
+    // File
+    FILE_NOT_FOUND: 'File not found',
+    FILE_EMPTY: 'File is empty',
+    FILE_TOO_LARGE: 'File size is too large, maximum allowed is 500 rows',
   };
 
   constructor(private readonly prisma: PrismaService) {}
@@ -51,21 +65,7 @@ export class ProductService {
   async create(
     user: IUserWithPermissions,
     storeId: string,
-    data: Omit<
-      Prisma.ProductUncheckedCreateInput,
-      | 'id'
-      | 'store_id'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'created_by_user'
-      | 'store'
-      | 'inventories'
-      | 'tags'
-      | 'stock_movements'
-      | 'order'
-      | 'order_item'
-      | 'created_by'
-    >,
+    data: CreateProductDto,
   ) {
     // 1) Pre-check unique
     const exists = await this.prisma.product.findFirst({
@@ -80,13 +80,23 @@ export class ProductService {
     }
 
     // 2) Create + default inventory
-
+    const { categoryIds, ...res } = data;
     const created = await this.prisma.product.create({
       data: {
-        ...data,
+        ...res,
         store_id: storeId,
         created_by: user.id,
         inventory: { create: {} },
+        categories: categoryIds?.length
+          ? {
+              connect: categoryIds.map((id) => ({ id })),
+            }
+          : undefined,
+      },
+      include: {
+        inventory: true,
+        categories: true,
+        // tags: true,
       },
     });
     return created;
@@ -135,27 +145,31 @@ export class ProductService {
     return product;
   }
 
-  async update(
-    storeId: string,
-    id: string,
-    data: Omit<
-      Prisma.ProductUpdateInput,
-      | 'id'
-      | 'store_id'
-      | 'created_by'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'created_by_user'
-      | 'store'
-      | 'tags'
-      | 'stock_movements'
-      | 'order'
-      | 'order_item'
-    >,
-  ) {
+  async update(storeId: string, id: string, data: UpdateProductDto) {
     // 1) Lấy product hiện tại để kiểm tra tồn tại
     const existing = await this.prisma.product.findUnique({
       where: { store_id: storeId, id },
+      include: {
+        inventory: {
+          select: {
+            quantity: true,
+          },
+        },
+        categories: {
+          select: {
+            id: true,
+            name: true,
+            updatedAt: true,
+          },
+        },
+        tags: {
+          select: {
+            id: true,
+            name: true,
+            updatedAt: true,
+          },
+        },
+      },
     });
     if (!existing) {
       throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
@@ -176,12 +190,20 @@ export class ProductService {
         throw new ConflictError(this.errorMessages.PRODUCT_SKU_EXISTS);
       }
     }
-
+    const { categoryIds, ...res } = data;
     // 3) Thực hiện update
     const updated = await this.prisma.product.update({
       where: { id },
-      data: { ...data },
-      include: { inventory: true }, // FIX: Sau co the bo
+      data: {
+        ...res,
+        categories:
+          categoryIds !== undefined
+            ? {
+                set: categoryIds.map((id) => ({ id })),
+              }
+            : undefined,
+      },
+      include: { inventory: true, categories: true, tags: true }, // FIX: Sau co the bo
     });
     return updated;
   }
@@ -217,6 +239,8 @@ export class ProductService {
           inventory: {
             select: { quantity: true },
           },
+          categories: true,
+          tags: true,
         },
       }),
       this.prisma.product.count({
@@ -230,80 +254,233 @@ export class ProductService {
   async createProductsBatch(
     store_id: string,
     user: IUserWithPermissions,
-    items: Omit<
-      Prisma.ProductUncheckedCreateInput,
-      | 'id'
-      | 'store_id'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'created_by_user'
-      | 'store'
-      | 'inventories'
-      | 'tags'
-      | 'stock_movements'
-      | 'order'
-      | 'order_item'
-      | 'created_by'
-    >[],
+    items: CreateProductDto[],
   ) {
     if (!Array.isArray(items) || items.length === 0) {
       throw new BadRequestError('Items must not be empty');
     }
 
-    // 1) Chuẩn hoá & lấy SKU
-    const payloadSkus = items
-      .map((i) => i.sku?.trim())
-      .filter((s): s is string => !!s && s.length > 0);
-
+    const payloadSkus = items.map((i) => i.sku?.trim()).filter(Boolean);
     if (payloadSkus.length !== items.length) {
       throw new BadRequestError('Every item must have a non-empty sku');
     }
 
-    // 2) Gom trùng trong payload (không dừng giữa chừng)
-    const seen = new Set<string>();
-    const duplicatedInPayload = new Set<string>();
-    for (const s of payloadSkus) {
-      if (seen.has(s)) duplicatedInPayload.add(s);
-      else seen.add(s);
-    }
-
-    // 3) Gom trùng trong DB (theo store_id)
-    const existing = await this.prisma.product.findMany({
+    // Lấy danh sách SKU đã có trong DB
+    const existingProducts = await this.prisma.product.findMany({
       where: { store_id, sku: { in: payloadSkus } },
-      select: { sku: true },
+      include: { inventory: true },
     });
-    const duplicatedInDb = new Set(existing.map((e) => e.sku));
 
-    // 4) Nếu có bất kỳ trùng nào -> ném lỗi một lần, liệt kê đầy đủ
-    if (duplicatedInPayload.size > 0 || duplicatedInDb.size > 0) {
-      throw new BadRequestError('Duplicated SKU(s) detected', 'DUPLICATE_SKU', {
-        duplicated_in_payload: Array.from(duplicatedInPayload),
-        duplicated_in_database: Array.from(duplicatedInDb),
-      });
-    }
+    const existingSkuSet = new Set(existingProducts.map((p) => p.sku));
 
-    // 5) Không trùng -> tạo từng bản ghi trong transaction (để nested inventory)
-    //    Lưu ý: dùng field audit đúng schema của bạn (created_by hoặc created_by_user)
-    const created = await this.prisma.$transaction(async (tx) => {
-      // const rows = [];
-      const rows: Product[] = [];
-      for (const p of items) {
-        const row = await tx.product.create({
-          data: {
-            ...p,
-            store_id,
-            created_by: user.id, // nếu schema bạn là `created_by_user` thì đổi lại tại đây
-            inventory: { create: {} },
-          },
+    // Chia nhóm
+    const newProducts = items.filter((i) => !existingSkuSet.has(i.sku));
+    const updateProducts = items.filter((i) => existingSkuSet.has(i.sku));
+
+    const results = await this.prisma.$transaction(async (tx) => {
+      const updated: (Product & { inventory: Inventory })[] = [];
+      const created: (Product & { inventory: Inventory })[] = [];
+
+      // 1. Update sản phẩm có sẵn
+      for (const p of updateProducts) {
+        const existing = existingProducts.find((e) => e.sku === p.sku);
+        const qtyToAdd = p.initial_quantity ?? 0;
+
+        if (!existing) continue;
+        if (qtyToAdd > 0) {
+          await tx.inventory.update({
+            where: { id: existing.inventory?.id },
+            data: {
+              quantity: { increment: qtyToAdd },
+            },
+          });
+
+          await tx.stockMovement.create({
+            data: {
+              product_id: existing.id,
+              type: stock_movement_type.PURCHASE,
+              quantity: qtyToAdd,
+            },
+          });
+        }
+
+        const refreshed = await tx.product.findUnique({
+          where: { id: existing.id },
+          include: { inventory: true },
         });
-        rows.push(row);
+        if (refreshed) updated.push(refreshed as any);
       }
-      return rows;
+
+      // 2. Tạo sản phẩm mới
+      for (const p of newProducts) {
+        const initialQty = p.initial_quantity ?? 0;
+
+        const product = await tx.product.create({
+          data: {
+            name: p.name,
+            sku: p.sku,
+            price: p.price,
+            store_id,
+            created_by: user.id,
+            inventory: {
+              create: {
+                quantity: initialQty,
+              },
+            },
+          },
+          include: { inventory: true },
+        });
+
+        if (initialQty > 0) {
+          await tx.stockMovement.create({
+            data: {
+              product_id: product.id,
+              type: stock_movement_type.PURCHASE,
+              quantity: initialQty,
+            },
+          });
+        }
+
+        created.push(product as any);
+      }
+
+      return { updated, created };
     });
 
     return {
-      createdCount: created.length,
-      created,
+      updatedCount: results.updated.length,
+      createdCount: results.created.length,
+      updated: results.updated,
+      created: results.created,
     };
+  }
+  async createProductByExcel(
+    file: Express.Multer.File,
+    storeId: string,
+    userId: string,
+  ) {
+    if (!file) {
+      throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
+    }
+
+    // Đọc Excel
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    if (jsonData.length === 0) {
+      throw new BadRequestError(this.errorMessages.FILE_EMPTY);
+    }
+    if (jsonData.length >= 500) {
+      throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
+    }
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const createdProducts: Product[] = [];
+
+        for (const row of jsonData) {
+          // Tìm hoặc tạo category theo tên
+          let category = await tx.category.findFirst({
+            where: {
+              store_id: storeId,
+              name: row['category'],
+            },
+          });
+
+          if (!category) {
+            category = await tx.category.create({
+              data: {
+                name: row['category'],
+                store_id: storeId,
+              },
+            });
+          }
+
+          // Check product tồn tại
+          const existingSku = await tx.product.findFirst({
+            where: {
+              sku: row['sku'],
+              store_id: storeId,
+            },
+          });
+          if (existingSku) {
+            throw new ConflictError(
+              `Product with sku ${row['sku']} already exists`,
+            );
+          }
+
+          // Tạo product
+          const product = await tx.product.create({
+            data: {
+              name: row['name'],
+              sku: row['sku'],
+              barcode: row['barcode']?.toString(),
+              price: Number(row['price'] ?? 0),
+              cost: Number(row['cost'] ?? 0),
+              description: row['description'],
+              image_url: row['image_url'],
+              product_status: row['product_status'] ?? 'ACTIVE',
+              store_id: storeId,
+              created_by: userId,
+              inventory: { create: {} },
+              categories: {
+                connect: [{ id: category.id }],
+              },
+            },
+            include: {
+              categories: true,
+              inventory: true,
+            },
+          });
+
+          createdProducts.push(product);
+        }
+
+        return createdProducts;
+      },
+      {
+        timeout: 30000,
+      },
+    );
+
+    return { data: result };
+  }
+  downloadExampleExcel(): StreamableFile {
+    const headers = [
+      'name*',
+      'sku*',
+      'barcode',
+      'price*',
+      'cost',
+      'description',
+      'image_url',
+      'product_status',
+      'category*',
+    ];
+    const sample = [
+      {
+        'name*': 'Sample Product',
+        'sku*': 'SKU001',
+        barcode: '123456789',
+        'price*': 10000,
+        cost: 8000,
+        description: 'This is a sample product',
+        image_url: 'http://example.com/image.jpg',
+        product_status: 'ACTIVE',
+        'category*': 'Sample Category',
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sample, { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Products');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    return new StreamableFile(buffer, {
+      disposition: 'attachment; filename="example_products.xlsx"',
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
   }
 }

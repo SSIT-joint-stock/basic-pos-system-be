@@ -39,6 +39,7 @@ import { CategoryModule } from './module/category/category.module';
 import { InventoryModule } from './module/inventory/inventory.module';
 import { StockMovementModule } from './module/stock-movement/stock-movement.module';
 import { OrdersModule } from './module/orders/orders.module';
+import { StatisticsModule } from './module/statistics/statistics.module';
 import { CustomerModule } from './module/customer/customer.module';
 
 @Module({
@@ -93,6 +94,7 @@ import { CustomerModule } from './module/customer/customer.module';
     CategoryModule,
     DocsModule,
     OrdersModule,
+    StatisticsModule,
     CustomerModule,
   ],
   providers: [

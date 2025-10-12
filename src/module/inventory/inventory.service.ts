@@ -68,6 +68,9 @@ export class InventoryService {
     const [inventories, total] = await Promise.all([
       this.prisma.inventory.findMany({
         where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
         include: {
           product: {
             select: {

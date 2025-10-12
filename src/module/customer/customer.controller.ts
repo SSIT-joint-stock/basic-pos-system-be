@@ -17,6 +17,7 @@ import { ApiSuccess } from 'app/common/decorators';
 import z from 'zod';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { PaginatedResponse } from 'app/common/response';
 
 @Controller('stores/:storeId/customers')
 export class CustomerController {
@@ -33,7 +34,7 @@ export class CustomerController {
   }
 
   @Get()
-  @ApiSuccess('Find all products successfully')
+  @ApiSuccess('Find all customers successfully')
   @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR') //Fix: fix this later
   async findAll(
     @FilterParse({
@@ -65,7 +66,11 @@ export class CustomerController {
     query,
     @Param('storeId') storeId: string,
   ) {
-    return this.customerService.findAll(storeId, query.prismaQuery);
+    const { data, total } = await this.customerService.findAll(
+      storeId,
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   @Get(':id')
