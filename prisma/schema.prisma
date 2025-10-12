@@ -212,7 +212,7 @@ model Product {
   id              String           @id @default(uuid()) @db.Uuid 
   store_id        String           @db.Uuid
   name            String
-  sku             String           @unique
+  sku             String       
   barcode         String?
   price           Int              @default(0)
   cost            Int              @default(0)
@@ -232,7 +232,9 @@ model Product {
   stock_movements StockMovement[]
   order_item      OrderItem[]
 
+  @@unique([store_id, sku])
   // indexes
+  @@index([store_id, sku])
   @@index([created_by, product_status, name])
 
   @@map("product")
@@ -281,6 +283,7 @@ model Category {
   @@index([store_id])
   @@index([name])
 
+  @@unique([store_id, name])
   @@map("category")
 }
 

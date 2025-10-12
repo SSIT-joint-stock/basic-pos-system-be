@@ -17,9 +17,21 @@ import {
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Response } from 'express';
 import * as XLSX from 'xlsx';
+import { generateSku, generateSkuBatch } from 'app/common/helpers/generate-sku';
 
+export type ProductWithInventory = Product & {
+  inventory: Inventory | null;
+  categories?: { id: string; name: string }[];
+  tags?: { id: string; name: string }[];
+};
+
+export interface CreateProductsBatchResult {
+  updatedCount: number;
+  createdCount: number;
+  updated: ProductWithInventory[];
+  created: ProductWithInventory[];
+}
 @Injectable()
 export class ProductService {
   private readonly logger = new Logger(ProductService.name);
@@ -70,7 +82,7 @@ export class ProductService {
     // 1) Pre-check unique
     const exists = await this.prisma.product.findFirst({
       where: {
-        sku: data.sku,
+        sku: data.sku || (await generateSku(storeId)),
         store_id: storeId,
       },
     });
@@ -81,9 +93,11 @@ export class ProductService {
 
     // 2) Create + default inventory
     const { categoryIds, ...res } = data;
+    const sku = data.sku || (await generateSku(storeId));
     const created = await this.prisma.product.create({
       data: {
         ...res,
+        sku: sku,
         store_id: storeId,
         created_by: user.id,
         inventory: { create: {} },
@@ -196,6 +210,7 @@ export class ProductService {
       where: { id },
       data: {
         ...res,
+
         categories:
           categoryIds !== undefined
             ? {
@@ -255,41 +270,53 @@ export class ProductService {
     store_id: string,
     user: IUserWithPermissions,
     items: CreateProductDto[],
-  ) {
+  ): Promise<CreateProductsBatchResult> {
     if (!Array.isArray(items) || items.length === 0) {
       throw new BadRequestError('Items must not be empty');
     }
 
-    const payloadSkus = items.map((i) => i.sku?.trim()).filter(Boolean);
-    if (payloadSkus.length !== items.length) {
-      throw new BadRequestError('Every item must have a non-empty sku');
-    }
-
-    // Lấy danh sách SKU đã có trong DB
-    const existingProducts = await this.prisma.product.findMany({
-      where: { store_id, sku: { in: payloadSkus } },
-      include: { inventory: true },
-    });
-
-    const existingSkuSet = new Set(existingProducts.map((p) => p.sku));
-
-    // Chia nhóm
-    const newProducts = items.filter((i) => !existingSkuSet.has(i.sku));
-    const updateProducts = items.filter((i) => existingSkuSet.has(i.sku));
-
     const results = await this.prisma.$transaction(async (tx) => {
-      const updated: (Product & { inventory: Inventory })[] = [];
-      const created: (Product & { inventory: Inventory })[] = [];
+      const created: ProductWithInventory[] = [];
+      const updated: ProductWithInventory[] = [];
 
-      // 1. Update sản phẩm có sẵn
-      for (const p of updateProducts) {
-        const existing = existingProducts.find((e) => e.sku === p.sku);
-        const qtyToAdd = p.initial_quantity ?? 0;
+      const providedSkus = items
+        .filter((item) => item.sku)
+        .map((item) => item.sku);
 
+      const existingProducts = await tx.product.findMany({
+        where: {
+          store_id,
+          sku: { in: providedSkus },
+        },
+        include: {
+          inventory: true,
+          categories: { select: { id: true, name: true } },
+          tags: { select: { id: true, name: true } },
+        },
+      });
+
+      const existingSkuMap = new Map(existingProducts.map((p) => [p.sku, p]));
+
+      const itemsToUpdate: CreateProductDto[] = [];
+      const itemsToCreate: CreateProductDto[] = [];
+
+      for (const item of items) {
+        if (item.sku && existingSkuMap.has(item.sku)) {
+          itemsToUpdate.push(item);
+        } else {
+          itemsToCreate.push(item);
+        }
+      }
+
+      for (const item of itemsToUpdate) {
+        const existing = existingSkuMap.get(item.sku);
         if (!existing) continue;
-        if (qtyToAdd > 0) {
+
+        const qtyToAdd = item.initial_quantity ?? 0;
+
+        if (qtyToAdd > 0 && existing.inventory) {
           await tx.inventory.update({
-            where: { id: existing.inventory?.id },
+            where: { id: existing.inventory.id },
             data: {
               quantity: { increment: qtyToAdd },
             },
@@ -304,47 +331,128 @@ export class ProductService {
           });
         }
 
+        await tx.product.update({
+          where: { id: existing.id },
+          data: {
+            name: item.name,
+            price: item.price,
+            cost: item.cost,
+            barcode: item.barcode,
+            description: item.description,
+
+            ...(item.categoryIds && item.categoryIds.length > 0
+              ? {
+                  categories: {
+                    set: item.categoryIds.map((id) => ({ id })),
+                  },
+                }
+              : {}),
+          },
+        });
+
         const refreshed = await tx.product.findUnique({
           where: { id: existing.id },
-          include: { inventory: true },
+          include: {
+            inventory: true,
+            categories: { select: { id: true, name: true } },
+            tags: { select: { id: true, name: true } },
+          },
         });
-        if (refreshed) updated.push(refreshed as any);
+
+        if (refreshed) {
+          updated.push(refreshed);
+        }
       }
 
-      // 2. Tạo sản phẩm mới
-      for (const p of newProducts) {
-        const initialQty = p.initial_quantity ?? 0;
+      if (itemsToCreate.length > 0) {
+        const skus = await generateSkuBatch(tx, store_id, itemsToCreate.length);
 
-        const product = await tx.product.create({
-          data: {
-            name: p.name,
-            sku: p.sku,
-            price: p.price,
-            store_id,
-            created_by: user.id,
-            inventory: {
-              create: {
-                quantity: initialQty,
-              },
-            },
-          },
-          include: { inventory: true },
-        });
+        const itemsWithSku = itemsToCreate.map((item, index) => ({
+          ...item,
+          sku: item.sku || skus[index],
+        }));
 
-        if (initialQty > 0) {
-          await tx.stockMovement.create({
-            data: {
-              product_id: product.id,
-              type: stock_movement_type.PURCHASE,
-              quantity: initialQty,
-            },
-          });
+        const allCategoryIds = new Set<string>();
+        for (const item of itemsWithSku) {
+          if (item.categoryIds && Array.isArray(item.categoryIds)) {
+            item.categoryIds.forEach((id) => {
+              if (id?.trim()) allCategoryIds.add(id.trim());
+            });
+          }
         }
 
-        created.push(product as any);
+        if (allCategoryIds.size > 0) {
+          const existingCategories = await tx.category.findMany({
+            where: {
+              store_id,
+              id: { in: Array.from(allCategoryIds) },
+            },
+            select: { id: true },
+          });
+
+          const existingCategoryIds = new Set(
+            existingCategories.map((c) => c.id),
+          );
+          const invalidCategoryIds = Array.from(allCategoryIds).filter(
+            (id) => !existingCategoryIds.has(id),
+          );
+
+          if (invalidCategoryIds.length > 0) {
+            throw new BadRequestError(
+              `Invalid category ids: ${invalidCategoryIds.join(', ')}`,
+            );
+          }
+        }
+
+        for (const productData of itemsWithSku) {
+          const initialQty = productData.initial_quantity ?? 0;
+
+          const categoryIds = productData.categoryIds?.filter((id) => id) ?? [];
+
+          const product = await tx.product.create({
+            data: {
+              name: productData.name,
+              sku: productData.sku,
+              price: productData.price,
+              cost: productData.cost,
+              barcode: productData.barcode,
+              description: productData.description,
+              store_id,
+              created_by: user.id,
+              inventory: {
+                create: {
+                  quantity: initialQty,
+                },
+              },
+              categories:
+                categoryIds.length > 0
+                  ? {
+                      connect: categoryIds.map((id) => ({ id })),
+                    }
+                  : undefined,
+            },
+            include: {
+              inventory: true,
+              categories: { select: { id: true, name: true } },
+              tags: { select: { id: true, name: true } },
+            },
+          });
+
+          if (initialQty > 0) {
+            await tx.stockMovement.create({
+              data: {
+                product_id: product.id,
+                type: stock_movement_type.PURCHASE,
+                quantity: initialQty,
+              },
+            });
+          }
+
+          created.push(product);
+        }
       }
 
-      return { updated, created };
+      return { created, updated };
     });
 
     return {
