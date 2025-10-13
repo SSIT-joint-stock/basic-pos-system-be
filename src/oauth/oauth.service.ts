@@ -1,6 +1,6 @@
 import * as jwt from 'jsonwebtoken';
 // import { env } from './../../config/env.validation';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
 import { OAuthInitDto } from './dto/oauth-init.dto';
 import { OAuthCallbackDto } from './dto/oauth-callback.dto';
@@ -16,6 +16,8 @@ import {
 } from 'app/common/response/client-errors';
 import { User, user_role, user_status } from '@prisma/client';
 import { UsersService } from 'app/users/users.service';
+import { appConfig } from 'app/config';
+import type { ConfigType } from '@nestjs/config';
 
 export interface AuthResponse {
   accessToken: string;
@@ -27,7 +29,6 @@ export interface AuthResponse {
 export class OAuthService {
   private readonly oauth2Client: InstanceType<typeof OAuth2Client>;
   private readonly logger = new Logger(OAuthService.name);
-  private readonly jwtSecret = process.env.STATE_SECRET || 'super-secret';
 
   private readonly errorMessages = {
     MISSING_CLIENT_ID: 'Missing CLIENT_ID or CLIENT_SECRET',
@@ -54,9 +55,11 @@ export class OAuthService {
     private readonly tokenService: TokenService,
     private readonly prismaService: PrismaService,
     private readonly usersService: UsersService,
+    @Inject(appConfig.KEY)
+    private readonly config: ConfigType<typeof appConfig>,
   ) {
-    const clientId = process.env.CLIENT_ID;
-    const clientSecret = process.env.CLIENT_SECRET;
+    const { clientId, clientSecret } = this.config;
+
     if (!clientId || !clientSecret) {
       throw new BadRequestError(this.errorMessages.MISSING_AUTH_CODE);
     }
@@ -78,14 +81,14 @@ export class OAuthService {
   private generateState(redirectUri: string): string {
     return jwt.sign(
       { redirectUri, nonce: Math.random().toString(36).substring(2, 10) },
-      this.jwtSecret,
+      this.config.jwtSecret,
       { expiresIn: '5m' },
     );
   }
 
   private validateState(state: string, redirectUri: string): void {
     try {
-      const decoded = jwt.verify(state, this.jwtSecret) as {
+      const decoded = jwt.verify(state, this.config.jwtSecret) as {
         redirectUri: string;
       };
       if (decoded.redirectUri !== redirectUri) {
