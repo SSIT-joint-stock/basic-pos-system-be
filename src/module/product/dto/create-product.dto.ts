@@ -18,7 +18,7 @@ export class CreateProductDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   sku: string;
 
   @IsOptional()

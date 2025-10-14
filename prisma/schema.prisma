@@ -80,24 +80,24 @@ enum payment_method {
  * User has many products
  */
 model User {
-  id          String      @id @default(uuid()) @db.Uuid
-  providerId   String? 
-  provider   String? 
-  email       String      @unique
-  password    String?
-  username    String      @unique
-  role        user_role   @default(USER)
-  status      user_status @default(ACTIVE)
-  is_verified Boolean     @default(false)
-  lastLoginAt DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            String      @id @default(uuid()) @db.Uuid
+  providerId    String?
+  provider      String?
+  email         String      @unique
+  password      String?
+  username      String      @unique
+  role          user_role   @default(USER)
+  status        user_status @default(ACTIVE)
+  is_verified   Boolean     @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   refresh_token String?
 
   // code 
-  verification_code String?
-  verification_code_expired DateTime? 
-  password_reset_code String?
+  verification_code           String?
+  verification_code_expired   DateTime?
+  password_reset_code         String?
   password_reset_code_expired DateTime?
 
   // relations
@@ -108,7 +108,6 @@ model User {
 
   // indexes
   @@index([role, status])
-
   @@map("user")
 }
 
@@ -120,18 +119,18 @@ model User {
  * Store has many members
  */
 model Store {
-  id          String   @id @default(uuid()) @db.Uuid
-  owner_id    String   @db.Uuid
-  name        String
-  description String?
-  phone_number String?
-  address String?
+  id            String   @id @default(uuid()) @db.Uuid
+  owner_id      String   @db.Uuid
+  name          String
+  description   String?
+  phone_number  String?
+  address       String?
   business_hour String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // relations
-  owner            User               @relation(fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  owner            User              @relation(fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   members          StoreMember[]
   products         Product[]
   categories       Category[]
@@ -142,7 +141,6 @@ model Store {
   // indexes
   @@index([owner_id])
   @@index([name])
-
   @@map("store")
 }
 
@@ -166,7 +164,6 @@ model StoreMember {
   // indexes
   @@id([storeId, userId])
   @@index([userId])
-
   @@map("store_member")
 }
 
@@ -197,7 +194,6 @@ model Customer {
   // indexes
   @@id([store_id, id])
   @@index([store_id])
-
   @@map("customer")
 }
 
@@ -209,32 +205,33 @@ model Customer {
  * Product has one user
  */
 model Product {
-  id              String           @id @default(uuid()) @db.Uuid 
-  store_id        String           @db.Uuid
+  id              String          @id @default(uuid()) @db.Uuid
+  store_id        String          @db.Uuid
   name            String
-  sku             String           @unique
+  sku             String
   barcode         String?
-  price           Int              @default(0)
-  cost            Int              @default(0)
+  price           Int             @default(0)
+  cost            Int             @default(0)
   image_url       String?
   description     String?
-  product_status  product_status   @default(ACTIVE)
-  meta            Json             @default("{}")
-  created_by      String           @db.Uuid
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  product_status  product_status  @default(ACTIVE)
+  meta            Json            @default("{}")
+  created_by      String          @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   // relations
-  created_by_user User             @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  store           Store            @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  created_by_user User            @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  store           Store           @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   categories      Category[]
-  inventory     Inventory?
+  inventory       Inventory?
   tags            Tag[]
   stock_movements StockMovement[]
   order_item      OrderItem[]
 
+  @@unique([store_id, sku])
   // indexes
+  @@index([store_id, sku])
   @@index([created_by, product_status, name])
-
   @@map("product")
 }
 
@@ -245,7 +242,7 @@ model Product {
  */
 model Inventory {
   id         String           @id @default(uuid()) @db.Uuid
-  product_id String           @db.Uuid @unique
+  product_id String           @unique @db.Uuid
   quantity   Int              @default(0)
   discount   Int              @default(0)
   total      Int              @default(0)
@@ -257,7 +254,6 @@ model Inventory {
 
   // indexes
   @@index([product_id, status])
-
   @@map("inventory")
 }
 
@@ -277,10 +273,10 @@ model Category {
   store       Store     @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   products    Product[]
 
+  @@unique([store_id, name])
   // indexes
   @@index([store_id])
   @@index([name])
-
   @@map("category")
 }
 
@@ -300,7 +296,6 @@ model Tag {
 
   // indexes
   @@index([name])
-
   @@map("tag")
 }
 
@@ -316,7 +311,6 @@ model StockMovement {
 
   // indexes
   @@index([product_id])
-
   @@map("stock_movement")
 }
 
@@ -331,7 +325,7 @@ model Order {
   cashier_id      String         @db.Uuid
   customer_id     String?        @db.Uuid
   customer_name   String?
-  store_id        String          @db.Uuid
+  store_id        String         @db.Uuid
   // amount
   // the total amount of the order before discount and tax: subtotal_amount = quantity * price
   subtotal_amount Int            @default(0)
@@ -348,7 +342,7 @@ model Order {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   // relations
-  store           Store            @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  store           Store          @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   cashier         User           @relation(fields: [cashier_id], references: [id], onDelete: Cascade)
   customer        Customer?      @relation(fields: [customer_id], references: [id], onDelete: Cascade)
   order_item      OrderItem[]
@@ -357,7 +351,6 @@ model Order {
   @@index([cashier_id])
   @@index([customer_id])
   @@index([status])
-
   @@map("order")
 }
 
@@ -382,7 +375,6 @@ model OrderItem {
   // indexes
   @@index([order_id])
   @@index([product_id])
-
   @@map("order_item")
 }
 
@@ -421,6 +413,5 @@ model StatisticsDaily {
   // indexes
   @@index([store_id])
   @@index([stat_date])
-
   @@map("statistics_daily")
 }
