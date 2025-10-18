@@ -26,6 +26,8 @@ import { TokenService } from './auth/token.service';
 import { HealthModule } from './health/health.module';
 import { OAuthModule } from './oauth/oauth.module';
 import { StoreModule } from './store/store.module';
+import jwtConfig from './config/jwt.config';
+import oauthConfig from './config/oauth.config';
 
 @Module({
   imports: [
@@ -60,8 +62,9 @@ import { StoreModule } from './store/store.module';
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`],
       // validate with Zod
       validate: validateEnv, // use Zod to validate and type
-      load: [appConfig, databaseConfig, jobsConfig],
+      load: [appConfig, databaseConfig, jobsConfig, jwtConfig, oauthConfig],
     }),
+
     LoggerCoreModule,
     LoggerModule.forFeature(['HTTP', 'DATABASE', 'APP', 'EMAIL']),
     PrismaModule,

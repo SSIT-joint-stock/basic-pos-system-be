@@ -16,8 +16,8 @@ import {
 } from 'app/common/response/client-errors';
 import { User, user_role, user_status } from '@prisma/client';
 import { UsersService } from 'app/users/users.service';
-import { appConfig } from 'app/config';
 import type { ConfigType } from '@nestjs/config';
+import { appConfig } from 'app/config';
 
 export interface AuthResponse {
   accessToken: string;
@@ -196,14 +196,14 @@ export class OAuthService {
       });
 
       await this.updateUserRefreshToken(user.id, tokenPair.refresh_token);
-
       return {
         accessToken: tokenPair.access_token,
         refreshToken: tokenPair.refresh_token,
         user,
       };
     } catch (error) {
-      this.logger.error('OAuth callback failed');
+      console.log('oauth error:', error);
+      this.logger.error('OAuth callback failed', error?.stack);
       throw new ForbiddenError(
         `${this.errorMessages.CALLBACK_FAILED}: ${
           error instanceof Error ? error.message : 'Unknown error'
