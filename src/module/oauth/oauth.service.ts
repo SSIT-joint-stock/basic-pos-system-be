@@ -17,7 +17,9 @@ import {
 import { User, user_role, user_status } from '@prisma/client';
 import { UsersService } from 'app/users/users.service';
 import type { ConfigType } from '@nestjs/config';
-import { appConfig } from 'app/config';
+// import { appConfig } from 'app/config';
+import jwtConfig from 'app/config/jwt.config';
+import oauthConfig from 'app/config/oauth.config';
 
 export interface AuthResponse {
   accessToken: string;
@@ -55,10 +57,12 @@ export class OAuthService {
     private readonly tokenService: TokenService,
     private readonly prismaService: PrismaService,
     private readonly usersService: UsersService,
-    @Inject(appConfig.KEY)
-    private readonly config: ConfigType<typeof appConfig>,
+    @Inject(jwtConfig.KEY)
+    private readonly config: ConfigType<typeof jwtConfig>,
+    @Inject(oauthConfig.KEY)
+    private readonly oauthCfg: ConfigType<typeof oauthConfig>,
   ) {
-    const { clientId, clientSecret } = this.config;
+    const { clientId, clientSecret } = this.oauthCfg;
 
     if (!clientId || !clientSecret) {
       throw new Error(this.errorMessages.MISSING_AUTH_CODE);

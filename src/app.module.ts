@@ -77,7 +77,15 @@ import { CustomerModule } from './module/customer/customer.module';
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`],
       // validate with Zod
       validate: validateEnv, // use Zod to validate and type
-      load: [appConfig, databaseConfig, jobsConfig, jwtConfig, oauthConfig, emailConfig, cookieConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        jobsConfig,
+        jwtConfig,
+        oauthConfig,
+        emailConfig,
+        cookieConfig,
+      ],
     }),
 
     LoggerCoreModule,
