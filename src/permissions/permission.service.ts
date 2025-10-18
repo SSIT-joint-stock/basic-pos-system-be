@@ -29,6 +29,10 @@ export class PermissionService {
       PERMISSIONS.PRODUCT_READ,
       PERMISSIONS.PRODUCT_UPDATE,
 
+      PERMISSIONS.CATEGORY_CREATE,
+      PERMISSIONS.CATEGORY_UPDATE,
+      PERMISSIONS.CATEGORY_READ,
+
       PERMISSIONS.ORDER_CREATE,
       PERMISSIONS.ORDER_READ,
       PERMISSIONS.ORDER_UPDATE,
@@ -36,6 +40,10 @@ export class PermissionService {
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.CUSTOMER_CREATE,
       PERMISSIONS.CUSTOMER_UPDATE,
+
+      PERMISSIONS.STOCK_MOVEMENT_READ,
+
+      PERMISSIONS.INVENTORY_ALL,
       // sau nay co the them nhung quyen khac nhu tao category, tags, inentory, stok movement................
     ],
   };
@@ -209,23 +217,23 @@ export class PermissionService {
       },
     });
   }
-  async hasStoreAccess(storeId: string, userId: string) {
-    const role = await this.getUserStoreRole(storeId, userId);
+  // async hasStoreAccess(storeId: string, userId: string) {
+  //   const role = await this.getUserStoreRole(storeId, userId);
 
-    return role !== null;
-  }
-  async getStoreAccessInfo(storeId: string, userId: string) {
-    const store = await this.findStoreById(storeId);
-    const role = await this.getUserStoreRole(storeId, userId);
-    const permissions = await this.getUserPermissions(storeId, userId);
+  //   return role !== null;
+  // }
+  // async getStoreAccessInfo(storeId: string, userId: string) {
+  //   const store = await this.findStoreById(storeId);
+  //   const role = await this.getUserStoreRole(storeId, userId);
+  //   const permissions = await this.getUserPermissions(storeId, userId);
 
-    return {
-      store,
-      hasAccess: role !== null,
-      role,
-      permissions,
-      isOwner: role === 'OWNER',
-      isMember: role && role !== 'OWNER',
-    };
-  }
+  //   return {
+  //     store,
+  //     hasAccess: role !== null,
+  //     role,
+  //     permissions,
+  //     isOwner: role === 'OWNER',
+  //     isMember: role && role !== 'OWNER',
+  //   };
+  // }
 }

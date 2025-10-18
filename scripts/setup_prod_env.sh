@@ -19,7 +19,7 @@ fi
 
 # Start the production containers
 echo "🐳 Starting production containers..."
-docker-compose --env-file .env.production up -d
+sudo docker-compose --env-file .env.production up -d
 echo "✅ Production containers started"
 
 # Wait for the database to be ready
@@ -27,7 +27,7 @@ echo "⏳ Waiting for database to be ready..."
 sleep 5
 
 # Generate Prisma client
-echo "🔧 Generating Prisma client..."
+echo "🔧 Generating Prisma client..."sudo
 npm run prisma:generate
 echo "✅ Prisma client generated"
 

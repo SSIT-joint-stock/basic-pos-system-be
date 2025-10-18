@@ -33,7 +33,77 @@ export const envSchema = z.object({
 
   // Jobs
   TZ: z.string().default('Asia/Ho_Chi_Minh'),
-  EXAMPLE_CRON: z.string().default('0 2 * * *'), // every day at 2:00 AM
+  EXAMPLE_CRON: z.string().default('*/2 * * * *'), // every 2 minutes
+
+  // Health Check Configuration
+  HEALTH_ENDPOINTS_ENABLED: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(false),
+
+  // Security & Monitoring
+  JWT_SECRET: z.string().default('your-super-secret-jwt-key-here'),
+  JWT_EXPIRES_IN: z.string().default('24h'),
+
+  // Email Configuration (Optional)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  // Redis Configuration (Optional - for caching)
+  REDIS_URL: z.string().url().optional(),
+
+  // File Upload Configuration
+  UPLOAD_DEST: z.string().default('./uploads'),
+  MAX_FILE_SIZE: z.coerce.number().int().min(1).default(10485760), // 10MB
+
+  // Logging Configuration
+  LOG_LEVEL: z
+    .enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'])
+    .default('info'),
+  LOG_FILE_MAX_SIZE: z.string().default('10m'),
+  LOG_FILE_MAX_FILES: z.coerce.number().int().min(1).default(5),
+
+  // Rate Limiting (Optional)
+  RATE_LIMIT_TTL: z.coerce.number().int().min(1).optional(),
+  RATE_LIMIT_MAX: z.coerce.number().int().min(1).optional(),
+
+  // CORS Configuration
+  CORS_ORIGINS: z.string().optional(),
+
+  // Security
+  BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(20).default(12),
+
+  // Monitoring (Optional)
+  PROMETHEUS_ENABLED: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(false),
+  METRICS_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+
+  // OAuth2 Configuration (Optional)
+  CLIENT_ID: z.string().optional(),
+  CLIENT_SECRET: z.string().optional(),
+
+  // Cookie Configuration
+  COOKIE_DOMAIN: z.string().default('localhost'),
+  COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('none'),
+  COOKIE_SECURE: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(false)
+    .pipe(z.boolean())
+    .pipe(z.boolean()),
+  COOKIE_HTTP_ONLY: z
+    .string()
+    .transform((val) => val === 'true')
+    .default(true),
+  COOKIE_MAX_AGE: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(7 * 24 * 60 * 60 * 1000), // 7 days
 });
 
 // define the environment variables type
@@ -55,6 +125,12 @@ export function validateEnv(input: Record<string, unknown>): Env {
     input.DATABASE_URL = `postgresql://${input.DB_USER}:${input.DB_PASSWORD}@${input.DB_HOST}:${input.DB_PORT}/${input.DB_NAME}?schema=${input.DB_SCHEMA}`;
   }
 
+  // Parse CORS_ORIGINS into array if provided
+  if (input.CORS_ORIGINS && typeof input.CORS_ORIGINS === 'string') {
+    // Keep as string for now, can be split in the app configuration
+    // input.CORS_ORIGINS = input.CORS_ORIGINS.split(',').map(origin => origin.trim());
+  }
+
   // Parse and validate
   const parsed = envSchema.safeParse(input);
   if (!parsed.success) {
@@ -63,7 +139,42 @@ export function validateEnv(input: Record<string, unknown>): Env {
       .join('; ');
     // throw error to nestjs
     console.error('❌ Invalid environment variables:', issues);
+    console.error('🔍 Failed validation details:', parsed.error.format());
     process.exit(1);
   }
+
+  // Log successful validation in development
+  if (parsed.data.NODE_ENV === 'development') {
+    console.log('✅ Environment variables validated successfully');
+  }
+
   return parsed.data;
+}
+
+// Helper function to get CORS origins as array
+export function getCorsOrigins(env: Env): string[] {
+  if (!env.CORS_ORIGINS) {
+    return ['http://localhost:3000']; // default
+  }
+  return env.CORS_ORIGINS.split(',').map((origin) => origin.trim());
+}
+
+// Helper function to check if email is configured
+export function isEmailConfigured(env: Env): boolean {
+  return !!(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS);
+}
+
+// Helper function to check if Redis is configured
+export function isRedisConfigured(env: Env): boolean {
+  return !!env.REDIS_URL;
+}
+
+// Helper function to check if rate limiting is configured
+export function isRateLimitingConfigured(env: Env): boolean {
+  return !!(env.RATE_LIMIT_TTL && env.RATE_LIMIT_MAX);
+}
+
+// Helper function to check if OAuth2 is configured
+export function isOAuth2Configured(env: Env): boolean {
+  return !!(env.CLIENT_ID && env.CLIENT_SECRET);
 }

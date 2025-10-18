@@ -1,0 +1,195 @@
+# Stock Movement API Routes
+
+> Phiên bản: **v1**
+> Base URL: `http://localhost:3000`
+> Tất cả các endpoint trong tài liệu này **yêu cầu xác thực** bằng **Access Token** (JWT) theo chuẩn `Authorization: Bearer <access_token>`.
+
+---
+
+# Phân quyền (Permissions)
+
+## Yêu cầu vai trò theo API (trong store)
+
+| **Endpoint**                           | **Method** | **Vai trò tối thiểu** |
+| -------------------------------------- | ---------- | --------------------- |
+| `/stores/:storeId/stock-movements`     | GET        | MEMBER                |
+| `/stores/:storeId/stock-movements/:id` | GET        | MEMBER                |
+
+---
+
+# 1. Danh sách Stock Movements
+
+## 1.1 Mô tả
+
+| **Thuộc tính** | **Giá trị**                          |
+| -------------- | ------------------------------------ |
+| Request URL    | `/stores/:storeId/stock-movements`   |
+| Request Method | **GET**                              |
+| Request Header | `Authorization: Bearer <token>`      |
+| Quyền yêu cầu  | `STOCK_MOVEMENT_READ` **hoặc** `ALL` |
+
+---
+
+## 1.2 Query Parameters
+
+### Phân trang, sắp xếp, khoảng ngày (từ `@FilterParse`)
+
+| Tên         | Kiểu              | Bắt buộc | Mặc định    | Mô tả                                                          |
+| ----------- | ----------------- | -------- | ----------- | -------------------------------------------------------------- |
+| `page`      | int (string)      | Không    | `1`         | Trang hiện tại                                                 |
+| `limit`     | int (string)      | Không    | `10`        | Số bản ghi mỗi trang                                           |
+| `sortBy`    | string            | Không    | `createdAt` | Trường sắp xếp. **Chỉ chấp nhận**: `createdAt`, `total_amount` |
+| `sort`      | `'asc' \| 'desc'` | Không    | `desc`      | Thứ tự sắp xếp                                                 |
+| `startDate` | string (ISO)      | Không    | —           | Lọc từ ngày bắt đầu (map `createdAt.gte`)                      |
+| `endDate`   | string (ISO)      | Không    | —           | Lọc đến ngày kết thúc (map `createdAt.lte`, endOf('day'))      |
+
+> Ghi chú: `startDate`/`endDate` được convert thành `createdAt: { gte, lte }`.
+> Lọc luôn bị ràng buộc theo cửa hàng qua quan hệ `product.store_id = :storeId`.
+
+### Trường lọc nghiệp vụ (từ `FindStockMovementDto`)
+
+| Tên            | Kiểu                       | Bắt buộc | Mô tả                                                                                   |
+| -------------- | -------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `type`         | enum `stock_movement_type` | Không    | Loại biến động: `ADJUSTMENT`, `PURCHASE`, `SALE`, `RETURN_IN`, `RETURN_OUT`, `TRANSFER` |
+| `min_quantity` | number (int ≥ 0)           | Không    | Số lượng tối thiểu (`quantity >= min_quantity`)                                         |
+| `max_quantity` | number (int ≥ 0)           | Không    | Số lượng tối đa (`quantity <= max_quantity`)                                            |
+
+---
+
+## 1.3 Dữ liệu đầu ra
+
+### 200 – Success
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-09-11T15:12:51.487Z",
+    "version": "v1",
+    "pagination": { "page": 1, "limit": 20, "total": 3, "totalPages": 1 }
+  },
+  "data": [
+    {
+      "id": "3044a113-c960-4df8-9669-3aac446d7a19",
+      "product_id": "a9ede775-748c-4be1-8180-a994829bb6eb",
+      "quantity": 20,
+      "type": "ADJUSTMENT",
+      "createdAt": "2025-09-11T14:46:07.192Z",
+      "updatedAt": "2025-09-11T14:46:07.192Z"
+    },
+    {
+      "id": "196117a5-257f-4b6f-be80-0720a097d21a",
+      "product_id": "a9ede775-748c-4be1-8180-a994829bb6eb",
+      "quantity": 20,
+      "type": "ADJUSTMENT",
+      "createdAt": "2025-09-10T03:45:36.996Z",
+      "updatedAt": "2025-09-10T03:45:36.996Z"
+    },
+    {
+      "id": "a9ede775-748c-4be1-8180-a994829bb6ec",
+      "product_id": "a9ede775-748c-4be1-8180-a994829bb6eb",
+      "quantity": 10,
+      "type": "ADJUSTMENT",
+      "createdAt": "2025-09-10T02:06:24.818Z",
+      "updatedAt": "2025-09-10T02:06:02.630Z"
+    }
+  ],
+  "message": "Find all stock movement successfully"
+}
+```
+
+### Lỗi thường gặp
+
+**404 – Store Not Found**
+
+```json
+{
+  "success": false,
+  "error": { "code": "NOT_FOUND", "message": "Store not found" },
+  "meta": { "timestamp": "2025-09-11T15:12:51.487Z", "version": "v1" }
+}
+```
+
+**422 – Unprocessable Entity** _(ví dụ: `sortBy` không thuộc `['createdAt','total_amount']` hoặc tham số không hợp lệ)_
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "UNPROCESSABLE_ENTITY",
+    "message": "Invalid sortBy field: <field>"
+  },
+  "meta": { "timestamp": "2025-09-11T15:12:51.487Z", "version": "v1" }
+}
+```
+
+---
+
+# 2. Chi tiết Stock Movement
+
+## 2.1 Mô tả
+
+| **Thuộc tính** | **Giá trị**                            |
+| -------------- | -------------------------------------- |
+| Request URL    | `/stores/:storeId/stock-movements/:id` |
+| Request Method | **GET**                                |
+| Request Header | `Authorization: Bearer <token>`        |
+| Quyền yêu cầu  | `STOCK_MOVEMENT_READ`                  |
+
+### 2.2 Dữ liệu đầu ra
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-09-11T15:12:55.964Z",
+    "version": "v1"
+  },
+  "data": {
+    "id": "a9ede775-748c-4be1-8180-a994829bb6ec",
+    "product_id": "a9ede775-748c-4be1-8180-a994829bb6eb",
+    "quantity": 10,
+    "type": "ADJUSTMENT",
+    "createdAt": "2025-09-10T02:06:24.818Z",
+    "updatedAt": "2025-09-10T02:06:02.630Z"
+  },
+  "message": "Find stock movement by Id successfully"
+}
+```
+
+**Error Response:**
+
+- **404 Not Found – Stock movement không tồn tại**
+
+```json
+{
+  "success": false,
+  "error": { "code": "NOT_FOUND", "message": "Stock movement not found" },
+  "meta": { "timestamp": "2025-09-11T08:25:55.000Z", "version": "v1" }
+}
+```
+
+---
+
+# 4. Mẫu Lỗi chung
+
+Cấu trúc giống như trong **product.md** :
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "<ERROR_CODE>",
+    "message": "<mô tả lỗi>",
+    "details": {}
+  },
+  "meta": {
+    "timestamp": "2025-09-11T08:35:00.000Z",
+    "version": "v1"
+  }
+}
+```
+
+---

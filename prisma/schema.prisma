@@ -63,7 +63,8 @@ enum stock_movement_type {
   // Return the stock of a product from the customer to the supplier (for example: return 10 units of a product to the customer)
   RETURN_SALE
   // Transfer the stock of a product from one store to another store (for example: transfer 10 units of a product from one store to another store)
-  TRANSFER
+  TRANSFER_IMPORT
+  TRANSFER_EXPORT
 }
 
 enum payment_method {
@@ -136,6 +137,7 @@ model Store {
   categories       Category[]
   customer         Customer[]
   statistics_daily StatisticsDaily[]
+  orders           Order[]
 
   // indexes
   @@index([owner_id])
@@ -207,7 +209,7 @@ model Customer {
  * Product has one user
  */
 model Product {
-  id              String           @id @default(uuid()) @db.Uuid
+  id              String           @id @default(uuid()) @db.Uuid 
   store_id        String           @db.Uuid
   name            String
   sku             String           @unique
@@ -225,10 +227,9 @@ model Product {
   created_by_user User             @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Cascade)
   store           Store            @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   categories      Category[]
-  inventories     Inventory[]
+  inventory     Inventory?
   tags            Tag[]
   stock_movements StockMovement[]
-  order           Order[]
   order_item      OrderItem[]
 
   // indexes
@@ -244,7 +245,7 @@ model Product {
  */
 model Inventory {
   id         String           @id @default(uuid()) @db.Uuid
-  product_id String           @db.Uuid
+  product_id String           @db.Uuid @unique
   quantity   Int              @default(0)
   discount   Int              @default(0)
   total      Int              @default(0)
@@ -327,10 +328,10 @@ model StockMovement {
 model Order {
   id              String         @id @default(uuid()) @db.Uuid
   code            String?
-  product_id      String         @db.Uuid
   cashier_id      String         @db.Uuid
   customer_id     String?        @db.Uuid
   customer_name   String?
+  store_id        String          @db.Uuid
   // amount
   // the total amount of the order before discount and tax: subtotal_amount = quantity * price
   subtotal_amount Int            @default(0)
@@ -347,7 +348,7 @@ model Order {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   // relations
-  product         Product        @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  store           Store            @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   cashier         User           @relation(fields: [cashier_id], references: [id], onDelete: Cascade)
   customer        Customer?      @relation(fields: [customer_id], references: [id], onDelete: Cascade)
   order_item      OrderItem[]
@@ -355,7 +356,6 @@ model Order {
   // indexes
   @@index([cashier_id])
   @@index([customer_id])
-  @@index([product_id])
   @@index([status])
 
   @@map("order")

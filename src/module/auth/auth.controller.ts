@@ -8,6 +8,7 @@ import {
   Req,
   UnauthorizedException,
   Param,
+  Inject,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -19,9 +20,16 @@ import { Public } from 'app/common/decorators/public.decorator';
 import { User } from 'app/common/decorators/user.decorator';
 import { ApiSuccess } from 'app/common/decorators';
 import type { IUser } from 'app/common/types/user.type';
+import type { ConfigType } from '@nestjs/config';
+import { cookieConfig } from 'app/config';
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @Inject(cookieConfig.KEY)
+    private readonly configCookie: ConfigType<typeof cookieConfig>,
+  ) {}
+  // Helper method to get cookie options
 
   @Public()
   @Post('register')
@@ -48,11 +56,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: express.Response,
   ) {
     const result = await this.authService.login(dto);
+
     res.cookie('refresh_token', result.refresh_token, {
-      httpOnly: true,
-      sameSite: 'strict',
-      domain: 'localhost',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: this.configCookie.httpOnly,
+      sameSite: this.configCookie.sameSite,
+      domain: this.configCookie.domain || undefined,
+      maxAge: this.configCookie.maxAge,
     });
     return {
       access_token: result.access_token,
@@ -111,10 +120,10 @@ export class AuthController {
       const result = await this.authService.refreshToken(refreshToken);
 
       res.cookie('refresh_token', result.refresh_token, {
-        httpOnly: true,
-        sameSite: 'strict',
-        domain: 'localhost',
-        maxAge: 1000 * 60 * 60 * 24 * 7,
+        httpOnly: this.configCookie.httpOnly,
+        sameSite: this.configCookie.sameSite,
+        domain: this.configCookie.domain || undefined,
+        maxAge: this.configCookie.maxAge,
       });
 
       return {
@@ -142,7 +151,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: express.Response,
   ) {
     res.clearCookie('refresh_token');
-    res.clearCookie('current_store');
     return this.authService.logout(user.id);
   }
 
@@ -161,10 +169,10 @@ export class AuthController {
   ) {
     const result = await this.authService.setCurrentStore(user.id, storeId);
     res.cookie('refresh_token', result.refresh_token, {
-      httpOnly: true,
-      sameSite: 'strict',
-      domain: 'localhost',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      httpOnly: this.configCookie.httpOnly,
+      sameSite: this.configCookie.sameSite,
+      domain: this.configCookie.domain || undefined,
+      maxAge: this.configCookie.maxAge,
     });
     return {
       access_token: result.access_token,

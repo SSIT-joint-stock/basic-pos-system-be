@@ -38,13 +38,13 @@ NODE_ENV=development  # or test, production
 APP_NAME=nest-basic-prisma
 PORT=3000
 
-# Database
+# Databaseprisma
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app?schema=public"
-```
+```prisma
 
-For the test environment, you might want to use a different database:
+For the test environment, you might want to use a different database:prisma
 
-```
+```prisma
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/app_test?schema=public"
 ```
 
@@ -577,7 +577,19 @@ docker-compose -f docker-compose.dev.yml --env-file .env.development down
 
 ### Production
 
+#### Basic Docker Operations
+
 ```bash
+# Build Docker image for production
+make docker-build
+# or
+docker build -t pos-system:latest .
+
+# Build Docker image without cache (full rebuild)
+make docker-build-no-cache
+# or
+docker build --no-cache -t pos-system:latest .
+
 # Start production containers
 make docker-prod-up
 # or
@@ -587,6 +599,97 @@ docker-compose --env-file .env.production up -d
 make docker-prod-down
 # or
 docker-compose --env-file .env.production down
+```
+
+#### Production Deployment
+
+```bash
+# Complete production deployment (build + start + migrate)
+make deploy-prod
+
+# Full rebuild and deployment with no cache
+make deploy-prod-build
+
+# Restart production services only
+make deploy-prod-restart
+
+# Run database migrations in production
+make deploy-prod-migrate
+
+# Seed production database with sample data
+make deploy-prod-seed
+```
+
+#### Monitoring and Debugging
+
+```bash
+# View all production container logs (real-time)
+make docker-logs
+# or
+docker-compose --env-file .env.production logs -f
+
+# View app container logs only
+make docker-logs-app
+# or
+docker-compose --env-file .env.production logs -f app
+
+# View database container logs only
+make docker-logs-db
+# or
+docker-compose --env-file .env.production logs -f db
+
+# Show running containers status
+make docker-ps
+# or
+docker-compose --env-file .env.production ps
+
+# Clean up Docker system and volumes
+make docker-clean
+# or
+docker system prune -f && docker volume prune -f
+
+# Complete production health check
+make health-prod
+# or
+./scripts/health-check-prod.sh
+```
+
+#### Production Workflow Examples
+
+**First Time Production Deployment:**
+```bash
+# 1. Setup production environment
+make setup-prod
+
+# 2. Deploy with full rebuild
+make deploy-prod-build
+
+# 3. Check system health
+make health-prod
+```
+
+**Regular Updates:**
+```bash
+# 1. Quick deployment (code changes only)
+make deploy-prod
+
+# 2. Verify deployment
+make health-prod
+```
+
+**Troubleshooting:**
+```bash
+# Check container status
+make docker-ps
+
+# View application logs
+make docker-logs-app
+
+# Check system health
+make health-prod
+
+# Restart if needed
+make deploy-prod-restart
 ```
 
 ## Git Hooks with Husky
@@ -820,8 +923,96 @@ readinessProbe:
 
 The `/health/metrics` endpoint provides Prometheus-compatible metrics for monitoring systems.
 
+## Production Health Monitoring
+
+The project includes a comprehensive production health monitoring script that checks all aspects of your production deployment.
+
+### Health Check Script
+
+```bash
+# Run complete production health check
+make health-prod
+# or
+chmod +x ./scripts/health-check-prod.sh
+./scripts/health-check-prod.sh
+```
+
+### What the Health Check Monitors
+
+The health check script provides detailed information about:
+
+#### 🔍 **Services Status**
+- Docker container running status
+- Container health states
+- Service dependencies
+
+#### 🏥 **Application Health**
+- Database connectivity (`pg_isready`)
+- Application endpoint (`/health`)
+- Response time and availability
+
+#### 📊 **Resource Usage**
+- CPU usage per container
+- Memory usage and limits
+- Container resource consumption
+
+#### 💾 **System Information**
+- Docker disk usage
+- Volume usage
+- System resource availability
+
+### Health Check Output Example
+
+```bash
+🔍 Checking production services health...
+
+📋 Production Services Status:
+NAME                    IMAGE                COMMAND                  SERVICE             CREATED             STATUS                    PORTS
+nest_basic_prisma_app   pos-system:latest   "dumb-init node dist…"   app                 2 minutes ago       Up 2 minutes (healthy)   0.0.0.0:3000->3000/tcp
+nest_basic_prisma_pg    postgres:16-alpine  "docker-entrypoint.s…"   db                  2 minutes ago       Up 2 minutes (healthy)   127.0.0.1:5554->5432/tcp
+
+🔍 Health Checks:
+Database: ✅ Healthy
+Application: ✅ Healthy
+
+🐳 Container Status:
+App Container: running
+DB Container: running
+
+💾 Disk Usage:
+TYPE            TOTAL       ACTIVE      SIZE        RECLAIMABLE
+Images          2           2           1.2GB       0B (0%)
+Containers      2           2           1.5MB       0B (0%)
+Local Volumes   1           1           45MB        0B (0%)
+
+📊 Resource Usage:
+CONTAINER                CPU %     MEM USAGE / LIMIT     MEM %
+nest_basic_prisma_app    0.5%      64MiB / 8GiB         0.8%
+nest_basic_prisma_pg     0.1%      32MiB / 8GiB         0.4%
+
+🎉 Health check complete!
+```
+
+### Automated Monitoring
+
+You can integrate the health check into your monitoring systems:
+
+```bash
+# Add to crontab for regular health checks
+*/5 * * * * /path/to/project/scripts/health-check-prod.sh >> /var/log/pos-health.log 2>&1
+
+# Use in CI/CD pipeline for deployment verification
+make deploy-prod && make health-prod
+
+# Integration with monitoring tools
+curl -f http://localhost:3000/health || make health-prod
+```
+
 ### Custom Health Checks
 
+You can extend the health check script by creating custom health indicators:
+
+```typescript
 You can extend the health module by creating custom health indicators:
 
 ```typescript
@@ -832,4 +1023,67 @@ export class CustomHealthIndicator extends HealthIndicator {
     return this.getStatus(key, isHealthy, { /* details */ });
   }
 }
+```
+
+## Available Make Commands
+
+For a complete list of available commands, run:
+
+```bash
+make help
+```
+
+### Quick Reference
+
+#### **Application Commands**
+```bash
+make dev              # Run app in development mode
+make debug            # Run app in debug mode  
+make prod             # Run app in production mode
+make test             # Run tests
+make test-e2e         # Run e2e tests
+make format           # Format code
+make lint             # Lint code
+make dev-full         # Run app + Tailwind in development mode
+```
+
+#### **Docker Commands**
+```bash
+make docker-dev-up    # Start dev database container
+make docker-prod-up   # Start production containers
+make docker-build     # Build Docker image
+make docker-logs      # View production logs
+make docker-ps        # Show container status
+make docker-clean     # Clean Docker system
+```
+
+#### **Database Commands**
+```bash
+make db-studio        # Open Prisma Studio
+make db-push-dev      # Push schema to dev database
+make db-seed-dev      # Seed dev database
+make db-reset-dev     # Reset dev database
+```
+
+#### **Production Deployment**
+```bash
+make deploy-prod         # Complete production deployment
+make deploy-prod-build   # Full rebuild and deploy
+make deploy-prod-restart # Restart production services
+make health-prod         # Check production health
+```
+
+#### **Environment Setup**
+```bash
+make setup-dev        # Setup development environment
+make setup-prod       # Setup production environment
+make clear-dev        # Clear development environment
+```
+
+#### **Tailwind CSS**
+```bash
+make tw-dev           # Run Tailwind in watch mode
+make tw-build         # Build Tailwind for production
+make build-full       # Build Tailwind + NestJS
+```
 ```

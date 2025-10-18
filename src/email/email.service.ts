@@ -1,21 +1,30 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Handlebars from 'handlebars';
+import emailConfig from 'app/config/email.config';
+import type { ConfigType } from '@nestjs/config';
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly transporter: nodemailer.Transporter;
 
-  constructor() {
+  constructor(
+    @Inject(emailConfig.KEY)
+    private readonly config: ConfigType<typeof emailConfig>,
+  ) {
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: this.config.smtpHost,
+      port: this.config.smtpPort,
       auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        user: this.config.smtpUser,
+        pass: this.config.smtpPass,
       },
     });
+
+    console.log('Email transport created with config: ', this.config);
   }
   private renderTemplate(templateName: string, context: any) {
     const templatePath = path.join(
@@ -32,8 +41,11 @@ export class EmailService {
 
   async sendMail(to: string, subject: string, text: string, html?: string) {
     try {
+      this.logger.log(
+        `Sending email to ${to} with subject "${subject}" from ${this.config.smtpFrom}`,
+      );
       await this.transporter.sendMail({
-        from: `"${process.env.APP_NAME}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.APP_NAME}" <${this.config.smtpFrom}>`,
         to,
         subject,
         text,

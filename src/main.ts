@@ -40,6 +40,7 @@ async function bootstrap() {
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3002',
+        ...appCfg.origins,
       ],
       credentials: true,
     });
@@ -79,9 +80,12 @@ async function bootstrap() {
 
     // Start the application
     const port = appCfg.port;
-    await app.listen(port);
+    const env = appCfg.env;
+    await app.listen(port, '0.0.0.0');
 
-    console.log(`Server ${appCfg.name} running on http://localhost:${port}`);
+    console.log(
+      `Server ${appCfg.name} running on http://localhost:${port} in env: ${env}`,
+    );
     return app;
   } catch (error) {
     console.error('Failed to start application', {

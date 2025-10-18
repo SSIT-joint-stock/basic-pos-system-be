@@ -75,8 +75,12 @@ export class StoreController {
 
   @Delete('delete-member/:storeId')
   @ApiSuccess('Remove member from store successfully')
-  removeMember(@Param('storeId') storeId: string, @User() user: IUser) {
-    return this.storeService.removeMember(storeId, user.id, user);
+  removeMember(
+    @Param('storeId') storeId: string,
+    @Body('memberUserId') memberUserId: string,
+    @User() user: IUser,
+  ) {
+    return this.storeService.removeMember(storeId, memberUserId, user);
   }
 
   @Get('members/:storeId')

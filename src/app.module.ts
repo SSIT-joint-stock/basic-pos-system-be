@@ -1,11 +1,19 @@
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 
 // config
-import { appConfig, databaseConfig, jobsConfig, validateEnv } from './config';
+import {
+  appConfig,
+  cookieConfig,
+  databaseConfig,
+  emailConfig,
+  jobsConfig,
+  validateEnv,
+} from './config';
 
 // common
 import { LoggerCoreModule, LoggerModule } from './common/logger';
@@ -17,17 +25,24 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { JobsModule } from './jobs/jobs.module';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './module/auth/auth.module';
 import { DocsModule } from './docs/docs.module';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesGuard } from './auth/guards/roles.guard';
-import { TokenService } from './auth/token.service';
+import { JwtAuthGuard } from './module/auth/guards/jwt-auth.guard';
+import { RolesGuard } from './module/auth/guards/roles.guard';
+import { TokenService } from './module/auth/token.service';
 import { HealthModule } from './health/health.module';
-import { OAuthModule } from './oauth/oauth.module';
-import { StoreModule } from './store/store.module';
+import { ProductModule } from './module/product/product.module';
+import { OAuthModule } from './module/oauth/oauth.module';
+import { StoreModule } from './module/store/store.module';
 import jwtConfig from './config/jwt.config';
 import oauthConfig from './config/oauth.config';
+import { CategoryModule } from './module/category/category.module';
+
+import { InventoryModule } from './module/inventory/inventory.module';
+import { StockMovementModule } from './module/stock-movement/stock-movement.module';
+import { OrdersModule } from './module/orders/orders.module';
+import { StatisticsModule } from './module/statistics/statistics.module';
+import { CustomerModule } from './module/customer/customer.module';
 
 @Module({
   imports: [
@@ -62,7 +77,7 @@ import oauthConfig from './config/oauth.config';
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`],
       // validate with Zod
       validate: validateEnv, // use Zod to validate and type
-      load: [appConfig, databaseConfig, jobsConfig, jwtConfig, oauthConfig],
+      load: [appConfig, databaseConfig, jobsConfig, jwtConfig, oauthConfig, emailConfig, cookieConfig],
     }),
 
     LoggerCoreModule,
@@ -70,12 +85,20 @@ import oauthConfig from './config/oauth.config';
     PrismaModule,
     UsersModule,
     AuthModule,
+    StoreModule,
+    ProductModule,
+    OAuthModule,
     ScheduleModule.forRoot(),
     JobsModule,
-    DocsModule,
+    ProductModule,
+    StockMovementModule,
+    InventoryModule,
     HealthModule,
-    OAuthModule,
-    StoreModule,
+    CategoryModule,
+    DocsModule,
+    OrdersModule,
+    StatisticsModule,
+    CustomerModule,
   ],
   providers: [
     TokenService,
