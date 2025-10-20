@@ -265,6 +265,25 @@ export class ProductService {
       throw new BadRequestError('Every item must have a non-empty sku');
     }
 
+    //Kiểm tra TRÙNG SKU trong batch
+    const duplicates = Object.entries(
+      payloadSkus.reduce(
+        (acc, sku) => {
+          acc[sku] = (acc[sku] ?? 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+    )
+      .filter(([, count]) => count > 1)
+      .map(([sku]) => sku);
+
+    if (duplicates.length > 0) {
+      throw new BadRequestError(
+        `Duplicate SKUs found in batch: ${duplicates.join(', ')}`,
+      );
+    }
+
     // Lấy danh sách SKU đã có trong DB
     const existingProducts = await this.prisma.product.findMany({
       where: { store_id, sku: { in: payloadSkus } },
@@ -354,99 +373,99 @@ export class ProductService {
       created: results.created,
     };
   }
-  async createProductByExcel(
-    file: Express.Multer.File,
-    storeId: string,
-    userId: string,
-  ) {
-    if (!file) {
-      throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
-    }
+  // async createProductByExcel(
+  //   file: Express.Multer.File,
+  //   storeId: string,
+  //   userId: string,
+  // ) {
+  //   if (!file) {
+  //     throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
+  //   }
 
-    // Đọc Excel
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+  //   // Đọc Excel
+  //   const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+  //   const sheetName = workbook.SheetNames[0];
+  //   const sheet = workbook.Sheets[sheetName];
+  //   const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
 
-    if (jsonData.length === 0) {
-      throw new BadRequestError(this.errorMessages.FILE_EMPTY);
-    }
-    if (jsonData.length >= 500) {
-      throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
-    }
+  //   if (jsonData.length === 0) {
+  //     throw new BadRequestError(this.errorMessages.FILE_EMPTY);
+  //   }
+  //   if (jsonData.length >= 500) {
+  //     throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
+  //   }
 
-    const result = await this.prisma.$transaction(
-      async (tx) => {
-        const createdProducts: Product[] = [];
+  //   const result = await this.prisma.$transaction(
+  //     async (tx) => {
+  //       const createdProducts: Product[] = [];
 
-        for (const row of jsonData) {
-          // Tìm hoặc tạo category theo tên
-          let category = await tx.category.findFirst({
-            where: {
-              store_id: storeId,
-              name: row['category'],
-            },
-          });
+  //       for (const row of jsonData) {
+  //         // Tìm hoặc tạo category theo tên
+  //         let category = await tx.category.findFirst({
+  //           where: {
+  //             store_id: storeId,
+  //             name: row['category'],
+  //           },
+  //         });
 
-          if (!category) {
-            category = await tx.category.create({
-              data: {
-                name: row['category'],
-                store_id: storeId,
-              },
-            });
-          }
+  //         if (!category) {
+  //           category = await tx.category.create({
+  //             data: {
+  //               name: row['category'],
+  //               store_id: storeId,
+  //             },
+  //           });
+  //         }
 
-          // Check product tồn tại
-          const existingSku = await tx.product.findFirst({
-            where: {
-              sku: row['sku'],
-              store_id: storeId,
-            },
-          });
-          if (existingSku) {
-            throw new ConflictError(
-              `Product with sku ${row['sku']} already exists`,
-            );
-          }
+  //         // Check product tồn tại
+  //         const existingSku = await tx.product.findFirst({
+  //           where: {
+  //             sku: row['sku'],
+  //             store_id: storeId,
+  //           },
+  //         });
+  //         if (existingSku) {
+  //           throw new ConflictError(
+  //             `Product with sku ${row['sku']} already exists`,
+  //           );
+  //         }
 
-          // Tạo product
-          const product = await tx.product.create({
-            data: {
-              name: row['name'],
-              sku: row['sku'],
-              barcode: row['barcode']?.toString(),
-              price: Number(row['price'] ?? 0),
-              cost: Number(row['cost'] ?? 0),
-              description: row['description'],
-              image_url: row['image_url'],
-              product_status: row['product_status'] ?? 'ACTIVE',
-              store_id: storeId,
-              created_by: userId,
-              inventory: { create: {} },
-              categories: {
-                connect: [{ id: category.id }],
-              },
-            },
-            include: {
-              categories: true,
-              inventory: true,
-            },
-          });
+  //         // Tạo product
+  //         const product = await tx.product.create({
+  //           data: {
+  //             name: row['name'],
+  //             sku: row['sku'],
+  //             barcode: row['barcode']?.toString(),
+  //             price: Number(row['price'] ?? 0),
+  //             cost: Number(row['cost'] ?? 0),
+  //             description: row['description'],
+  //             image_url: row['image_url'],
+  //             product_status: row['product_status'] ?? 'ACTIVE',
+  //             store_id: storeId,
+  //             created_by: userId,
+  //             inventory: { create: {} },
+  //             categories: {
+  //               connect: [{ id: category.id }],
+  //             },
+  //           },
+  //           include: {
+  //             categories: true,
+  //             inventory: true,
+  //           },
+  //         });
 
-          createdProducts.push(product);
-        }
+  //         createdProducts.push(product);
+  //       }
 
-        return createdProducts;
-      },
-      {
-        timeout: 30000,
-      },
-    );
+  //       return createdProducts;
+  //     },
+  //     {
+  //       timeout: 30000,
+  //     },
+  //   );
 
-    return { data: result };
-  }
+  //   return { data: result };
+  // }
   downloadExampleExcel(): StreamableFile {
     const headers = [
       'name*',
