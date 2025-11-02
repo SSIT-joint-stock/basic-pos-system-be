@@ -9,6 +9,10 @@ import {
   ImportValidationError,
 } from './dto/import-product-by-excel.dto';
 import { IUserWithPermissions } from 'app/common/types/permission.type';
+import {
+  ImportProductTemplateRow,
+  ImportProductTemplateRowSchema,
+} from './dto/import-product-template-by-excel.dto';
 
 @Injectable()
 export class ImportProductService {
@@ -74,6 +78,50 @@ export class ImportProductService {
       user,
       validRows,
     );
+
+    return {
+      ...result,
+    };
+  }
+
+  async setProductTemplateByExcel(file: Express.Multer.File) {
+    if (!file) {
+      throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
+    }
+
+    // --- 1️⃣ Đọc file Excel ---
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    if (jsonData.length === 0) {
+      throw new BadRequestError(this.errorMessages.FILE_EMPTY);
+    }
+    if (jsonData.length >= 500) {
+      throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
+    }
+
+    // --- 2️⃣ Validate Zod ---
+    const errors: ImportValidationError[] = [];
+    const validRows: ImportProductTemplateRow[] = [];
+
+    jsonData.forEach((row, idx) => {
+      const parsed = ImportProductTemplateRowSchema.safeParse(row);
+      if (!parsed.success) {
+        errors.push({
+          rowIndex: idx + 2, // dòng Excel (bắt đầu từ 2)
+          issues: parsed.error.issues.map(
+            (i) => `${i.path.join('.')}: ${i.message}`,
+          ),
+        });
+      } else {
+        validRows.push(parsed.data);
+      }
+    });
+
+    // --- 3️⃣ Import vào DB ---
+    const result = await this.productService.createProductsTemplate(validRows);
 
     return {
       ...result,

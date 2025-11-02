@@ -29,6 +29,7 @@ import { PaginatedResponse } from 'app/common/response';
 import { product_status } from '@prisma/client';
 import { ImportProductService } from './import-product.service';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
+import { CreateProductTemplateDto } from './dto/create-product-template-dto';
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
@@ -80,6 +81,37 @@ export class ProductController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
+  @Get('suggestions')
+  @ApiSuccess('Suggest product successfully')
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
+  async getProductSuggestion(
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt'],
+      searchBy: ['name'], // thêm dòng này
+      searchKey: 'q', // FIX: nếu muốn đổi tên key tìm kiếm
+      schema: z.object({
+        q: z.string().optional(), // ⬅️ thêm q vào schema
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query,
+  ) {
+    const { data, total } = await this.productService.getProductSuggestion(
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
   @Post()
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @ApiSuccess('Create product successfully')
@@ -89,6 +121,13 @@ export class ProductController {
     @Body() createProductDto: CreateProductDto,
   ) {
     return this.productService.create(user, storeId, createProductDto);
+  }
+
+  @Post('product-template')
+  @RequirePermissions([PERMISSIONS.ALL])
+  @ApiSuccess('Create product successfully')
+  createProductTemplate(@Body() items: CreateProductTemplateDto[]) {
+    return this.productService.createProductsTemplate(items);
   }
 
   @Get()
@@ -170,6 +209,14 @@ export class ProductController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.importProductService.importExcelFile(file, storeId, user);
+  }
+
+  @Post('import-template-excel')
+  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiSuccess('Import product successfully')
+  async importTemplateExcel(@UploadedFile() file: Express.Multer.File) {
+    return this.importProductService.setProductTemplateByExcel(file);
   }
 
   @Post('example-product-excel')

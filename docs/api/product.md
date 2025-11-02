@@ -555,11 +555,134 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-Ah được, bạn muốn sửa lại **tài liệu** dựa vào **code**. Đây là tài liệu đã sửa:
-
-# 7. Tạo Nhiều Sản phẩm (Batch)
+# 7. Gợi ý Sản phẩm (Suggestion Product)
 
 ## 7.1 Mô tả
+
+| **Thuộc tính** | **Giá trị**                                        |
+| -------------- | -------------------------------------------------- |
+| Request URL    | `/stores/:storeId/products/suggestions`            |
+| Request Method | **GET**                                            |
+| Request Header | `Authorization: Bearer <token>`                    |
+| Quyền yêu cầu  | `PRODUCT_READ` hoặc `PRODUCT_ALL`                  |
+| Ghi chú        | Trả về **gộp**: `PRODUCT` (ưu tiên) rồi `TEMPLATE` |
+
+**Hành vi:**
+
+- Tìm theo chuỗi `q` trong `name` (không phân biệt hoa thường).
+- Ưu tiên **Product** (hàng đã từng tạo trong store) đứng **trước**; sau đó là **ProductTemplate** (mẫu toàn cục).
+- Tự động **loại bỏ trùng** theo `barcode` (không trả Template có `barcode` đã tồn tại trong Product của store).
+
+---
+
+## 7.2 Query Parameters
+
+| Tên     | Kiểu       | Bắt buộc | Mặc định | Mô tả                                                                         |
+| ------- | ---------- | -------- | -------- | ----------------------------------------------------------------------------- |
+| `q`     | string     | Không    | `''`     | Từ khoá tìm kiếm (match `name`, `barcode`, `sku`, không phân biệt hoa thường) |
+| `limit` | number/int | Không    | `10`     | Số lượng gợi ý tối đa trả về                                                  |
+| `skip`  | number/int | Không    | `0`      | Bỏ qua N bản ghi đầu (phục vụ phân trang “thô” nếu cần)                       |
+
+> **Khuyến nghị:** với autocomplete, chỉ cần `q` và `limit`.
+
+---
+
+## 7.3 Dữ liệu đầu ra
+
+### Success (200)
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-11-02T14:15:04.310Z",
+    "version": "v1"
+  },
+  "data": [
+    {
+      "id": "21c125c4-70ff-4efa-ac4b-6f254b7c59da",
+      "name": "iPhone 16 Pro Max",
+      "barcode": "8931234567890",
+      "price": 33990000,
+      "cost": 28990000,
+      "image_url": "https://example.com/images/iphone-16-pro-max.png",
+      "source": "PRODUCT",
+      "inventory": {
+        "quantity": 0
+      },
+      "categories": [],
+      "tags": []
+    },
+    {
+      "id": "ef3e0094-e571-448a-9cac-683af3884520",
+      "name": "MacBook Pro 16\"",
+      "barcode": "123456789013",
+      "price": 249900,
+      "cost": 200000,
+      "image_url": "https://example.com/macbook.jpg",
+      "source": "PRODUCT",
+      "inventory": {
+        "quantity": 9
+      },
+      "categories": [
+        {
+          "id": "71f76ad2-46b6-46c4-8218-b7ef012304a5",
+          "store_id": "dbb6c582-f244-478b-b9ee-7a051a5c09af",
+          "name": "Laptops",
+          "description": "Portable computers",
+          "createdAt": "2025-10-29T13:59:43.104Z",
+          "updatedAt": "2025-10-29T13:59:43.104Z"
+        }
+      ],
+      "tags": [
+        {
+          "id": "7fe88678-ef85-4dce-851c-510b08fd47c8",
+          "name": "New",
+          "description": "New products",
+          "createdAt": "2025-10-29T13:59:43.111Z",
+          "updatedAt": "2025-10-29T13:59:43.111Z"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 2,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+### Error Responses
+
+**403 – Forbidden**
+
+```json
+{
+  "success": false,
+  "error": { "code": "FORBIDDEN", "message": "Insufficient permission" },
+  "meta": { "timestamp": "2025-11-02T11:20:11.000Z", "version": "v1" }
+}
+```
+
+**404 – Store Not Found**
+
+```json
+{
+  "success": false,
+  "error": { "code": "NOT_FOUND", "message": "Store not found" },
+  "meta": { "timestamp": "2025-11-02T11:20:11.000Z", "version": "v1" }
+}
+```
+
+---
+
+# 8. Tạo Nhiều Sản phẩm (Batch)
+
+## 8.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                                                        |
 | -------------- | ------------------------------------------------------------------ |
@@ -608,7 +731,7 @@ Ah được, bạn muốn sửa lại **tài liệu** dựa vào **code**. Đây
 ]
 ```
 
-## 7.2 Dữ liệu đầu vào
+## 8.2 Dữ liệu đầu vào
 
 | **Tên trường**   | **Kiểu** | **Bắt buộc** | **Ghi chú**                                          |
 | ---------------- | -------- | ------------ | ---------------------------------------------------- |
@@ -623,7 +746,7 @@ Ah được, bạn muốn sửa lại **tài liệu** dựa vào **code**. Đây
 | meta             | object   |              | Object JSON. Ví dụ: {"brand":"Nike","color":"Black"} |
 | product_status   | enum     |              | `ACTIVE` (mặc định) \| `INACTIVE`                    |
 
-## 7.3 Dữ liệu đầu ra
+## 8.3 Dữ liệu đầu ra
 
 **Success Response (201):**
 
@@ -751,7 +874,7 @@ Ah được, bạn muốn sửa lại **tài liệu** dựa vào **code**. Đây
 }
 ```
 
-## 7.4 Lưu ý đặc biệt
+## 8.4 Lưu ý đặc biệt
 
 - **Tự động tạo inventory**: Khi tạo product, hệ thống sẽ tự động tạo record `inventory` với số lượng = `initial_quantity` (mặc định 0)
 - **Tự động tạo stock_movement**: Nếu `initial_quantity > 0`, hệ thống sẽ ghi lại 1 stock movement với type = `PURCHASE`
@@ -784,6 +907,176 @@ Các lỗi có cấu trúc:
 
 ---
 
-# 9. Ghi chú triển khai
+# 9. Tạo Nhiều Sản phẩm Template (Bulk Create/Update Product Templates)
+
+## 9.1 Mô tả
+
+| **Thuộc tính**   | **Giá trị**                                                                |
+| ---------------- | -------------------------------------------------------------------------- |
+| Request URL      | `/product-templates/bulk`                                                  |
+| Request Method   | **POST**                                                                   |
+| Request Header   | `Authorization: Bearer <token>`                                            |
+| Quyền yêu cầu    | `PRODUCT_TEMPLATE_WRITE` hoặc `PRODUCT_ALL`                                |
+| Phạm vi          | **Global** (không gắn `storeId`)                                           |
+| Hành vi mặc định | **Upsert theo `barcode`**: tạo mới nếu chưa có; nếu đã có thì **cập nhật** |
+
+> Nếu muốn **chỉ tạo mới** và báo lỗi khi `barcode` đã tồn tại, dùng `allowUpdate=false`.
+
+---
+
+## 9.2 Query Parameters
+
+| Tên           | Kiểu    | Mặc định | Mô tả                                                                                 |
+| ------------- | ------- | -------- | ------------------------------------------------------------------------------------- |
+| `allowUpdate` | boolean | `true`   | `true`: cho phép cập nhật nếu `barcode` đã tồn tại. `false`: trả lỗi `409` khi trùng. |
+
+Ví dụ:
+`POST /product-templates/bulk?allowUpdate=false`
+
+---
+
+## 9.3 Request Body
+
+**Kiểu:** Array of `CreateProductTemplateDto`
+
+Mỗi phần tử:
+
+| Trường             | Kiểu              | Bắt buộc | Ghi chú                                           |
+| ------------------ | ----------------- | -------- | ------------------------------------------------- |
+| `name`             | string            | ✅       |                                                   |
+| `barcode`          | string            | ✅       | Khóa định danh để upsert                          |
+| `price`            | number (>=0)      | ✅       |                                                   |
+| `cost`             | number (>=0)      | ✅       |                                                   |
+| `image_url`        | string (URL)      | ❌       |                                                   |
+| `description`      | string            | ❌       |                                                   |
+| `meta`             | object            | ❌       | Key–value mở rộng                                 |
+| `initial_quantity` | number (int, >=0) | ❌       | **Chỉ lưu metadata** (template không giữ tồn kho) |
+| `categoryIds`      | string[] (UUID)   | ❌       | Kết nối Category **nếu tồn tại**                  |
+
+### Ví dụ Body hợp lệ
+
+```json
+[
+  {
+    "name": "Bim bim khoai tây BBQ",
+    "barcode": "BBQ001",
+    "price": 15000,
+    "cost": 8000,
+    "image_url": "https://example.com/images/bbq001.jpg",
+    "description": "Vị BBQ cay nhẹ",
+    "meta": { "brand": "Oishi", "weight": "45g" },
+    "initial_quantity": 100,
+    "categoryIds": ["9df47a10-582b-4f0d-97a3-f5c91e22bdb8"]
+  },
+  {
+    "name": "Bim bim tôm cay",
+    "barcode": "TOM002",
+    "price": 12000,
+    "cost": 6000
+  }
+]
+```
+
+---
+
+## 9.4 Quy tắc xử lý & Validate
+
+1. **Payload phải là mảng** và **không rỗng**.
+2. **`barcode` không được rỗng** (sau `trim`) cho **mọi** phần tử.
+3. **Không được trùng `barcode` trong cùng payload** → 400.
+4. **`allowUpdate=true` (mặc định)**
+   - Nếu `barcode` **đã tồn tại** → **cập nhật** các trường gửi lên.
+
+5. **`allowUpdate=false`**
+   - Nếu `barcode` **đã tồn tại** → **409 CONFLICT**, không tạo/cập nhật phần tử đó.
+
+6. **`categoryIds`**
+   - Chỉ `connect` **những ID tồn tại**; ID không tồn tại sẽ **bị bỏ qua** (không gây lỗi).
+
+7. Bọc **transaction**; trả về **thống kê** `createdCount` / `updatedCount` và danh sách `created` / `updated`.
+
+---
+
+## 9.5 Response
+
+### 200 – Success (mặc định `allowUpdate=true`)
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-11-02T13:24:22.934Z",
+    "version": "v1"
+  },
+  "data": {
+    "updatedCount": 2,
+    "createdCount": 0,
+    "updated": [
+      {
+        "id": "887f8abf-bdfd-43fc-b4d1-69cb4a6f8c54",
+        "name": "Bim bim khoai",
+        "barcode": "BBQ001",
+        "price": 15000,
+        "cost": 8000,
+        "image_url": "https://example.com/images/bbq001.jpg",
+        "description": "Bim bim khoai tây giòn vị BBQ cay nhẹ",
+        "meta": {
+          "brand": "Oishi",
+          "weight": "45g"
+        },
+        "createdAt": "2025-11-02T13:14:44.626Z",
+        "updatedAt": "2025-11-02T13:24:22.904Z"
+      },
+      {
+        "id": "0fc0fb77-1a70-43ea-b328-9a9cead29384",
+        "name": "Bim bim tôm cay",
+        "barcode": "TOM002",
+        "price": 12000,
+        "cost": 6000,
+        "image_url": "https://example.com/images/tom002.jpg",
+        "description": "Snack vị tôm cay giòn rụm",
+        "meta": {
+          "brand": "Poca",
+          "weight": "35g"
+        },
+        "createdAt": "2025-11-02T13:14:44.628Z",
+        "updatedAt": "2025-11-02T13:24:22.905Z"
+      }
+    ],
+    "created": []
+  },
+  "message": "Create product successfully"
+}
+```
+
+### 400 – Bad Request (trùng `barcode` trong payload)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Duplicate barcodes found in payload: BBQ001, TOM002"
+  },
+  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
+}
+```
+
+### 409 – Conflict (`allowUpdate=false` và `barcode` đã tồn tại)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Some barcodes already exist and allowUpdate=false: BBQ001"
+  },
+  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
+}
+```
+
+---
+
+# 10. Ghi chú triển khai
 
 - `:storeId` và `:id` là **UUID**.

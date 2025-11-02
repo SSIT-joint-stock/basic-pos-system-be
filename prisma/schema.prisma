@@ -238,6 +238,19 @@ model Product {
   @@map("product")
 }
 
+model ProductTemplate {
+  id              String           @id @default(uuid()) @db.Uuid 
+  name            String
+  barcode         String           @unique
+  price           Int              @default(0)
+  cost            Int              @default(0)
+  image_url       String?
+  description     String?
+  meta            Json             @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
 /**
  * Inventory model
  * Inventory is a model that represents the inventory of a product
