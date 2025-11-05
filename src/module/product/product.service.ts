@@ -463,7 +463,7 @@ export class ProductService {
 
     if (duplicates.length > 0) {
       throw new BadRequestError(
-        `Duplicate SKUs found in batch: ${duplicates.join(', ')}`,
+        `Duplicate barcode found in batch: ${duplicates.join(', ')}`,
       );
     }
 

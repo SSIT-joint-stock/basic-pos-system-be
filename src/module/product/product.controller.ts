@@ -26,10 +26,11 @@ import { ApiSuccess, RawResponse } from 'app/common/decorators';
 import z from 'zod';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
-import { product_status } from '@prisma/client';
+import { product_status, user_role } from '@prisma/client';
 import { ImportProductService } from './import-product.service';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
 import { CreateProductTemplateDto } from './dto/create-product-template-dto';
+import { Roles } from 'app/common/decorators/roles.decorator';
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
@@ -124,6 +125,7 @@ export class ProductController {
   }
 
   @Post('product-template')
+  @Roles([user_role.ADMIN])
   @RequirePermissions([PERMISSIONS.ALL])
   @ApiSuccess('Create product successfully')
   createProductTemplate(@Body() items: CreateProductTemplateDto[]) {
@@ -212,7 +214,7 @@ export class ProductController {
   }
 
   @Post('import-template-excel')
-  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
+  @Roles([user_role.ADMIN])
   @UseInterceptors(FileInterceptor('file'))
   @ApiSuccess('Import product successfully')
   async importTemplateExcel(@UploadedFile() file: Express.Multer.File) {
