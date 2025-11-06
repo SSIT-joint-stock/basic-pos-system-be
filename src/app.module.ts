@@ -41,6 +41,7 @@ import { StockMovementModule } from './module/stock-movement/stock-movement.modu
 import { OrdersModule } from './module/orders/orders.module';
 import { StatisticsModule } from './module/statistics/statistics.module';
 import { CustomerModule } from './module/customer/customer.module';
+import { CommonModule } from './module/common/common.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { CustomerModule } from './module/customer/customer.module';
     OrdersModule,
     StatisticsModule,
     CustomerModule,
+    CommonModule,
   ],
   providers: [
     TokenService,

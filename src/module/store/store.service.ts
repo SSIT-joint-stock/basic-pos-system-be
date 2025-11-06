@@ -10,6 +10,7 @@ import {
 import { StoreMemberRole } from '@prisma/client';
 import { PermissionService } from 'app/permissions/permission.service';
 import { IUser } from 'app/common/types/user.type';
+import { generateVietQRUrl } from 'app/common/helpers/vietqr.util';
 
 @Injectable()
 export class StoreService {
@@ -136,11 +137,19 @@ export class StoreService {
     if (!isOwner) {
       throw new ForbiddenError('Only store owner can update store information');
     }
+    const qrUrl = generateVietQRUrl({
+      bankCode: updateStoreDto.bank_code || '',
+      bankAccountName: updateStoreDto.bank_account_name || '',
+      bankAccountNumber: updateStoreDto.bank_account_number || '',
+    });
 
     return await this.prismaService.store.update({
       where: { id: storeId },
       data: {
         ...updateStoreDto,
+        bank_account_name:
+          updateStoreDto.bank_account_name?.toLocaleUpperCase(),
+        bank_qr_image_url: qrUrl,
         updatedAt: new Date(),
       },
       include: {

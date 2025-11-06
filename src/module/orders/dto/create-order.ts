@@ -45,6 +45,16 @@ export class CreateOrderDto {
   total_amount?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  customer_pay_amount?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  change_amount?: number;
+
+  @IsOptional()
   @IsEnum(payment_method)
   payment_method?: payment_method;
 

@@ -3,7 +3,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { Prisma, stock_movement_type } from '@prisma/client';
+import { order_status, Prisma, stock_movement_type } from '@prisma/client';
 import { InventoryService } from 'app/module/inventory/inventory.service';
 import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
 import { IUser } from 'app/common/types/user.type';
@@ -18,6 +18,18 @@ export class OrdersService {
 
   //   TODO: Update quantity in inventory when Hoa complete his job
   create(storeId: string, dto: CreateOrderDto, user: IUser) {
+    const customerPay = dto.customer_pay_amount ?? 0;
+    const totalAmount = dto.total_amount ?? 0;
+
+    let orderStatus: order_status;
+    if (totalAmount === customerPay) {
+      orderStatus = order_status.COMPLETED;
+    } else if (totalAmount > customerPay) {
+      orderStatus = order_status.PENDING;
+    } else {
+      orderStatus = order_status.OVERAGE;
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
@@ -27,10 +39,12 @@ export class OrdersService {
           customer_name: dto.customer_name,
           subtotal_amount: dto.subtotal_amount,
           discount_amount: dto.discount_amount,
+          customer_pay_amount: dto.customer_pay_amount,
+          change_amount: dto.customer_pay_amount! - dto.total_amount!,
           tax_amount: dto.tax_amount,
           total_amount: dto.total_amount,
           payment_method: dto.payment_method,
-          status: dto.status,
+          status: orderStatus,
           order_item: {
             createMany: {
               data: dto.order_items.map((item) => ({
@@ -63,7 +77,10 @@ export class OrdersService {
         );
       }
 
-      return order;
+      return {
+        order,
+        orderId: order.id,
+      };
     });
   }
 
@@ -71,7 +88,7 @@ export class OrdersService {
     return await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId, store_id: storeId },
-        include: { order_item: true },
+        include: { order_item: {} },
       });
 
       if (!order) {
@@ -101,6 +118,19 @@ export class OrdersService {
         where: { id: orderId },
       });
       return order;
+    });
+  }
+
+  async findById(orderId: string, storeId: string) {
+    return await this.prisma.order.findUnique({
+      where: { id: orderId, store_id: storeId },
+      include: {
+        order_item: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
   }
 

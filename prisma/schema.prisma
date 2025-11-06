@@ -37,6 +37,7 @@ enum order_status {
   COMPLETED
   CANCELLED
   RETURNED
+  OVERAGE
 }
 
 enum inventory_status {
@@ -129,6 +130,13 @@ model Store {
   business_hour String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+ // info for payment qr
+  bank_code String? // ma ngan hang
+  bank_name String? // ten ngan hang
+  bank_account_number String? // so tai khoan
+  bank_account_name String? // ten chu tai khoan
+  bank_qr_image_url String? // url anh qr
 
   // relations
   owner            User               @relation(fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -336,6 +344,10 @@ model Order {
   customer_name   String?
   store_id        String          @db.Uuid
   // amount
+  // the total customer pay for the order
+  customer_pay_amount Int @default(0)
+  // the total need to return or customer to pay for total amount 
+  change_amount Int @default(0)
   // the total amount of the order before discount and tax: subtotal_amount = quantity * price
   subtotal_amount Int            @default(0)
   // the total amount of the order after discount: discount_amount = subtotal_amount * discount_rate

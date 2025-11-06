@@ -27,6 +27,13 @@ export class OrdersController {
   delete(@Param('storeId') storeId: string, @Body() body: { orderId: string }) {
     return this.order.delete(body.orderId, storeId);
   }
+  @Get(':orderId')
+  findById(
+    @Param('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.order.findById(orderId, storeId);
+  }
 
   @Get()
   async findAll(
