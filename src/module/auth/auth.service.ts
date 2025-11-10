@@ -414,6 +414,7 @@ export class AuthService {
     expiredAt: Date,
   ): void {
     setImmediate(() => {
+      console.log('dit me m');
       this.emailService
         .sendVerificationEmail(email, code, expiredAt)
         .then(() => {

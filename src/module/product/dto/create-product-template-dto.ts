@@ -40,8 +40,4 @@ export class CreateProductTemplateDto {
   @IsOptional()
   @IsObject()
   meta?: Record<string, any>;
-
-  @IsOptional()
-  @IsInt()
-  initial_quantity?: number;
 }

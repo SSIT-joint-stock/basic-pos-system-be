@@ -155,9 +155,547 @@
 
 ---
 
-# 2. Danh sách Sản phẩm
+---
+
+# 2. Tạo Nhiều Sản phẩm (Batch)
 
 ## 2.1 Mô tả
+
+| **Thuộc tính** | **Giá trị**                                                        |
+| -------------- | ------------------------------------------------------------------ |
+| Request URL    | `/stores/:storeId/products/invoice-create-product`                 |
+| Request Method | **POST**                                                           |
+| Request Header | `Authorization: Bearer <token>` · `Content-Type: application/json` |
+| Body data      | JSON theo schema bên dưới                                          |
+| Quyền yêu cầu  | `PRODUCT_CREATE` (OWNER)                                           |
+
+**JSON Schema (Body):**
+
+```json
+[
+  {
+    "name": "iPhone 15 Pro Max",
+    "sku": "IP15PM-128GB123456",
+    "barcode": "8931234567890",
+    "price": 33990000,
+    "cost": 28990000,
+    "image_url": "https://example.com/images/iphone-15-pro-max.png",
+    "description": "Apple iPhone 15 Pro Max 256GB - Titanium Black",
+    "product_status": "ACTIVE",
+    "initial_quantity": 100,
+    "meta": {
+      "color": "Titanium Black",
+      "storage": "256GB",
+      "warranty": "12 months"
+    }
+  },
+  {
+    "name": "Samsung Galaxy S24 Ultra",
+    "sku": "SSG-S24U-512GB",
+    "barcode": "8939876543210",
+    "price": 32990000,
+    "cost": 27990000,
+    "image_url": "https://example.com/images/samsung-s24-ultra.png",
+    "description": "Samsung Galaxy S24 Ultra 512GB - Titanium Gray",
+    "product_status": "ACTIVE",
+    "initial_quantity": 50,
+    "meta": {
+      "color": "Titanium Gray",
+      "storage": "512GB",
+      "warranty": "12 months"
+    }
+  }
+]
+```
+
+## 2.2 Dữ liệu đầu vào
+
+| **Tên trường**   | **Kiểu** | **Bắt buộc** | **Ghi chú**                                          |
+| ---------------- | -------- | ------------ | ---------------------------------------------------- |
+| name             | string   | ✓            | Tên sản phẩm                                         |
+| sku              | string   | ✓            | **Duy nhất trong 1 store**                           |
+| barcode          | string   |              | Có thể để trống; nếu dùng thì **nên** duy nhất       |
+| price            | number   | ✓            | ≥ 0                                                  |
+| cost             | number   | ✓            | ≥ 0                                                  |
+| image_url        | string   |              | URL hợp lệ                                           |
+| description      | string   |              | Mô tả                                                |
+| initial_quantity | number   |              | Số lượng tồn kho ban đầu (mặc định: 0)               |
+| meta             | object   |              | Object JSON. Ví dụ: {"brand":"Nike","color":"Black"} |
+| product_status   | enum     |              | `ACTIVE` (mặc định) \| `INACTIVE`                    |
+
+## 2.3 Dữ liệu đầu ra
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-11-10T11:35:49.346Z",
+    "version": "v1"
+  },
+  "data": {
+    "updatedCount": 0,
+    "createdCount": 2,
+    "updated": [],
+    "created": [
+      {
+        "id": "3dc9e2da-6025-4027-8ae5-1ec0fe633b4b",
+        "store_id": "dbb6c582-f244-478b-b9ee-7a051a5c09af",
+        "name": "iPhone 15 Pro Max",
+        "sku": "IP15PM-128GB123456",
+        "barcode": null,
+        "price": 33990000,
+        "cost": 0,
+        "image_url": null,
+        "description": null,
+        "product_status": "ACTIVE",
+        "meta": {},
+        "created_by": "de028d97-19f5-423d-a46f-b98393fa1016",
+        "createdAt": "2025-11-10T11:35:49.329Z",
+        "updatedAt": "2025-11-10T11:35:49.329Z",
+        "inventory": {
+          "id": "dcfb8363-11f1-434f-8e2e-d4a3bc9edec1",
+          "product_id": "3dc9e2da-6025-4027-8ae5-1ec0fe633b4b",
+          "quantity": 100,
+          "discount": 0,
+          "total": 0,
+          "status": "ACTIVE",
+          "createdAt": "2025-11-10T11:35:49.329Z",
+          "updatedAt": "2025-11-10T11:35:49.329Z"
+        }
+      },
+      {
+        "id": "747eae5e-1680-47ff-a230-ab352308bd43",
+        "store_id": "dbb6c582-f244-478b-b9ee-7a051a5c09af",
+        "name": "Samsung Galaxy S24 Ultra",
+        "sku": "SSG-S24U-512GB",
+        "barcode": null,
+        "price": 32990000,
+        "cost": 0,
+        "image_url": null,
+        "description": null,
+        "product_status": "ACTIVE",
+        "meta": {},
+        "created_by": "de028d97-19f5-423d-a46f-b98393fa1016",
+        "createdAt": "2025-11-10T11:35:49.342Z",
+        "updatedAt": "2025-11-10T11:35:49.342Z",
+        "inventory": {
+          "id": "62d37aad-c20f-44fc-a4a2-059cee5eb217",
+          "product_id": "747eae5e-1680-47ff-a230-ab352308bd43",
+          "quantity": 50,
+          "discount": 0,
+          "total": 0,
+          "status": "ACTIVE",
+          "createdAt": "2025-11-10T11:35:49.342Z",
+          "updatedAt": "2025-11-10T11:35:49.342Z"
+        }
+      }
+    ]
+  },
+  "message": "Create invoice product successfully!!"
+}
+```
+
+**Error Response:**
+
+- **400 Bad Request – SKU trùng lặp**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "DUPLICATE_SKU",
+    "message": "Duplicated SKU(s) detected",
+    "details": {
+      "duplicated_in_payload": ["SSG-S24U-512GB"],
+      "duplicated_in_database": ["IP15PM-128GB123456"]
+    }
+  },
+  "meta": {
+    "timestamp": "2025-10-06T04:55:38.283Z",
+    "version": "v1"
+  }
+}
+```
+
+- **400 Bad Request – Items rỗng hoặc thiếu SKU**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Every item must have a non-empty sku"
+  },
+  "meta": {
+    "timestamp": "2025-10-06T04:55:38.283Z",
+    "version": "v1"
+  }
+}
+```
+
+- **403 Forbidden – Không có quyền**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Insufficient permission"
+  },
+  "meta": {
+    "timestamp": "2025-09-10T08:12:34.000Z",
+    "version": "v1"
+  }
+}
+```
+
+## 2.4 Lưu ý đặc biệt
+
+- **Tự động tạo inventory**: Khi tạo product, hệ thống sẽ tự động tạo record `inventory` với số lượng = `initial_quantity` (mặc định 0)
+- **Tự động tạo stock_movement**: Nếu `initial_quantity > 0`, hệ thống sẽ ghi lại 1 stock movement với type = `PURCHASE`
+- **Transaction**: Toàn bộ quá trình tạo product + inventory + stock_movement được thực hiện trong 1 transaction, đảm bảo tính toàn vẹn dữ liệu
+- **SKU validation**:
+  - Kiểm tra trùng trong payload
+  - Kiểm tra trùng với database
+  - Nếu có bất kỳ trùng lặp nào, toàn bộ batch sẽ bị reject
+
+---
+
+# 3.Import Excel (Products & Templates)
+
+## 3.1 Import products from Excel
+
+### 3.1.1 Mô tả
+
+| Thuộc tính   | Giá trị                                    |
+| ------------ | ------------------------------------------ |
+| Request URL  | `/stores/:storeId/products/import-excel`   |
+| Method       | **POST**                                   |
+| Permissions  | `PERMISSIONS.PRODUCT_CREATE`               |
+| Content-Type | `multipart/form-data` (field name: `file`) |
+
+### Behaviour
+
+- Upload file Excel, server sẽ parse và tạo sản phẩm theo nội dung.
+- Yêu cầu: file gửi bằng `file` field (Multer FileInterceptor).
+- Response: success hoặc lỗi chi tiết (validation, duplicate, etc.).
+
+---
+
+### 3.1.2. Yêu cầu file (mẫu & mapping)
+
+**Kiểu:** Array of `CreateProductDto`
+
+Mỗi phần tử cua cột:
+
+| Trường             | Kiểu              | Bắt buộc | Ghi chú                                           |
+| ------------------ | ----------------- | -------- | ------------------------------------------------- |
+| `name`             | string            | ✅       |                                                   |
+| `sku`              | string            | ✅       | Khóa định danh để upsert                          |
+| `barcode`          | string            | ❌       |                                                   |
+| `price`            | number (>=0)      | ✅       |                                                   |
+| `cost`             | number (>=0)      | ✅       |                                                   |
+| `image_url`        | string (URL)      | ❌       |                                                   |
+| `description`      | string            | ❌       |                                                   |
+| `meta`             | object            | ❌       | Key–value mở rộng                                 |
+| `initial_quantity` | number (int, >=0) | ❌       | **Chỉ lưu metadata** (template không giữ tồn kho) |
+| `categoryIds`      | string[] (UUID)   | ❌       | Kết nối Category **nếu tồn tại**                  |
+
+> Lưu ý: server sẽ ignore cột ngoài header mẫu. Nếu thiếu cột bắt buộc (`name` hoặc `sku` hoặc `price` hoặc `cost`), row đó sẽ bị đánh dấu lỗi.
+
+---
+
+### 3.1.3. Quy tắc xử lý & Validate
+
+1. **Upload + parse**: Nhận file qua `multer` (FileInterceptor). Dùng `xlsx` để parse `xlsx`/`xls`, `papaparse` cho `csv`.
+2. **Validate cấu trúc file**: kiểm tra header hợp lệ, nếu thiếu các cột bắt buộc → reject.
+3. **Pre-scan để phát hiện duplicate trong file**:
+   - Duplicate `sku` trong file: reject cả file (hoặc trả lỗi chi tiết theo row).
+4. **Chuẩn hoá mỗi row**: trim, convert `price`/`cost`/`inventory_quantity` sang số nguyên, parse `meta` thành JSON.
+5. **Lookup liên quan** (categories/tags):
+   - Lấy tất cả category names trong file, query DB để tìm id hiện có.
+   - Tạo category mới nếu business yêu cầu (hoặc trả về lỗi nếu không cho tạo).
+   - Tương tự cho tags.
+6. **Validate business rules**: ví dụ SKU phải unique trong DB; nếu tồn tại, thực hiện `update` thay vì `create` (upsert logic); nếu có vi phạm ràng buộc khác, đánh dấu row lỗi.
+7. **Upsert và transaction**:
+   - Sử dụng `prisma.$transaction` để đảm bảo atomicity.
+8. **Inventory & StockMovement**:
+   - Nếu `inventory_quantity` có giá trị: tạo hoặc cập nhật bản ghi `Inventory` cho product (quantity = given value).
+   - Nếu muốn audit, tạo `StockMovement` ghi nhận hành động nhập kho (type: ADJUSTMENT/INITIAL_IMPORT) với quantity = `inventory_quantity`.
+   - Tất cả thao tác trên product + inventory + stock_movements nên nằm trong cùng transaction.
+9. **Kết luận transaction**: nếu lỗi trong quá trình upsert → rollback và trả lỗi chi tiết; nếu thành công → commit.
+10. **Response**: trả summary gồm `processed`, `createdCount`, `updatedCount`, `failedCount` và `errors` (chi tiết row lỗi).
+
+---
+
+### 3.1.4 Response mẫu
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-11-10T10:57:43.496Z",
+    "version": "v1"
+  },
+  "data": {
+    "updatedCount": 2,
+    "createdCount": 0,
+    "updated": [
+      {
+        "id": "d6e9e840-edfb-47dc-81ff-f78815b184c0",
+        "store_id": "dbb6c582-f244-478b-b9ee-7a051a5c09af",
+        "name": "CÃ  phÃª sá»¯a ÄÃ¡ 350ml",
+        "sku": "CF-SUA-350",
+        "barcode": null,
+        "price": 35000,
+        "cost": 0,
+        "image_url": null,
+        "description": null,
+        "product_status": "ACTIVE",
+        "meta": {},
+        "created_by": "de028d97-19f5-423d-a46f-b98393fa1016",
+        "createdAt": "2025-11-05T12:32:39.461Z",
+        "updatedAt": "2025-11-05T12:32:39.461Z",
+        "inventory": {
+          "id": "6d9711d9-d656-41f2-be52-3eaeaf56be52",
+          "product_id": "d6e9e840-edfb-47dc-81ff-f78815b184c0",
+          "quantity": 0,
+          "discount": 0,
+          "total": 0,
+          "status": "ACTIVE",
+          "createdAt": "2025-11-05T12:32:39.461Z",
+          "updatedAt": "2025-11-05T12:32:39.461Z"
+        }
+      },
+      {
+        "id": "939ec2ae-a1b8-48ee-b906-2be78d0c751d",
+        "store_id": "dbb6c582-f244-478b-b9ee-7a051a5c09af",
+        "name": "TrÃ  ÄÃ o cam sáº£ 500ml",
+        "sku": "TRA-DAO-500",
+        "barcode": null,
+        "price": 42000,
+        "cost": 0,
+        "image_url": null,
+        "description": null,
+        "product_status": "ACTIVE",
+        "meta": {},
+        "created_by": "de028d97-19f5-423d-a46f-b98393fa1016",
+        "createdAt": "2025-11-05T12:32:39.470Z",
+        "updatedAt": "2025-11-05T12:32:39.470Z",
+        "inventory": {
+          "id": "f65caed5-c862-486c-bce5-cfb0ab2b0c8e",
+          "product_id": "939ec2ae-a1b8-48ee-b906-2be78d0c751d",
+          "quantity": 0,
+          "discount": 0,
+          "total": 0,
+          "status": "ACTIVE",
+          "createdAt": "2025-11-05T12:32:39.470Z",
+          "updatedAt": "2025-11-05T12:32:39.470Z"
+        }
+      }
+    ],
+    "created": []
+  },
+  "message": "Import product successfully"
+}
+```
+
+### 400 – Bad Request (trùng `sku` trong payload)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Duplicate barcodes found in payload: BBQ001, TOM002"
+  },
+  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
+}
+```
+
+### 409 – Conflict (`sku` đã tồn tại)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Some sku already exist: BBQ001"
+  },
+  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
+}
+```
+
+---
+
+## 3.2 Import product templates from Excel (ADMIN)
+
+---
+
+### 3.2.1 Mô tả
+
+| **Thuộc tính**   | **Giá trị**                                                                |
+| ---------------- | -------------------------------------------------------------------------- |
+| Request URL      | `/stores/:storeId/products/import-template-excel`                          |
+| Request Method   | **POST**                                                                   |
+| Request Header   | `Authorization: Bearer <token>`                                            |
+| Quyền yêu cầu    | role: 'ADMIN'                                                              |
+| Phạm vi          | **Global** (không gắn `storeId`)                                           |
+| Hành vi mặc định | **Upsert theo `barcode`**: tạo mới nếu chưa có; nếu đã có thì **cập nhật** |
+
+> Nếu muốn **chỉ tạo mới** và báo lỗi khi `barcode` đã tồn tại.
+
+---
+
+### 3.2.2 Request Body
+
+**Kiểu:** Array of `CreateProductTemplateDto`
+
+Mỗi phần tử theo cot:
+
+| Trường        | Kiểu         | Bắt buộc | Ghi chú                  |
+| ------------- | ------------ | -------- | ------------------------ |
+| `name`        | string       | ✅       |                          |
+| `barcode`     | string       | ✅       | Khóa định danh để upsert |
+| `price`       | number (>=0) | ✅       |                          |
+| `cost`        | number (>=0) | ✅       |                          |
+| `image_url`   | string (URL) | ❌       |                          |
+| `description` | string       | ❌       |                          |
+| `meta`        | object       | ❌       | Key–value mở rộng        |
+
+### Ví dụ Body hợp lệ
+
+```json
+[
+  {
+    "name": "Bim bim khoai tây BBQ",
+    "barcode": "BBQ001",
+    "price": 15000,
+    "cost": 8000,
+    "image_url": "https://example.com/images/bbq001.jpg",
+    "description": "Vị BBQ cay nhẹ",
+    "meta": { "brand": "Oishi", "weight": "45g" }
+  },
+  {
+    "name": "Bim bim tôm cay",
+    "barcode": "TOM002",
+    "price": 12000,
+    "cost": 6000
+  }
+]
+```
+
+---
+
+### 3.2.3. Quy tắc xử lý & Validate
+
+1. **Payload phải là mảng** và **không rỗng**.
+2. **`barcode` không được rỗng** (sau `trim`) cho **mọi** phần tử.
+3. **Không được trùng `barcode` trong cùng payload** → 400.
+4. Bọc **transaction**; trả về **thống kê** `createdCount` / `updatedCount` và danh sách `created` / `updated`.
+
+---
+
+### 3.2.4. Response
+
+#### 200 – Success (mặc định `allowUpdate=true`)
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-11-02T13:24:22.934Z",
+    "version": "v1"
+  },
+  "data": {
+    "updatedCount": 2,
+    "createdCount": 0,
+    "updated": [
+      {
+        "id": "887f8abf-bdfd-43fc-b4d1-69cb4a6f8c54",
+        "name": "Bim bim khoai",
+        "barcode": "BBQ001",
+        "price": 15000,
+        "cost": 8000,
+        "image_url": "https://example.com/images/bbq001.jpg",
+        "description": "Bim bim khoai tây giòn vị BBQ cay nhẹ",
+        "meta": {
+          "brand": "Oishi",
+          "weight": "45g"
+        },
+        "createdAt": "2025-11-02T13:14:44.626Z",
+        "updatedAt": "2025-11-02T13:24:22.904Z"
+      },
+      {
+        "id": "0fc0fb77-1a70-43ea-b328-9a9cead29384",
+        "name": "Bim bim tôm cay",
+        "barcode": "TOM002",
+        "price": 12000,
+        "cost": 6000,
+        "image_url": "https://example.com/images/tom002.jpg",
+        "description": "Snack vị tôm cay giòn rụm",
+        "meta": {
+          "brand": "Poca",
+          "weight": "35g"
+        },
+        "createdAt": "2025-11-02T13:14:44.628Z",
+        "updatedAt": "2025-11-02T13:24:22.905Z"
+      }
+    ],
+    "created": []
+  },
+  "message": "Create product successfully"
+}
+```
+
+#### 400 – Bad Request (trùng `barcode` trong payload)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Duplicate barcodes found in payload: BBQ001, TOM002"
+  },
+  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
+}
+```
+
+#### 409 – Conflict (`barcode` đã tồn tại)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Some barcodes already exist: BBQ001"
+  },
+  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
+}
+```
+
+---
+
+# 5. Tải file mẫu Excel (Example)
+
+| Thuộc tính  | Giá trị                                           |
+| ----------- | ------------------------------------------------- |
+| Request URL | `/stores/:storeId/products/example-product-excel` |
+| Method      | **GET**                                           |
+| Permissions | (bảo vệ tương tự các endpoint khác)               |
+| Response    | StreamableFile (file mẫu Excel)                   |
+
+### Behaviour
+
+- Trả về file mẫu để người dùng tải xuống (Excel template) để upload.
+
+---
+
+# 6. Danh sách Sản phẩm
+
+## 6.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                       |
 | -------------- | --------------------------------- |
@@ -168,7 +706,7 @@
 
 ---
 
-## 2.2 Query Parameters
+## 6.2 Query Parameters
 
 | Tên         | Kiểu              | Bắt buộc | Mặc định    | Mô tả                                                          |
 | ----------- | ----------------- | -------- | ----------- | -------------------------------------------------------------- |
@@ -181,7 +719,7 @@
 
 ---
 
-## 2.3 Dữ liệu đầu ra
+## 6.3 Dữ liệu đầu ra
 
 ### Success Response (200)
 
@@ -241,9 +779,9 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-# 3. Chi tiết Sản phẩm
+# 7. Chi tiết Sản phẩm
 
-## 3.1 Mô tả
+## 7.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                            |
 | -------------- | -------------------------------------- |
@@ -252,7 +790,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 | Request Header | `Authorization: Bearer <token>`        |
 | Quyền yêu cầu  | `PRODUCT_READ` or `PRODUCT_ALL`        |
 
-### 3.2 Dữ liệu đầu ra
+### 7.2 Dữ liệu đầu ra
 
 **Success Response (200):**
 
@@ -299,9 +837,9 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-# 4. Cập nhật Sản phẩm
+# 8. Cập nhật Sản phẩm
 
-## 4.1 Mô tả
+## 8.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                                                         |
 | -------------- | ------------------------------------------------------------------- |
@@ -327,7 +865,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 }
 ```
 
-### 4.2 Dữ liệu đầu ra
+### 8.2 Dữ liệu đầu ra
 
 **Success Response (200):**
 
@@ -401,9 +939,9 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-# 5. Xoá Sản phẩm
+# 9. Xoá Sản phẩm
 
-## 5.1 Mô tả
+## 9.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                            |
 | -------------- | -------------------------------------- |
@@ -412,7 +950,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 | Request Header | `Authorization: Bearer <token>`        |
 | Quyền yêu cầu  | `PRODUCT_DELETE`                       |
 
-### 5.2 Dữ liệu đầu ra
+### 9.2 Dữ liệu đầu ra
 
 **Success Response (200):**
 
@@ -455,9 +993,9 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-# 6. Lọc Sản phẩm
+# 10. Lọc Sản phẩm
 
-## 6.1 Mô tả
+## 10.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                                |
 | -------------- | ------------------------------------------ |
@@ -468,7 +1006,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-## 6.2 Query Parameters
+## 10.2 Query Parameters
 
 ### Phân trang, sắp xếp, khoảng ngày (từ `@FilterParse`)
 
@@ -499,7 +1037,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-## 6.3 Dữ liệu đầu ra
+## 10.3 Dữ liệu đầu ra
 
 ### Success (200)
 
@@ -555,9 +1093,9 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-# 7. Gợi ý Sản phẩm (Suggestion Product)
+# 11. Gợi ý Sản phẩm (Suggestion Product)
 
-## 7.1 Mô tả
+## 11.1 Mô tả
 
 | **Thuộc tính** | **Giá trị**                                        |
 | -------------- | -------------------------------------------------- |
@@ -575,7 +1113,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-## 7.2 Query Parameters
+## 11.2 Query Parameters
 
 | Tên     | Kiểu       | Bắt buộc | Mặc định | Mô tả                                                                         |
 | ------- | ---------- | -------- | -------- | ----------------------------------------------------------------------------- |
@@ -587,7 +1125,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-## 7.3 Dữ liệu đầu ra
+## 11.3 Dữ liệu đầu ra
 
 ### Success (200)
 
@@ -680,213 +1218,7 @@ Bạn có muốn mình sửa lại phần **Query Parameters** này theo nghiệ
 
 ---
 
-# 8. Tạo Nhiều Sản phẩm (Batch)
-
-## 8.1 Mô tả
-
-| **Thuộc tính** | **Giá trị**                                                        |
-| -------------- | ------------------------------------------------------------------ |
-| Request URL    | `/stores/:storeId/products/invoice-create-product`                 |
-| Request Method | **POST**                                                           |
-| Request Header | `Authorization: Bearer <token>` · `Content-Type: application/json` |
-| Body data      | JSON theo schema bên dưới                                          |
-| Quyền yêu cầu  | `PRODUCT_CREATE` (OWNER)                                           |
-
-**JSON Schema (Body):**
-
-```json
-[
-  {
-    "name": "iPhone 15 Pro Max",
-    "sku": "IP15PM-128GB123456",
-    "barcode": "8931234567890",
-    "price": 33990000,
-    "cost": 28990000,
-    "image_url": "https://example.com/images/iphone-15-pro-max.png",
-    "description": "Apple iPhone 15 Pro Max 256GB - Titanium Black",
-    "product_status": "ACTIVE",
-    "initial_quantity": 100,
-    "meta": {
-      "color": "Titanium Black",
-      "storage": "256GB",
-      "warranty": "12 months"
-    }
-  },
-  {
-    "name": "Samsung Galaxy S24 Ultra",
-    "sku": "SSG-S24U-512GB",
-    "barcode": "8939876543210",
-    "price": 32990000,
-    "cost": 27990000,
-    "image_url": "https://example.com/images/samsung-s24-ultra.png",
-    "description": "Samsung Galaxy S24 Ultra 512GB - Titanium Gray",
-    "product_status": "ACTIVE",
-    "initial_quantity": 50,
-    "meta": {
-      "color": "Titanium Gray",
-      "storage": "512GB",
-      "warranty": "12 months"
-    }
-  }
-]
-```
-
-## 8.2 Dữ liệu đầu vào
-
-| **Tên trường**   | **Kiểu** | **Bắt buộc** | **Ghi chú**                                          |
-| ---------------- | -------- | ------------ | ---------------------------------------------------- |
-| name             | string   | ✓            | Tên sản phẩm                                         |
-| sku              | string   | ✓            | **Duy nhất trong 1 store**                           |
-| barcode          | string   |              | Có thể để trống; nếu dùng thì **nên** duy nhất       |
-| price            | number   | ✓            | ≥ 0                                                  |
-| cost             | number   | ✓            | ≥ 0                                                  |
-| image_url        | string   |              | URL hợp lệ                                           |
-| description      | string   |              | Mô tả                                                |
-| initial_quantity | number   |              | Số lượng tồn kho ban đầu (mặc định: 0)               |
-| meta             | object   |              | Object JSON. Ví dụ: {"brand":"Nike","color":"Black"} |
-| product_status   | enum     |              | `ACTIVE` (mặc định) \| `INACTIVE`                    |
-
-## 8.3 Dữ liệu đầu ra
-
-**Success Response (201):**
-
-```json
-{
-  "success": true,
-  "meta": {
-    "timestamp": "2025-10-06T04:51:00.632Z",
-    "version": "v1"
-  },
-  "data": {
-    "createdCount": 2,
-    "created": [
-      {
-        "id": "7bec783e-2ec7-4748-b9ec-5a8d3cf5377d",
-        "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
-        "name": "iPhone 15 Pro Max",
-        "sku": "IP15PM-128GB123456",
-        "barcode": "8931234567890",
-        "price": 33990000,
-        "cost": 28990000,
-        "image_url": "https://example.com/images/iphone-15-pro-max.png",
-        "description": "Apple iPhone 15 Pro Max 256GB - Titanium Black",
-        "product_status": "ACTIVE",
-        "meta": {
-          "color": "Titanium Black",
-          "storage": "256GB",
-          "warranty": "12 months"
-        },
-        "inventory": {
-          "id": "inv-001",
-          "product_id": "7bec783e-2ec7-4748-b9ec-5a8d3cf5377d",
-          "quantity": 100,
-          "createdAt": "2025-10-06T04:51:00.620Z",
-          "updatedAt": "2025-10-06T04:51:00.620Z"
-        },
-        "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
-        "createdAt": "2025-10-06T04:51:00.620Z",
-        "updatedAt": "2025-10-06T04:51:00.620Z"
-      },
-      {
-        "id": "91c736f0-c85d-4331-adb7-3090323f3a7f",
-        "store_id": "606a59f9-bd00-4304-a12e-efdb9e53d52e",
-        "name": "Samsung Galaxy S24 Ultra",
-        "sku": "SSG-S24U-512GB",
-        "barcode": "8939876543210",
-        "price": 32990000,
-        "cost": 27990000,
-        "image_url": "https://example.com/images/samsung-s24-ultra.png",
-        "description": "Samsung Galaxy S24 Ultra 512GB - Titanium Gray",
-        "product_status": "ACTIVE",
-        "meta": {
-          "color": "Titanium Gray",
-          "storage": "512GB",
-          "warranty": "12 months"
-        },
-        "inventory": {
-          "id": "inv-002",
-          "product_id": "91c736f0-c85d-4331-adb7-3090323f3a7f",
-          "quantity": 50,
-          "createdAt": "2025-10-06T04:51:00.622Z",
-          "updatedAt": "2025-10-06T04:51:00.622Z"
-        },
-        "created_by": "49708d54-cb9c-4e73-b118-0b815b555fbc",
-        "createdAt": "2025-10-06T04:51:00.622Z",
-        "updatedAt": "2025-10-06T04:51:00.622Z"
-      }
-    ]
-  },
-  "message": "Create product successfully"
-}
-```
-
-**Error Response:**
-
-- **400 Bad Request – SKU trùng lặp**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "DUPLICATE_SKU",
-    "message": "Duplicated SKU(s) detected",
-    "details": {
-      "duplicated_in_payload": ["SSG-S24U-512GB"],
-      "duplicated_in_database": ["IP15PM-128GB123456"]
-    }
-  },
-  "meta": {
-    "timestamp": "2025-10-06T04:55:38.283Z",
-    "version": "v1"
-  }
-}
-```
-
-- **400 Bad Request – Items rỗng hoặc thiếu SKU**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "BAD_REQUEST",
-    "message": "Every item must have a non-empty sku"
-  },
-  "meta": {
-    "timestamp": "2025-10-06T04:55:38.283Z",
-    "version": "v1"
-  }
-}
-```
-
-- **403 Forbidden – Không có quyền**
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "Insufficient permission"
-  },
-  "meta": {
-    "timestamp": "2025-09-10T08:12:34.000Z",
-    "version": "v1"
-  }
-}
-```
-
-## 8.4 Lưu ý đặc biệt
-
-- **Tự động tạo inventory**: Khi tạo product, hệ thống sẽ tự động tạo record `inventory` với số lượng = `initial_quantity` (mặc định 0)
-- **Tự động tạo stock_movement**: Nếu `initial_quantity > 0`, hệ thống sẽ ghi lại 1 stock movement với type = `PURCHASE`
-- **Transaction**: Toàn bộ quá trình tạo product + inventory + stock_movement được thực hiện trong 1 transaction, đảm bảo tính toàn vẹn dữ liệu
-- **SKU validation**:
-  - Kiểm tra trùng trong payload
-  - Kiểm tra trùng với database
-  - Nếu có bất kỳ trùng lặp nào, toàn bộ batch sẽ bị reject
-
----
-
-# 8. Mẫu Lỗi chung
+# 12. Mẫu Lỗi chung
 
 Các lỗi có cấu trúc:
 
@@ -907,176 +1239,6 @@ Các lỗi có cấu trúc:
 
 ---
 
-# 9. Tạo Nhiều Sản phẩm Template (Bulk Create/Update Product Templates)
-
-## 9.1 Mô tả
-
-| **Thuộc tính**   | **Giá trị**                                                                |
-| ---------------- | -------------------------------------------------------------------------- |
-| Request URL      | `/product-templates/bulk`                                                  |
-| Request Method   | **POST**                                                                   |
-| Request Header   | `Authorization: Bearer <token>`                                            |
-| Quyền yêu cầu    | `PRODUCT_TEMPLATE_WRITE` hoặc `PRODUCT_ALL`                                |
-| Phạm vi          | **Global** (không gắn `storeId`)                                           |
-| Hành vi mặc định | **Upsert theo `barcode`**: tạo mới nếu chưa có; nếu đã có thì **cập nhật** |
-
-> Nếu muốn **chỉ tạo mới** và báo lỗi khi `barcode` đã tồn tại, dùng `allowUpdate=false`.
-
----
-
-## 9.2 Query Parameters
-
-| Tên           | Kiểu    | Mặc định | Mô tả                                                                                 |
-| ------------- | ------- | -------- | ------------------------------------------------------------------------------------- |
-| `allowUpdate` | boolean | `true`   | `true`: cho phép cập nhật nếu `barcode` đã tồn tại. `false`: trả lỗi `409` khi trùng. |
-
-Ví dụ:
-`POST /product-templates/bulk?allowUpdate=false`
-
----
-
-## 9.3 Request Body
-
-**Kiểu:** Array of `CreateProductTemplateDto`
-
-Mỗi phần tử:
-
-| Trường             | Kiểu              | Bắt buộc | Ghi chú                                           |
-| ------------------ | ----------------- | -------- | ------------------------------------------------- |
-| `name`             | string            | ✅       |                                                   |
-| `barcode`          | string            | ✅       | Khóa định danh để upsert                          |
-| `price`            | number (>=0)      | ✅       |                                                   |
-| `cost`             | number (>=0)      | ✅       |                                                   |
-| `image_url`        | string (URL)      | ❌       |                                                   |
-| `description`      | string            | ❌       |                                                   |
-| `meta`             | object            | ❌       | Key–value mở rộng                                 |
-| `initial_quantity` | number (int, >=0) | ❌       | **Chỉ lưu metadata** (template không giữ tồn kho) |
-| `categoryIds`      | string[] (UUID)   | ❌       | Kết nối Category **nếu tồn tại**                  |
-
-### Ví dụ Body hợp lệ
-
-```json
-[
-  {
-    "name": "Bim bim khoai tây BBQ",
-    "barcode": "BBQ001",
-    "price": 15000,
-    "cost": 8000,
-    "image_url": "https://example.com/images/bbq001.jpg",
-    "description": "Vị BBQ cay nhẹ",
-    "meta": { "brand": "Oishi", "weight": "45g" },
-    "initial_quantity": 100,
-    "categoryIds": ["9df47a10-582b-4f0d-97a3-f5c91e22bdb8"]
-  },
-  {
-    "name": "Bim bim tôm cay",
-    "barcode": "TOM002",
-    "price": 12000,
-    "cost": 6000
-  }
-]
-```
-
----
-
-## 9.4 Quy tắc xử lý & Validate
-
-1. **Payload phải là mảng** và **không rỗng**.
-2. **`barcode` không được rỗng** (sau `trim`) cho **mọi** phần tử.
-3. **Không được trùng `barcode` trong cùng payload** → 400.
-4. **`allowUpdate=true` (mặc định)**
-   - Nếu `barcode` **đã tồn tại** → **cập nhật** các trường gửi lên.
-
-5. **`allowUpdate=false`**
-   - Nếu `barcode` **đã tồn tại** → **409 CONFLICT**, không tạo/cập nhật phần tử đó.
-
-6. **`categoryIds`**
-   - Chỉ `connect` **những ID tồn tại**; ID không tồn tại sẽ **bị bỏ qua** (không gây lỗi).
-
-7. Bọc **transaction**; trả về **thống kê** `createdCount` / `updatedCount` và danh sách `created` / `updated`.
-
----
-
-## 9.5 Response
-
-### 200 – Success (mặc định `allowUpdate=true`)
-
-```json
-{
-  "success": true,
-  "meta": {
-    "timestamp": "2025-11-02T13:24:22.934Z",
-    "version": "v1"
-  },
-  "data": {
-    "updatedCount": 2,
-    "createdCount": 0,
-    "updated": [
-      {
-        "id": "887f8abf-bdfd-43fc-b4d1-69cb4a6f8c54",
-        "name": "Bim bim khoai",
-        "barcode": "BBQ001",
-        "price": 15000,
-        "cost": 8000,
-        "image_url": "https://example.com/images/bbq001.jpg",
-        "description": "Bim bim khoai tây giòn vị BBQ cay nhẹ",
-        "meta": {
-          "brand": "Oishi",
-          "weight": "45g"
-        },
-        "createdAt": "2025-11-02T13:14:44.626Z",
-        "updatedAt": "2025-11-02T13:24:22.904Z"
-      },
-      {
-        "id": "0fc0fb77-1a70-43ea-b328-9a9cead29384",
-        "name": "Bim bim tôm cay",
-        "barcode": "TOM002",
-        "price": 12000,
-        "cost": 6000,
-        "image_url": "https://example.com/images/tom002.jpg",
-        "description": "Snack vị tôm cay giòn rụm",
-        "meta": {
-          "brand": "Poca",
-          "weight": "35g"
-        },
-        "createdAt": "2025-11-02T13:14:44.628Z",
-        "updatedAt": "2025-11-02T13:24:22.905Z"
-      }
-    ],
-    "created": []
-  },
-  "message": "Create product successfully"
-}
-```
-
-### 400 – Bad Request (trùng `barcode` trong payload)
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "BAD_REQUEST",
-    "message": "Duplicate barcodes found in payload: BBQ001, TOM002"
-  },
-  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
-}
-```
-
-### 409 – Conflict (`allowUpdate=false` và `barcode` đã tồn tại)
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "CONFLICT",
-    "message": "Some barcodes already exist and allowUpdate=false: BBQ001"
-  },
-  "meta": { "timestamp": "2025-11-02T11:45:13.000Z", "version": "v1" }
-}
-```
-
----
-
-# 10. Ghi chú triển khai
+# 13. Ghi chú triển khai
 
 - `:storeId` và `:id` là **UUID**.
