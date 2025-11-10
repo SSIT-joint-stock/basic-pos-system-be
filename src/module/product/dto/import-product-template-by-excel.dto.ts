@@ -30,7 +30,6 @@ export const ImportProductTemplateRowSchema = z.object({
     .url('image_url must be a valid URL')
     .optional()
     .or(z.literal('').transform(() => undefined)),
-  category: z.string().min(1, 'category is required'),
 });
 
 export type ImportProductTemplateRow = z.infer<
