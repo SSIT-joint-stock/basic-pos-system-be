@@ -276,17 +276,26 @@ export class ProductService {
         where,
       }),
     ]);
-    const templateWhere: Prisma.ProductTemplateWhereInput = {
-      // Nếu bạn muốn dùng cùng điều kiện như Product thì cast hoặc tự tạo tương tự
-      AND: [(query.where as any) ?? {}], // ép kiểu nhẹ để dùng lại
-    };
+    const templateWhere: Prisma.ProductTemplateWhereInput = query.where
+      ? ({
+          AND: [query.where as unknown as Prisma.ProductTemplateWhereInput],
+        } as Prisma.ProductTemplateWhereInput)
+      : {};
+    const templateOrderBy = query.orderBy as unknown as
+      | Prisma.ProductTemplateOrderByWithRelationInput
+      | Prisma.ProductTemplateOrderByWithRelationInput[]
+      | undefined;
 
+    // take_template = limit - take_product
+    const takeRequested =
+      typeof query.take === 'number' && query.take > 0 ? query.take : 10; // ✅ nếu null/undefined hoặc <=0 thì mặc định = 10
+    const takeRequestProductTemplate =
+      takeRequested - total_product > 0 ? takeRequested - total_product : 0;
     const [templates, total_template] = await Promise.all([
       this.prisma.productTemplate.findMany({
         where: templateWhere,
-        skip: query.skip,
-        take: query.take,
-        orderBy: query.orderBy as any,
+        take: takeRequestProductTemplate,
+        orderBy: templateOrderBy,
       }),
       this.prisma.productTemplate.count({ where: templateWhere }),
     ]);
@@ -307,9 +316,9 @@ export class ProductService {
         id: t.id,
         name: t.name,
         barcode: t.barcode,
-        price: (t as any).price ?? null,
-        cost: (t as any).cost ?? null,
-        image_url: (t as any).image_url ?? null,
+        price: t.price ?? null,
+        cost: t.cost ?? null,
+        image_url: t.image_url ?? null,
         source: 'TEMPLATE',
       })),
     ];
@@ -538,99 +547,6 @@ export class ProductService {
       created: results.created,
     };
   }
-  // async createProductByExcel(
-  //   file: Express.Multer.File,
-  //   storeId: string,
-  //   userId: string,
-  // ) {
-  //   if (!file) {
-  //     throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
-  //   }
-
-  //   // Đọc Excel
-  //   const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-  //   const sheetName = workbook.SheetNames[0];
-  //   const sheet = workbook.Sheets[sheetName];
-  //   const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
-
-  //   if (jsonData.length === 0) {
-  //     throw new BadRequestError(this.errorMessages.FILE_EMPTY);
-  //   }
-  //   if (jsonData.length >= 500) {
-  //     throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
-  //   }
-
-  //   const result = await this.prisma.$transaction(
-  //     async (tx) => {
-  //       const createdProducts: Product[] = [];
-
-  //       for (const row of jsonData) {
-  //         // Tìm hoặc tạo category theo tên
-  //         let category = await tx.category.findFirst({
-  //           where: {
-  //             store_id: storeId,
-  //             name: row['category'],
-  //           },
-  //         });
-
-  //         if (!category) {
-  //           category = await tx.category.create({
-  //             data: {
-  //               name: row['category'],
-  //               store_id: storeId,
-  //             },
-  //           });
-  //         }
-
-  //         // Check product tồn tại
-  //         const existingSku = await tx.product.findFirst({
-  //           where: {
-  //             sku: row['sku'],
-  //             store_id: storeId,
-  //           },
-  //         });
-  //         if (existingSku) {
-  //           throw new ConflictError(
-  //             `Product with sku ${row['sku']} already exists`,
-  //           );
-  //         }
-
-  //         // Tạo product
-  //         const product = await tx.product.create({
-  //           data: {
-  //             name: row['name'],
-  //             sku: row['sku'],
-  //             barcode: row['barcode']?.toString(),
-  //             price: Number(row['price'] ?? 0),
-  //             cost: Number(row['cost'] ?? 0),
-  //             description: row['description'],
-  //             image_url: row['image_url'],
-  //             product_status: row['product_status'] ?? 'ACTIVE',
-  //             store_id: storeId,
-  //             created_by: userId,
-  //             inventory: { create: {} },
-  //             categories: {
-  //               connect: [{ id: category.id }],
-  //             },
-  //           },
-  //           include: {
-  //             categories: true,
-  //             inventory: true,
-  //           },
-  //         });
-
-  //         createdProducts.push(product);
-  //       }
-
-  //       return createdProducts;
-  //     },
-  //     {
-  //       timeout: 30000,
-  //     },
-  //   );
-
-  //   return { data: result };
-  // }
   downloadExampleExcel(): StreamableFile {
     const headers = [
       'name*',
