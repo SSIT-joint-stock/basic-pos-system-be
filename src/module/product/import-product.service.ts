@@ -98,9 +98,9 @@ export class ImportProductService {
     if (jsonData.length === 0) {
       throw new BadRequestError(this.errorMessages.FILE_EMPTY);
     }
-    // if (jsonData.length >= 500) {
-    //   throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
-    // }
+    if (jsonData.length >= 500) {
+      throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
+    }
 
     // --- 2️⃣ Validate Zod ---
     const errors: ImportValidationError[] = [];

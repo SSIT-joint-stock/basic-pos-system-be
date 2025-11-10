@@ -916,7 +916,7 @@ Các lỗi có cấu trúc:
 | Request URL      | `/product-templates/bulk`                                                  |
 | Request Method   | **POST**                                                                   |
 | Request Header   | `Authorization: Bearer <token>`                                            |
-| Quyền yêu cầu    | role: 'ADMIN'                                                              |
+| Quyền yêu cầu    | `PRODUCT_TEMPLATE_WRITE` hoặc `PRODUCT_ALL`                                |
 | Phạm vi          | **Global** (không gắn `storeId`)                                           |
 | Hành vi mặc định | **Upsert theo `barcode`**: tạo mới nếu chưa có; nếu đã có thì **cập nhật** |
 
