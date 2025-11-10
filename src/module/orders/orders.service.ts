@@ -19,6 +19,7 @@ export class OrdersService {
   ) {}
 
   //   TODO: Update quantity in inventory when Hoa complete his job
+
   async create(storeId: string, dto: CreateOrderDto, user: IUser) {
     const {
       code,
@@ -53,6 +54,7 @@ export class OrdersService {
           tax_amount,
           total_amount,
           payment_method,
+
           status: orderStatus,
           order_item: {
             createMany: {
@@ -69,8 +71,10 @@ export class OrdersService {
 
       for (const item of order_items) {
         await this.handleStockChange(storeId, item, tx);
+        await this.handleStockChange(storeId, item, tx);
       }
 
+      return { order, orderId: order.id };
       return { order, orderId: order.id };
     });
   }
