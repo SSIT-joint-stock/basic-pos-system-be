@@ -7,7 +7,6 @@ import {
   Inventory,
   Prisma,
   Product,
-  ProductTemplate,
   stock_movement_type,
 } from '@prisma/client';
 import {
@@ -33,8 +32,6 @@ export interface CreateProductsBatchResult {
   updated: ProductWithInventory[];
   created: ProductWithInventory[];
 }
-import { CreateProductTemplateDto } from './dto/create-product-template-dto';
-
 @Injectable()
 export class ProductService {
   private readonly logger = new Logger(ProductService.name);
@@ -269,70 +266,6 @@ export class ProductService {
     return { data: products, total };
   }
 
-  async getProductSuggestion(query: Prisma.ProductFindManyArgs) {
-    const where: Prisma.ProductWhereInput = {
-      AND: [query.where ?? {}],
-    };
-
-    const [products, total_product] = await Promise.all([
-      this.prisma.product.findMany({
-        where,
-        skip: query.skip,
-        take: query.take,
-        orderBy: query.orderBy,
-        include: {
-          inventory: {
-            select: { quantity: true },
-          },
-          categories: true,
-          tags: true,
-        },
-      }),
-      this.prisma.product.count({
-        where,
-      }),
-    ]);
-    const templateWhere: Prisma.ProductTemplateWhereInput = {
-      // Nếu bạn muốn dùng cùng điều kiện như Product thì cast hoặc tự tạo tương tự
-      AND: [(query.where as any) ?? {}], // ép kiểu nhẹ để dùng lại
-    };
-
-    const [templates, total_template] = await Promise.all([
-      this.prisma.productTemplate.findMany({
-        where: templateWhere,
-        skip: query.skip,
-        take: query.take,
-        orderBy: query.orderBy as any,
-      }),
-      this.prisma.productTemplate.count({ where: templateWhere }),
-    ]);
-    const combined = [
-      ...products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        barcode: p.barcode,
-        price: p.price,
-        cost: p.cost,
-        image_url: p.image_url,
-        source: 'PRODUCT',
-        inventory: p.inventory,
-        categories: p.categories,
-        tags: p.tags,
-      })),
-      ...templates.map((t) => ({
-        id: t.id,
-        name: t.name,
-        barcode: t.barcode,
-        price: (t as any).price ?? null,
-        cost: (t as any).cost ?? null,
-        image_url: (t as any).image_url ?? null,
-        source: 'TEMPLATE',
-      })),
-    ];
-
-    return { data: combined, total: total_product + total_template };
-  }
-
   async createProductsBatch(
     store_id: string,
     user: IUserWithPermissions,
@@ -529,198 +462,99 @@ export class ProductService {
       created: results.created,
     };
   }
-
-  async createProductsTemplate(items: CreateProductTemplateDto[]) {
-    if (!Array.isArray(items) || items.length === 0) {
-      throw new BadRequestError('Items must not be empty');
+  async createProductByExcel(
+    file: Express.Multer.File,
+    storeId: string,
+    userId: string,
+  ) {
+    if (!file) {
+      throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
     }
 
-    const payloadBarcodes = items.map((i) => i.barcode?.trim());
-    if (payloadBarcodes.length !== items.length) {
-      throw new BadRequestError('Every item must have a non-empty barcode');
+    // Đọc Excel
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    if (jsonData.length === 0) {
+      throw new BadRequestError(this.errorMessages.FILE_EMPTY);
+    }
+    if (jsonData.length >= 500) {
+      throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
     }
 
-    //Kiểm tra TRÙNG BARCODE trong batch product
-    const duplicates = Object.entries(
-      payloadBarcodes.reduce<Record<string, number>>((acc, barcode) => {
-        const b = barcode;
-        acc[b] = (acc[b] ?? 0) + 1;
-        return acc;
-      }, {}),
-    )
-      .filter(([, count]) => count > 1)
-      .map(([sku]) => sku);
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const createdProducts: Product[] = [];
 
-    if (duplicates.length > 0) {
-      throw new BadRequestError(
-        `Duplicate SKUs found in batch: ${duplicates.join(', ')}`,
-      );
-    }
+        for (const row of jsonData) {
+          // Tìm hoặc tạo category theo tên
+          let category = await tx.category.findFirst({
+            where: {
+              store_id: storeId,
+              name: row['category'],
+            },
+          });
 
-    // Lấy danh sách BARCODE đã có trong DB
-    const existingProductsTemplate = await this.prisma.productTemplate.findMany(
+          if (!category) {
+            category = await tx.category.create({
+              data: {
+                name: row['category'],
+                store_id: storeId,
+              },
+            });
+          }
+
+          // Check product tồn tại
+          const existingSku = await tx.product.findFirst({
+            where: {
+              sku: row['sku'],
+              store_id: storeId,
+            },
+          });
+          if (existingSku) {
+            throw new ConflictError(
+              `Product with sku ${row['sku']} already exists`,
+            );
+          }
+
+          // Tạo product
+          const product = await tx.product.create({
+            data: {
+              name: row['name'],
+              sku: row['sku'],
+              barcode: row['barcode']?.toString(),
+              price: Number(row['price'] ?? 0),
+              cost: Number(row['cost'] ?? 0),
+              description: row['description'],
+              image_url: row['image_url'],
+              product_status: row['product_status'] ?? 'ACTIVE',
+              store_id: storeId,
+              created_by: userId,
+              inventory: { create: {} },
+              categories: {
+                connect: [{ id: category.id }],
+              },
+            },
+            include: {
+              categories: true,
+              inventory: true,
+            },
+          });
+
+          createdProducts.push(product);
+        }
+
+        return createdProducts;
+      },
       {
-        where: { barcode: { in: payloadBarcodes } },
+        timeout: 30000,
       },
     );
 
-    const existingBarcodeSet = new Set(
-      existingProductsTemplate.map((p) => p.barcode),
-    );
-    // Chia nhóm
-    const newProducts = items.filter((i) => !existingBarcodeSet.has(i.barcode));
-    const updateProducts = items.filter((i) =>
-      existingBarcodeSet.has(i.barcode),
-    );
-
-    const results = await this.prisma.$transaction(async (tx) => {
-      const updated: ProductTemplate[] = [];
-      const created: ProductTemplate[] = [];
-
-      // 1. Update sản phẩm có sẵn
-      for (const p of updateProducts) {
-        const existing = existingProductsTemplate.find(
-          (e) => e.barcode === p.barcode,
-        );
-
-        if (!existing) continue;
-
-        const refreshed = await tx.productTemplate.update({
-          where: { id: existing.id },
-          data: {
-            name: p.name,
-            price: p.price,
-            cost: p.cost,
-            description: p.description,
-            image_url: p.image_url,
-            meta: p.meta ?? {},
-          },
-        });
-        if (refreshed) updated.push(refreshed as any);
-      }
-
-      // 2. Tạo sản phẩm mới
-      for (const p of newProducts) {
-        const product = await tx.productTemplate.create({
-          data: {
-            barcode: p.barcode,
-            name: p.name,
-            price: p.price,
-            cost: p.cost,
-            image_url: p.image_url,
-            description: p.description,
-            meta: p.meta,
-          },
-        });
-
-        console.log(p);
-
-        created.push(product as any);
-      }
-
-      return { updated, created };
-    });
-
-    return {
-      updatedCount: results.updated.length,
-      createdCount: results.created.length,
-      updated: results.updated,
-      created: results.created,
-    };
+    return { data: result };
   }
-  // async createProductByExcel(
-  //   file: Express.Multer.File,
-  //   storeId: string,
-  //   userId: string,
-  // ) {
-  //   if (!file) {
-  //     throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
-  //   }
-
-  //   // Đọc Excel
-  //   const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-  //   const sheetName = workbook.SheetNames[0];
-  //   const sheet = workbook.Sheets[sheetName];
-  //   const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
-
-  //   if (jsonData.length === 0) {
-  //     throw new BadRequestError(this.errorMessages.FILE_EMPTY);
-  //   }
-  //   if (jsonData.length >= 500) {
-  //     throw new BadRequestError(this.errorMessages.FILE_TOO_LARGE);
-  //   }
-
-  //   const result = await this.prisma.$transaction(
-  //     async (tx) => {
-  //       const createdProducts: Product[] = [];
-
-  //       for (const row of jsonData) {
-  //         // Tìm hoặc tạo category theo tên
-  //         let category = await tx.category.findFirst({
-  //           where: {
-  //             store_id: storeId,
-  //             name: row['category'],
-  //           },
-  //         });
-
-  //         if (!category) {
-  //           category = await tx.category.create({
-  //             data: {
-  //               name: row['category'],
-  //               store_id: storeId,
-  //             },
-  //           });
-  //         }
-
-  //         // Check product tồn tại
-  //         const existingSku = await tx.product.findFirst({
-  //           where: {
-  //             sku: row['sku'],
-  //             store_id: storeId,
-  //           },
-  //         });
-  //         if (existingSku) {
-  //           throw new ConflictError(
-  //             `Product with sku ${row['sku']} already exists`,
-  //           );
-  //         }
-
-  //         // Tạo product
-  //         const product = await tx.product.create({
-  //           data: {
-  //             name: row['name'],
-  //             sku: row['sku'],
-  //             barcode: row['barcode']?.toString(),
-  //             price: Number(row['price'] ?? 0),
-  //             cost: Number(row['cost'] ?? 0),
-  //             description: row['description'],
-  //             image_url: row['image_url'],
-  //             product_status: row['product_status'] ?? 'ACTIVE',
-  //             store_id: storeId,
-  //             created_by: userId,
-  //             inventory: { create: {} },
-  //             categories: {
-  //               connect: [{ id: category.id }],
-  //             },
-  //           },
-  //           include: {
-  //             categories: true,
-  //             inventory: true,
-  //           },
-  //         });
-
-  //         createdProducts.push(product);
-  //       }
-
-  //       return createdProducts;
-  //     },
-  //     {
-  //       timeout: 30000,
-  //     },
-  //   );
-
-  //   return { data: result };
-  // }
   downloadExampleExcel(): StreamableFile {
     const headers = [
       'name*',
