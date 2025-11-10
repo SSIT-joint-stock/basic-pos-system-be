@@ -158,7 +158,7 @@ export class ProductController {
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @UseInterceptors(FileInterceptor('file'))
   @ApiSuccess('Import product successfully')
-  async importExcel(
+  importExcel(
     @Param('storeId') storeId: string,
     @UserWithPermissions() user: IUserWithPermissions,
     @UploadedFile() file: Express.Multer.File,

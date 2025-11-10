@@ -7,6 +7,7 @@ import { order_status, Prisma, stock_movement_type } from '@prisma/client';
 import { InventoryService } from 'app/module/inventory/inventory.service';
 import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
 import { IUser } from 'app/common/types/user.type';
+import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
 
 @Injectable()
 export class OrdersService {
@@ -14,73 +15,63 @@ export class OrdersService {
     private prisma: PrismaService,
     private inventory: InventoryService,
     private stockMovement: StockMovementService,
+    private generateOrderCode: GenerateOrderCodeUseCase,
   ) {}
 
   //   TODO: Update quantity in inventory when Hoa complete his job
-  create(storeId: string, dto: CreateOrderDto, user: IUser) {
-    const customerPay = dto.customer_pay_amount ?? 0;
-    const totalAmount = dto.total_amount ?? 0;
+  async create(storeId: string, dto: CreateOrderDto, user: IUser) {
+    const {
+      code,
+      customer_name,
+      subtotal_amount,
+      discount_amount,
+      customer_pay_amount = 0,
+      tax_amount,
+      total_amount = 0,
+      payment_method,
+      order_items = [],
+    } = dto;
 
-    let orderStatus: order_status;
-    if (totalAmount === customerPay) {
-      orderStatus = order_status.COMPLETED;
-    } else if (totalAmount > customerPay) {
-      orderStatus = order_status.PENDING;
-    } else {
-      orderStatus = order_status.OVERAGE;
-    }
+    const orderStatus = this.determineOrderStatus(
+      total_amount,
+      customer_pay_amount,
+    );
+    const changeAmount = customer_pay_amount - total_amount;
 
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           store_id: storeId,
-          code: dto.code,
+          code:
+            code || (await this.generateOrderCode.generateOrderCode(storeId)),
           cashier_id: user.id,
-          customer_name: dto.customer_name,
-          subtotal_amount: dto.subtotal_amount,
-          discount_amount: dto.discount_amount,
-          customer_pay_amount: dto.customer_pay_amount,
-          change_amount: dto.customer_pay_amount! - dto.total_amount!,
-          tax_amount: dto.tax_amount,
-          total_amount: dto.total_amount,
-          payment_method: dto.payment_method,
+          customer_name,
+          subtotal_amount,
+          discount_amount,
+          customer_pay_amount,
+          change_amount: changeAmount,
+          tax_amount,
+          total_amount,
+          payment_method,
           status: orderStatus,
           order_item: {
             createMany: {
-              data: dto.order_items.map((item) => ({
+              data: order_items.map((item) => ({
                 product_id: item.product_id,
                 quantity: item.quantity,
                 price: item.price,
-                meta: item.meta || {},
+                meta: item.meta ?? {},
               })),
             },
           },
         },
       });
 
-      const order_items = dto.order_items;
-
       for (const item of order_items) {
-        await this.stockMovement.create(
-          item.product_id,
-          stock_movement_type.SALE,
-          -Math.abs(item.quantity),
-          tx,
-        );
-
-        await this.inventory.modify(
-          stock_movement_type.SALE,
-          storeId,
-          item.product_id,
-          item.quantity,
-          tx,
-        );
+        await this.handleStockChange(storeId, item, tx);
       }
 
-      return {
-        order,
-        orderId: order.id,
-      };
+      return { order, orderId: order.id };
     });
   }
 
@@ -171,5 +162,39 @@ export class OrdersService {
       data: orders,
       total,
     };
+  }
+
+  /**
+   * Xác định trạng thái đơn hàng dựa trên tổng tiền và số tiền khách trả.
+   */
+  private determineOrderStatus(total: number, paid: number): order_status {
+    if (total === paid) return order_status.COMPLETED;
+    if (total > paid) return order_status.PENDING;
+    return order_status.OVERAGE;
+  }
+  /**
+   * Cập nhật tồn kho và lịch sử tồn kho cho từng sản phẩm.
+   *
+   */
+  private async handleStockChange(
+    storeId: string,
+    item: { product_id: string; quantity: number },
+    tx: Prisma.TransactionClient,
+  ) {
+    const qty = -Math.abs(item.quantity);
+
+    await this.stockMovement.create(
+      item.product_id,
+      stock_movement_type.SALE,
+      qty,
+      tx,
+    );
+    await this.inventory.modify(
+      stock_movement_type.SALE,
+      storeId,
+      item.product_id,
+      item.quantity,
+      tx,
+    );
   }
 }

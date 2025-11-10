@@ -18,7 +18,7 @@ import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import * as XLSX from 'xlsx';
-import { generateSku, generateSkuBatch } from 'app/common/helpers/generate-sku';
+import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
 
 export type ProductWithInventory = Product & {
   inventory: Inventory | null;
@@ -72,7 +72,10 @@ export class ProductService {
     FILE_TOO_LARGE: 'File size is too large, maximum allowed is 500 rows',
   };
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly generateSku: GenerateProductSkuUseCase,
+  ) {}
 
   async create(
     user: IUserWithPermissions,
@@ -82,7 +85,7 @@ export class ProductService {
     // 1) Pre-check unique
     const exists = await this.prisma.product.findFirst({
       where: {
-        sku: data.sku || (await generateSku(storeId)),
+        sku: data.sku || (await this.generateSku.generateSku(storeId)),
         store_id: storeId,
       },
     });
@@ -93,7 +96,7 @@ export class ProductService {
 
     // 2) Create + default inventory
     const { categoryIds, ...res } = data;
-    const sku = data.sku || (await generateSku(storeId));
+    const sku = data.sku || (await this.generateSku.generateSku(storeId));
     const created = await this.prisma.product.create({
       data: {
         ...res,
@@ -365,7 +368,12 @@ export class ProductService {
       }
 
       if (itemsToCreate.length > 0) {
-        const skus = await generateSkuBatch(tx, store_id, itemsToCreate.length);
+        // const skus = await generateSkuBatch(tx, store_id, itemsToCreate.length);
+        const skus = await this.generateSku.generateSkuBatchWithTransaction(
+          tx,
+          store_id,
+          itemsToCreate.length,
+        );
 
         const itemsWithSku = itemsToCreate.map((item, index) => ({
           ...item,
