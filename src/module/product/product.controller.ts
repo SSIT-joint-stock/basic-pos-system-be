@@ -49,10 +49,11 @@ export class ProductController {
       allowGetBetweenDate: true,
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
-      allowedSortBy: ['createdAt', 'price', 'cost'],
+      allowedSortBy: ['createdAt', 'price', 'cost', 'name'],
       rangeFields: ['cost', 'price'], // thêm dòng này
       searchBy: ['name', 'description'], // thêm dòng này
       searchKey: 'q', // FIX: nếu muốn đổi tên key tìm kiếm
+      listFields: ['categories'],
       schema: z.object({
         q: z.string().optional(), // ⬅️ thêm q vào schema
         createdAt: z
@@ -69,6 +70,7 @@ export class ProductController {
         barcode: z.string().optional(),
         image_url: z.string().url().optional(),
         product_status: z.enum(product_status).optional(),
+        categories: z.string().optional(),
       }),
     })
     query,
