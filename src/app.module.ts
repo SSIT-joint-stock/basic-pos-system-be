@@ -7,6 +7,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 
 // config
 import {
+  apiConfig,
   appConfig,
   cookieConfig,
   databaseConfig,
@@ -76,7 +77,14 @@ import { CommonModule } from './module/common/common.module';
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`],
       // validate with Zod
       validate: validateEnv, // use Zod to validate and type
-      load: [appConfig, databaseConfig, jobsConfig, emailConfig, cookieConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        jobsConfig,
+        emailConfig,
+        cookieConfig,
+        apiConfig,
+      ],
     }),
     LoggerCoreModule,
     LoggerModule.forFeature(['HTTP', 'DATABASE', 'APP', 'EMAIL']),

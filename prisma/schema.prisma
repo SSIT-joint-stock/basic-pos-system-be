@@ -126,6 +126,8 @@ model Store {
   name        String
   description String?
   phone_number String?
+  city      String?
+  state     String?
   address String?
   business_hour String?
   createdAt   DateTime @default(now())

@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { CommonService } from './common.service';
 import { bank } from 'app/common/types/bank.type';
+import { provincesVN } from 'app/common/types/provinces-vn.type';
 
 @Controller('common')
 export class CommonController {
@@ -9,5 +10,13 @@ export class CommonController {
   @Get('banks')
   async getBanks(): Promise<bank[]> {
     return this.commonService.getBanks();
+  }
+  @Get('provinces-vn')
+  async getProvinces(): Promise<provincesVN[]> {
+    return this.commonService.geProvincesInVietNam();
+  }
+  @Get('communes/:provinceId')
+  getCommunes(@Param('provinceId') id: string) {
+    return this.commonService.getCommunesByProvinceIdInVietNam(id);
   }
 }
