@@ -192,7 +192,7 @@ model StoreRewardPoint {
   convert_rate      Int    @default(100000) // Tỷ lệ: 100000 đơn vị tiền = 1 điểm thưởng
   point_value       Int    @default(5000) // Giá trị 1 điểm thưởng (đơn vị tiền)
   description       String? @db.VarChar(255) // Mô tả chính sách điểm
-  is_apply          Boolean @default(true)
+  is_apply          Boolean @default(false)
 
   // Thời gian
   createdAt        DateTime @default(now()) // Ngày tạo

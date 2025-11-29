@@ -44,6 +44,7 @@ import { StatisticsModule } from './module/statistics/statistics.module';
 import { CustomerModule } from './module/customer/customer.module';
 import { CommonModule } from './module/common/common.module';
 import { StorePaymentModule } from './module/store-payment/store-payment.module';
+import { StoreRewardPointModule } from './module/store-reward-point/store-reward-point.module';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { StorePaymentModule } from './module/store-payment/store-payment.module'
     CustomerModule,
     CommonModule,
     StorePaymentModule,
+    StoreRewardPointModule,
   ],
   providers: [
     TokenService,
