@@ -70,6 +70,20 @@ export const PERMISSIONS = {
   INVENTORY_READ: 'inventory:read' as Permission,
   INVENTORY_ALL: 'inventory:all' as Permission,
 
+  // Tags permissions
+  TAGS_CREATE: 'tags:create' as Permission,
+  TAGS_READ: 'tags:read' as Permission,
+  TAGS_UPDATE: 'tags:update' as Permission,
+  TAGS_DELETE: 'tags:delete' as Permission,
+  TAGS_ALL: 'tags:all' as Permission,
+
+  // Payment store permissions
+  PAYMENT_STORE_CREATE: 'payment:create' as Permission,
+  PAYMENT_STORE_READ: 'payment:read' as Permission,
+  PAYMENT_STORE_UPDATE: 'payment:update' as Permission,
+  PAYMENT_STORE_DELETE: 'payment:delete' as Permission,
+  PAYMENT_STORE_ALL: 'payment:all' as Permission,
+
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,
 } as const;

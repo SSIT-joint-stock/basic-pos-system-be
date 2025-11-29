@@ -394,7 +394,7 @@ export class AuthService {
   ): Promise<void> {
     await this.prismaService.user.update({
       where: { id: userId },
-      data: { refresh_token: refreshToken },
+      data: { refresh_token: refreshToken, lastLoginAt: new Date() },
     });
   }
 

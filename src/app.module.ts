@@ -43,6 +43,7 @@ import { OrdersModule } from './module/orders/orders.module';
 import { StatisticsModule } from './module/statistics/statistics.module';
 import { CustomerModule } from './module/customer/customer.module';
 import { CommonModule } from './module/common/common.module';
+import { StorePaymentModule } from './module/store-payment/store-payment.module';
 
 @Module({
   imports: [
@@ -106,6 +107,7 @@ import { CommonModule } from './module/common/common.module';
     StatisticsModule,
     CustomerModule,
     CommonModule,
+    StorePaymentModule,
   ],
   providers: [
     TokenService,

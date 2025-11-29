@@ -132,14 +132,7 @@ model Store {
   business_hour String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
- // info for payment qr
-  bank_code String? // ma ngan hang
-  bank_name String? // ten ngan hang
-  bank_account_number String? // so tai khoan
-  bank_account_name String? // ten chu tai khoan
-  bank_qr_image_url String? // url anh qr
-
+  
   // relations
   owner            User               @relation(fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   members          StoreMember[]
@@ -148,6 +141,8 @@ model Store {
   customer         Customer[]
   statistics_daily StatisticsDaily[]
   orders           Order[]
+  store_payment        StorePayment[]                                       // Thông tin thanh toán
+  store_reward_point   StoreRewardPoint[]    
 
   // indexes
   @@index([owner_id])
@@ -155,6 +150,62 @@ model Store {
 
   @@map("store")
 }
+
+
+// StorePayment: Quản lý thông tin thanh toán của cửa hàng
+// Lưu trữ chi tiết tài khoản ngân hàng và QR code thanh toán
+model StorePayment {
+  // ID và thông tin cơ bản
+  id                  String   @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  store_id            String   @db.Uuid // ID cửa hàng (foreign key)
+  
+  // Thông tin ngân hàng
+  bank_code           String  // Mã ngân hàng (ví dụ: "VCCB" cho Vietcombank)
+  bank_name           String  // Tên ngân hàng
+  bank_account_number String  // Số tài khoản ngân hàng
+  bank_account_name   String  // Tên chủ tài khoản
+  bank_qr_image_url   String?  // URL hình ảnh QR code thanh toán
+  note                String?
+  // Thời gian
+  createdAt           DateTime @default(now()) // Ngày tạo
+  updatedAt           DateTime @updatedAt // Ngày cập nhật lần cuối
+  updated_by          String?   @db.Uuid // ID người cập nhật lần cuối
+
+  // Relations
+  store               Store @relation(fields: [store_id], references: [id], onDelete: Cascade) // Cửa hàng
+
+  // Indexes
+  @@index([store_id]) // Index cửa hàng
+  @@map("store_payment") // Tên bảng trong database
+}
+
+
+// StoreRewardPoint: Quản lý cấu hình điểm thưởng của cửa hàng
+// Xác định tỷ lệ chuyển đổi điểm thưởng thành tiền mặt
+model StoreRewardPoint {
+  // ID
+  id                String @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  
+  // Thông tin cơ bản
+  store_id          String @db.Uuid // ID cửa hàng (foreign key)
+  convert_to        String @default("VND") @db.VarChar(255) // Đơn vị tiền tệ (VND, USD, etc.)
+  convert_rate      Int    @default(100000) // Tỷ lệ: 100000 đơn vị tiền = 1 điểm thưởng
+  point_value       Int    @default(5000) // Giá trị 1 điểm thưởng (đơn vị tiền)
+  description       String? @db.VarChar(255) // Mô tả chính sách điểm
+  is_apply          Boolean @default(true)
+
+  // Thời gian
+  createdAt        DateTime @default(now()) // Ngày tạo
+  updatedAt         DateTime @updatedAt // Ngày cập nhật lần cuối
+
+  // Relations
+  stores         Store  @relation(fields: [store_id], references: [id], onDelete: Cascade) // Cửa hàng
+
+  // Indexes
+  @@index([store_id]) // Index cửa hàng
+  @@map("store_reward_point") // Tên bảng trong database
+}
+
 
 /**
  * Store member model

@@ -1,4 +1,4 @@
-import { IsOptional, IsUppercase } from 'class-validator';
+import { IsOptional } from 'class-validator';
 
 export class UpdateStoreDto {
   @IsOptional()
@@ -11,16 +11,8 @@ export class UpdateStoreDto {
   phone_number?: string;
   @IsOptional()
   business_hour?: string;
-
   @IsOptional()
-  bank_code?: string;
+  city?: string;
   @IsOptional()
-  bank_name?: string;
-  @IsOptional()
-  bank_account_number?: string;
-  @IsOptional()
-  @IsUppercase()
-  bank_account_name?: string;
-  @IsOptional()
-  bank_qr_image_url?: string;
+  state?: string;
 }
