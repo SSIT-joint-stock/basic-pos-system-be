@@ -33,23 +33,24 @@ export class AuthService {
 
   private readonly errorMessages = {
     // Authentication
-    INVALID_CREDENTIALS: 'Invalid email/username or password',
-    INVALID_REFRESH_TOKEN: 'Invalid or expired refresh token',
-    INVALID_ACCESS_TOKEN: 'Invalid or expired access token',
+    INVALID_CREDENTIALS: 'Email/tên người dùng hoặc mật khẩu không hợp lệ',
+    INVALID_REFRESH_TOKEN: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
+    INVALID_ACCESS_TOKEN: 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
 
     // Verification
-    INVALID_VALIDATION_CODE: 'Invalid verification code',
-    CODE_EXPIRED: 'Verification code has expired',
+    INVALID_VALIDATION_CODE: 'Mã xác minh không hợp lệ',
+    CODE_EXPIRED: 'Mã xác minh đã hết hạn',
 
     // Account Status
-    ACCOUNT_INACTIVE: 'Account is inactive. Please contact support',
-    EMAIL_NOT_VERIFIED: 'Please verify your email before logging in',
-    EMAIL_ALREADY_VERIFIED: 'Email is already verified',
+    ACCOUNT_INACTIVE:
+      'Tài khoản không hoạt động. Vui lòng liên hệ bộ phận hỗ trợ',
+    EMAIL_NOT_VERIFIED: 'Vui lòng xác minh email của bạn trước khi đăng nhập',
+    EMAIL_ALREADY_VERIFIED: 'Email đã được xác minh',
 
     // User Management
-    USER_NOT_FOUND: 'User not found',
-    EMAIL_ALREADY_EXISTS: 'An account with this email already exists',
-    USERNAME_ALREADY_EXISTS: 'Username is already taken',
+    USER_NOT_FOUND: 'Tài khoản không tồn tại',
+    EMAIL_ALREADY_EXISTS: 'Một tài khoản với email này đã tồn tại',
+    USERNAME_ALREADY_EXISTS: 'Tên người dùng đã được sử dụng',
   } as const;
 
   constructor(

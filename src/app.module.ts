@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 
@@ -13,6 +13,8 @@ import {
   databaseConfig,
   emailConfig,
   jobsConfig,
+  limitRequestConfig,
+  limitRequestConfigFactory,
   validateEnv,
 } from './config';
 
@@ -45,6 +47,7 @@ import { CustomerModule } from './module/customer/customer.module';
 import { CommonModule } from './module/common/common.module';
 import { StorePaymentModule } from './module/store-payment/store-payment.module';
 import { StoreRewardPointModule } from './module/store-reward-point/store-reward-point.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -86,7 +89,14 @@ import { StoreRewardPointModule } from './module/store-reward-point/store-reward
         emailConfig,
         cookieConfig,
         apiConfig,
+        limitRequestConfig,
       ],
+    }),
+    // limit request
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: limitRequestConfigFactory,
     }),
     LoggerCoreModule,
     LoggerModule.forFeature(['HTTP', 'DATABASE', 'APP', 'EMAIL']),

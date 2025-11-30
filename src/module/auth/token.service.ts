@@ -23,11 +23,15 @@ export class TokenService {
     try {
       const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
       if (typeof decoded === 'string') {
-        throw new UnauthorizedException('Invalid or expired refresh token.');
+        throw new UnauthorizedException(
+          'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
+        );
       }
       return decoded;
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token.');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.',
+      );
     }
   }
 
@@ -35,11 +39,15 @@ export class TokenService {
     try {
       const decoded = jwt.verify(token, JWT_REFRESH_SECRET);
       if (typeof decoded === 'string') {
-        throw new UnauthorizedException('Invalid or expired refresh token.');
+        throw new UnauthorizedException(
+          'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
+        );
       }
       return decoded;
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token.');
+      throw new UnauthorizedException(
+        'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
+      );
     }
   }
 }
