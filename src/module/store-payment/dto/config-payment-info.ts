@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsOptional, IsString, IsUppercase } from 'class-validator';
 
-export class CreateStorePaymentDto {
+export class ConfigPaymentInfo {
   @IsString()
   @IsNotEmpty({
     message: 'Vui lòng nhập mã ngân hàng',

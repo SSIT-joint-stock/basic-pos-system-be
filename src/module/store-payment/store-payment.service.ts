@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { GenerateVietQRUseCase } from './use-case/generate-vietqr.usecase';
-import { CreateStorePaymentDto } from './dto/create-store-payment.dto';
+import { ConfigPaymentInfo } from './dto/config-payment-info';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { BadRequestError, ConflictError } from 'app/common/response';
-import { UpdateStorePaymentDto } from './dto/update-store-payment.dto';
+import { BadRequestError } from 'app/common/response';
 
 @Injectable()
 export class StorePaymentService {
@@ -17,47 +16,38 @@ export class StorePaymentService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async createPaymentInfo(dto: CreateStorePaymentDto, storeId: string) {
+  async configPaymentStore(dto: ConfigPaymentInfo, storeId: string) {
     if (!storeId) throw new BadRequestError(this.errMsg.NOT_FOUND_STORE);
+    const qrUrl = await this.generateVietQRUrl.execute(dto);
     const existing = await this.prisma.storePayment.findFirst({
       where: {
         store_id: storeId,
       },
     });
-    if (existing) throw new ConflictError(this.errMsg.CONFLICT_STORE_PAYMENT);
-    const qrImageUrl = await this.generateVietQRUrl.execute({
-      bank_code: dto.bank_code,
-      bank_account_number: dto.bank_account_number,
-      bank_name: dto.bank_name,
-    });
-    const paymentInfo = await this.prisma.storePayment.create({
+
+    if (existing) {
+      return await this.prisma.storePayment.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          ...dto,
+          bank_account_name: dto.bank_account_name.toLocaleUpperCase(),
+          bank_qr_image_url: qrUrl,
+        },
+      });
+    }
+
+    return await this.prisma.storePayment.create({
       data: {
         ...dto,
-        bank_qr_image_url: qrImageUrl,
         store_id: storeId,
+        bank_account_name: dto.bank_account_name.toLocaleUpperCase(),
+        bank_qr_image_url: qrUrl,
       },
     });
-    return paymentInfo;
   }
-  async updatePaymentInfo(dto: UpdateStorePaymentDto, storeId: string) {
-    const existing = await this.checkHasStoreId(storeId);
-    const qrImageUrl = await this.generateVietQRUrl.execute({
-      bank_code: dto.bank_code || existing.bank_code,
-      bank_account_number:
-        dto.bank_account_number || existing.bank_account_number,
-      bank_name: dto.bank_name || existing.bank_name,
-    });
-    const paymentInfo = await this.prisma.storePayment.update({
-      where: {
-        id: existing.id,
-      },
-      data: {
-        ...dto,
-        bank_qr_image_url: qrImageUrl,
-      },
-    });
-    return paymentInfo;
-  }
+
   async getPaymentInfo(storeId: string) {
     await this.checkHasStoreId(storeId);
     return await this.prisma.storePayment.findFirst({

@@ -74,6 +74,10 @@ enum payment_method {
   DEBIT_CARD
 }
 
+enum supplier_status {
+  ACTIVE
+  INACTIVE
+}
 /**
  * User model
  * User is a model that represents the user of the system
@@ -143,6 +147,7 @@ model Store {
   orders           Order[]
   store_payment        StorePayment[]                                       // Thông tin thanh toán
   store_reward_point   StoreRewardPoint[]    
+  supplier Supplier[]
 
   // indexes
   @@index([owner_id])
@@ -261,6 +266,40 @@ model Customer {
 
   @@map("customer")
 }
+
+
+// Supplier: Quản lý thông tin nhà cung cấp hàng hoá
+// Lưu trữ thông tin liên hệ, địa chỉ và lịch sử mua hàng
+model Supplier {
+  // ID
+  id              String   @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  // Thông tin cơ bản
+  store_id        String   @db.Uuid // ID cửa hàng (multi-tenant isolation)
+  code            String   // Mã nhà cung cấp (tự tạo, dễ nhớ)
+  name            String   // Tên nhà cung cấp
+  contact_person  String?  // Tên người liên hệ
+  email           String?  // Email liên hệ
+  phone           String?  // Số điện thoại
+  address         Json?    // Địa chỉ (JSON object: street, city, state, zip, country)
+  tax_code        String?  // Mã số thuế
+  bank_account    Json?    // Thông tin tài khoản ngân hàng (JSON object)
+  notes           String?  // Ghi chú thêm
+  status       supplier_status  @default(ACTIVE) // Có còn hoạt động không
+  total_purchased Decimal  @default(0) @db.Decimal(15, 2) // Tổng giá trị hàng đã mua từ nhà cung cấp này (dùng để phân tích)
+  // Thời gian
+  createdAt       DateTime @default(now()) // Ngày tạo
+  updatedAt       DateTime @updatedAt // Ngày cập nhật lần cuối
+  // Relations
+  store           Store           @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Cửa hàng
+  // purchase_orders PurchaseOrder[] // Danh sách đơn hàng mua từ nhà cung cấp này
+  // Unique Constraints
+  @@unique([store_id, code]) // Mã nhà cung cấp không được trùng trong 1 cửa hàng
+  @@unique([store_id, email]) // Email không được trùng trong 1 cửa hàng
+  // Indexes
+  @@index([store_id, status]) // Index nhà cung cấp hoạt động
+  @@map("supplier") // Tên bảng trong database
+}
+
 
 /**
  * Product model

@@ -6,6 +6,7 @@ import { ApplyRewardPointDto } from './dto/apply-reward-point.dto';
 export class StoreRewardPointService {
   constructor(private readonly prisma: PrismaService) {}
   async configRewardPoint(storeId: string, dto: ApplyRewardPointDto) {
+    if (!storeId) return;
     const existed = await this.prisma.storeRewardPoint.findFirst({
       where: { store_id: storeId },
     });
@@ -27,6 +28,11 @@ export class StoreRewardPointService {
     return await this.prisma.storeRewardPoint.update({
       where: { id: existed.id },
       data: dto,
+    });
+  }
+  async getPaymentInfo(storeId: string) {
+    return await this.prisma.storeRewardPoint.findFirst({
+      where: { store_id: storeId },
     });
   }
 }
