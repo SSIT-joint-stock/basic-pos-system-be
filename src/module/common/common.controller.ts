@@ -19,4 +19,8 @@ export class CommonController {
   getCommunes(@Param('provinceId') id: string) {
     return this.commonService.getCommunesByProvinceIdInVietNam(id);
   }
+  @Get('tax/:taxCode')
+  async getInfoBusinessByTaxCode(@Param('taxCode') taxCode: string) {
+    return this.commonService.getInfoBusinessByTaxCode(taxCode);
+  }
 }

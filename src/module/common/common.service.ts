@@ -7,6 +7,7 @@ import { provincesVN } from 'app/common/types/provinces-vn.type';
 import { apiConfig } from 'app/config';
 import type { ConfigType } from '@nestjs/config';
 import { communesVN } from 'app/common/types/communes-vn.type';
+import { BusinessInfo } from 'app/common/types/business-info.type';
 
 @Injectable()
 export class CommonService {
@@ -45,4 +46,12 @@ export class CommonService {
 
     return response.data;
   }
+  async getInfoBusinessByTaxCode(taxCode: string) {
+    const url = `${this.api_config.tax_code_vn}/${taxCode}`;
+    const response = await firstValueFrom(
+      this.httpService.get<BusinessInfo[]>(url),
+    );
+    return response.data;
+  }
+  // https://api.era8.com.vn/api/v1/external-api/tax/1
 }
