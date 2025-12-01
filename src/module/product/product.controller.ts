@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import z from 'zod';
 import {
   Controller,
   Get,
@@ -23,7 +24,6 @@ import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
 import { ApiSuccess, RawResponse } from 'app/common/decorators';
-import z from 'zod';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
 import { product_status } from '@prisma/client';

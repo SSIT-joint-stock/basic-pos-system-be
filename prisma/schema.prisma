@@ -77,6 +77,7 @@ enum payment_method {
 enum supplier_status {
   ACTIVE
   INACTIVE
+  DELETE
 }
 /**
  * User model
@@ -275,10 +276,10 @@ model Supplier {
   id              String   @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
   // Thông tin cơ bản
   store_id        String   @db.Uuid // ID cửa hàng (multi-tenant isolation)
-  code            String   // Mã nhà cung cấp (tự tạo, dễ nhớ)
+  code            String?   // Mã nhà cung cấp (tự tạo, dễ nhớ)
   name            String   // Tên nhà cung cấp
   contact_person  String?  // Tên người liên hệ
-  email           String?  // Email liên hệ
+  email           String?  @default("") // Email liên hệ
   phone           String?  // Số điện thoại
   address         Json?    // Địa chỉ (JSON object: street, city, state, zip, country)
   tax_code        String?  // Mã số thuế
@@ -289,12 +290,12 @@ model Supplier {
   // Thời gian
   createdAt       DateTime @default(now()) // Ngày tạo
   updatedAt       DateTime @updatedAt // Ngày cập nhật lần cuối
+  deletedAt       DateTime? 
   // Relations
   store           Store           @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Cửa hàng
   // purchase_orders PurchaseOrder[] // Danh sách đơn hàng mua từ nhà cung cấp này
   // Unique Constraints
   @@unique([store_id, code]) // Mã nhà cung cấp không được trùng trong 1 cửa hàng
-  @@unique([store_id, email]) // Email không được trùng trong 1 cửa hàng
   // Indexes
   @@index([store_id, status]) // Index nhà cung cấp hoạt động
   @@map("supplier") // Tên bảng trong database

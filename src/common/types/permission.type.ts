@@ -84,6 +84,12 @@ export const PERMISSIONS = {
   PAYMENT_STORE_DELETE: 'payment:delete' as Permission,
   PAYMENT_STORE_ALL: 'payment:all' as Permission,
 
+  // Supplier permissions
+  SUPPLIER_CREATE: 'supplier:create' as Permission,
+  SUPPLIER_READ: 'supplier:read' as Permission,
+  SUPPLIER_UPDATE: 'supplier:update' as Permission,
+  SUPPLIER_DELETE: 'supplier:delete' as Permission,
+  SUPPLIER_ALL: 'supplier:all' as Permission,
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,
 } as const;
