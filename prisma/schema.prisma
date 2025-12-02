@@ -280,9 +280,7 @@ model Supplier {
   name            String   // Tên nhà cung cấp
   contact_person  String?  // Tên người liên hệ
   email           String?  @default("") // Email liên hệ
-  phone           String?  // Số điện thoại
-  address         Json?    // Địa chỉ (JSON object: street, city, state, zip, country)
-  tax_code        String?  // Mã số thuế
+  phone           String?  // Số đcdthuế
   bank_account    Json?    // Thông tin tài khoản ngân hàng (JSON object)
   notes           String?  // Ghi chú thêm
   status       supplier_status  @default(ACTIVE) // Có còn hoạt động không

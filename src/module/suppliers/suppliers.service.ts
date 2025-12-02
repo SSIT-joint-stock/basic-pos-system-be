@@ -62,8 +62,8 @@ export class SuppliersService {
   ) {
     await this.checkStore(storeId);
     await this.checkSupplier(id, storeId);
-    await this.checkSupplierEmailExists(updateSupplierDto.email);
-    await this.checkSupplierCodeExists(updateSupplierDto.code, storeId);
+    await this.checkSupplierEmailExists(updateSupplierDto.email, storeId, id);
+    await this.checkSupplierCodeExists(updateSupplierDto.code, storeId, id);
     return this.prisma.supplier.update({
       where: { id, store_id: storeId },
       data: updateSupplierDto,
@@ -90,10 +90,14 @@ export class SuppliersService {
    * @param email email của nhà cung cấp
    * @returns true nếu không tồn tại, ngược lại throw ConflictError
    */
-  private async checkSupplierEmailExists(email?: string) {
+  private async checkSupplierEmailExists(
+    email?: string,
+    storeId?: string,
+    currentId?: string,
+  ) {
     if (email) {
       const supplier = await this.prisma.supplier.findFirst({
-        where: { email },
+        where: { email, store_id: storeId, NOT: { id: currentId } },
       });
       if (supplier) {
         throw new ConflictError(this.errMsg.ALREADY_SUPPLIER_EMAIL);
@@ -141,10 +145,14 @@ export class SuppliersService {
    * @param storeId mã cửa hàng
    * @returns true nếu không tồn tại, ngược lại throw ConflictError
    */
-  private async checkSupplierCodeExists(code?: string, storeId?: string) {
+  private async checkSupplierCodeExists(
+    code?: string,
+    storeId?: string,
+    currentId?: string,
+  ) {
     if (code) {
       const supplier = await this.prisma.supplier.findFirst({
-        where: { code, store_id: storeId },
+        where: { code, store_id: storeId, NOT: { id: currentId } },
       });
       if (supplier) {
         throw new ConflictError(this.errMsg.ALREADY_SUPPLIER_CODE);

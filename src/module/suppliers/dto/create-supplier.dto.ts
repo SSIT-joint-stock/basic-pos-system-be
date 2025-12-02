@@ -35,8 +35,8 @@ export class CreateSupplierDto {
   phone?: string;
 
   @IsOptional()
-  @IsObject()
-  address?: Record<string, any>;
+  @IsString()
+  address?: string;
 
   @IsOptional()
   @IsString()
