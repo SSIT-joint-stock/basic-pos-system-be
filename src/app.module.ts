@@ -49,6 +49,7 @@ import { StorePaymentModule } from './module/store-payment/store-payment.module'
 import { StoreRewardPointModule } from './module/store-reward-point/store-reward-point.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { SuppliersModule } from './module/suppliers/suppliers.module';
+import { PurchaseOrderModule } from './module/purchase-order/purchase-order.module';
 
 @Module({
   imports: [
@@ -122,6 +123,7 @@ import { SuppliersModule } from './module/suppliers/suppliers.module';
     StorePaymentModule,
     StoreRewardPointModule,
     SuppliersModule,
+    PurchaseOrderModule,
   ],
   providers: [
     TokenService,

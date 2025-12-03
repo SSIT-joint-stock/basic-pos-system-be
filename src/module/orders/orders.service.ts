@@ -75,7 +75,6 @@ export class OrdersService {
       }
 
       return { order, orderId: order.id };
-      return { order, orderId: order.id };
     });
   }
 

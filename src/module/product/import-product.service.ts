@@ -8,7 +8,6 @@ import {
   ImportProductRowSchema,
   ImportValidationError,
 } from './dto/import-product-by-excel.dto';
-import { IUserWithPermissions } from 'app/common/types/permission.type';
 import {
   ImportProductTemplateRow,
   ImportProductTemplateRowSchema,
@@ -32,11 +31,7 @@ export class ImportProductService {
     private readonly productService: ProductService,
   ) {}
 
-  async importExcelFile(
-    file: Express.Multer.File,
-    store_id: string,
-    user: IUserWithPermissions,
-  ) {
+  importExcelFile(file: Express.Multer.File) {
     if (!file) {
       throw new NotFoundError(this.errorMessages.FILE_NOT_FOUND);
     }
@@ -71,17 +66,6 @@ export class ImportProductService {
         validRows.push(parsed.data);
       }
     });
-
-    // --- 3️⃣ Import vào DB ---
-    const result = await this.productService.createProductsBatch(
-      store_id,
-      user,
-      validRows,
-    );
-
-    return {
-      ...result,
-    };
   }
 
   async setProductTemplateByExcel(file: Express.Multer.File) {

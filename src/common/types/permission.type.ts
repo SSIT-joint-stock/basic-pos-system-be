@@ -90,6 +90,13 @@ export const PERMISSIONS = {
   SUPPLIER_UPDATE: 'supplier:update' as Permission,
   SUPPLIER_DELETE: 'supplier:delete' as Permission,
   SUPPLIER_ALL: 'supplier:all' as Permission,
+
+  // Purchase order permissions
+  PURCHASE_ORDER_CREATE: 'purchase-order:create' as Permission,
+  PURCHASE_ORDER_READ: 'purchase-order:read' as Permission,
+  PURCHASE_ORDER_UPDATE: 'purchase-order:update' as Permission,
+  PURCHASE_ORDER_DELETE: 'purchase-order:delete' as Permission,
+  PURCHASE_ORDER_ALL: 'purchase-order:all' as Permission,
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,
 } as const;
