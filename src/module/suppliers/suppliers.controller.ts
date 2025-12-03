@@ -40,7 +40,7 @@ export class SuppliersController {
   }
 
   @Get(':storeId')
-  async filterProducts(
+  async findAll(
     @FilterParse({
       allowPagination: true,
       allowSorting: true,

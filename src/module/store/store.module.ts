@@ -7,5 +7,6 @@ import { PermissionService } from 'app/permissions/permission.service';
 @Module({
   controllers: [StoreController],
   providers: [StoreService, PrismaService, PermissionService],
+  exports: [StoreService],
 })
 export class StoreModule {}
