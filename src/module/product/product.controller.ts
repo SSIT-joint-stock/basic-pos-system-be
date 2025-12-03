@@ -199,7 +199,7 @@ export class ProductController {
     @UserWithPermissions() user: IUserWithPermissions,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.importProductService.importExcelFile(file, storeId, user);
+    return this.importProductService.importExcelFile(file);
   }
 
   @Post('import-template-excel')
