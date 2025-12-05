@@ -180,6 +180,7 @@ model Store {
   store_reward_point   StoreRewardPoint[]    
   supplier Supplier[]
   purchase_orders PurchaseOrder[]
+  variant_stock VariantStock[]
 
   // indexes
   @@index([owner_id])
@@ -341,8 +342,9 @@ model Supplier {
 model Product {
   id              String           @id @default(uuid()) @db.Uuid 
   store_id        String           @db.Uuid
-  name            String
-  sku             String       
+  name            String           
+  sku             String 
+  baseUnit        String           // Đơn vị gốc (VD: "cái", "ml"). Immutable.
   barcode         String?
   price           Int              @default(0)
   cost            Int              @default(0)
@@ -350,18 +352,19 @@ model Product {
   description     String?
   product_status  product_status   @default(ACTIVE)
   meta            Json             @default("{}")
-  sourceType     product_type      @default(QUICK_CREATE)
+  source_type     product_type      @default(QUICK_CREATE)
+  is_set_default_variant Boolean?  @default(true)
+  is_deleted Boolean? @default(false)
   created_by      String           @db.Uuid
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
   // relations
   created_by_user User             @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Cascade)
   store           Store            @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   categories      Category[]
-  product_category ProductCategory[]
-  inventory     Inventory?
+  variant       Variant[]
   tags            Tag[]
-  stock_movements StockMovement[]
   order_item      OrderItem[]
   purchase_order_items PurchaseOrderItem[]
 
@@ -371,6 +374,53 @@ model Product {
   @@index([created_by, product_status, name])
 
   @@map("product")
+}
+model Variant {
+  id      String @id @default(uuid()) @db.Uuid
+  product_id    String  @db.Uuid
+  sku     String
+  barcode String?
+  name    String
+  price   Int       @default(0)
+  product      Product      @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  conversions  UnitConversion[]
+  order_item      OrderItem[]
+  purchase_order_items PurchaseOrderItem[]
+  variant_stocks VariantStock[]
+  stock_movements StockMovement[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt 
+
+
+  @@map("variant")
+}
+model VariantStock {
+  id String     @id @default(uuid()) @db.Uuid
+  store_id String @db.Uuid
+  variant_id String @db.Uuid
+  onHand Int @default(0) // Tồn kho thực tế
+  reserved Int? @default(0) // Tồn đã giữ chỗ (đơn chưa nhập, chưa xuất)
+  damaged Int? @default(0) // Tồn hỏng / lock kiểm kê
+  
+  createdAt DateTime @default(now())
+  updateAt DateTime  @updatedAt
+
+  variant Variant @relation(fields: [variant_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  store   Store  @relation(fields: [store_id], references: [id])
+
+  @@unique([variant_id, store_id])
+  @@map("variant_stocks")
+}
+
+
+model UnitConversion {
+  id   String  @id @default(uuid()) @db.Uuid 
+  name  String
+  factor Int
+  variantId String @db.Uuid
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  @@unique([variantId, name])
+  @@map("unit_conversions")
 }
 
 model ProductTemplate {
@@ -386,27 +436,6 @@ model ProductTemplate {
   updatedAt       DateTime         @updatedAt
 }
 
-/**
- * Inventory model
- * Inventory is a model that represents the inventory of a product
- * It is used to track the inventory of a product
- */
-model Inventory {
-  id         String           @id @default(uuid()) @db.Uuid
-  product_id String           @db.Uuid @unique
-  quantity   Int              @default(0)
-  discount   Int              @default(0)
-  total      Int              @default(0)
-  status     inventory_status @default(ACTIVE)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  // relations
-  product    Product          @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  // indexes
-  @@index([product_id, status])
-
-  @@map("inventory")
-}
 
 /**
  * Category model
@@ -423,7 +452,6 @@ model Category {
   // relations
   store       Store     @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   products    Product[]
-  product_category ProductCategory[]
 
 
   // indexes
@@ -434,15 +462,7 @@ model Category {
   @@map("category")
 }
 
-model ProductCategory {
-  product_id String @db.Uuid
-  category_id String @db.Uuid
-  product Product @relation(fields: [product_id], references: [id])
-  category Category @relation(fields: [category_id], references: [id])
-  
-  @@id([product_id, category_id])
-  @@map("product_category")
-}
+
 
 /**
  * Tag model
@@ -471,16 +491,16 @@ model Tag {
 
 model StockMovement {
   id         String              @id @default(uuid()) @db.Uuid
-  product_id String              @db.Uuid
+  variant_id String              @db.Uuid
   quantity   Int
   type       stock_movement_type
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
   // relations
-  product    Product             @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variants    Variant             @relation(fields: [variant_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   // indexes
-  @@index([product_id])
+  @@index([variant_id])
 
   @@map("stock_movement")
 }
@@ -538,7 +558,8 @@ model Order {
 model OrderItem {
   id         String   @id @default(uuid()) @db.Uuid
   order_id   String   @db.Uuid
-  product_id String   @db.Uuid
+  variant_id String   @db.Uuid
+  product_id  String  @db.Uuid
   quantity   Int      @default(0)
   price      Int      @default(0)
   meta       Json     @default("{}")
@@ -546,10 +567,12 @@ model OrderItem {
   updatedAt  DateTime @updatedAt
   // relations
   order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variant    Variant  @relation(fields: [variant_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product   Product   @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   // indexes
   @@index([order_id])
+  @@index([variant_id])
   @@index([product_id])
 
   @@map("order_item")
@@ -627,6 +650,7 @@ model PurchaseOrderItem {
   // Foreign Keys
   purchase_order_id String  @db.Uuid // ID đơn hàng mua
   product_id        String  @db.Uuid // ID sản phẩm
+  variant_id        String  @db.Uuid
   // unit_id           String  @db.Uuid // ID đơn vị mua
   
   // Thông tin mua
@@ -647,7 +671,7 @@ model PurchaseOrderItem {
   // Relations
   purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Đơn hàng
   product        Product       @relation(fields: [product_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Sản phẩm
-  // unit           Unit          @relation(fields: [unit_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Đơn vị
+  variant        Variant          @relation(fields: [variant_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Biến thể
 
   // Indexes
   @@index([purchase_order_id]) // Index theo đơn hàng

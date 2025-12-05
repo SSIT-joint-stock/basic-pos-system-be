@@ -22,20 +22,20 @@ export class PurchaseOrderController {
     private readonly purchaseOrderService: PurchaseOrderService,
     private readonly purchasePaymentService: PurchasePaymentService,
   ) {}
-  @Post(':storeId')
-  @ApiSuccess('Tạo đơn nhập hàng thành công!')
-  @RequirePermission([PERMISSIONS.PURCHASE_ORDER_CREATE])
-  async createPurchaseOrder(
-    @Param('storeId') storeId: string,
-    @Body() dto: CreatePurchaseOrderDto,
-    @User() user: IUser,
-  ) {
-    return await this.purchaseOrderService.createPurchaseOrder(
-      storeId,
-      dto,
-      user,
-    );
-  }
+  // @Post(':storeId')
+  // @ApiSuccess('Tạo đơn nhập hàng thành công!')
+  // @RequirePermission([PERMISSIONS.PURCHASE_ORDER_CREATE])
+  // async createPurchaseOrder(
+  //   @Param('storeId') storeId: string,
+  //   @Body() dto: CreatePurchaseOrderDto,
+  //   @User() user: IUser,
+  // ) {
+  //   return await this.purchaseOrderService.createPurchaseOrder(
+  //     storeId,
+  //     dto,
+  //     user,
+  //   );
+  // }
 
   @Post(':storeId/accept-payment/:id')
   @ApiSuccess('Xác nhận thanh toán đơn hàng thành công!')

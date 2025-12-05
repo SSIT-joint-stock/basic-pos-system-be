@@ -97,6 +97,14 @@ export const PERMISSIONS = {
   PURCHASE_ORDER_UPDATE: 'purchase-order:update' as Permission,
   PURCHASE_ORDER_DELETE: 'purchase-order:delete' as Permission,
   PURCHASE_ORDER_ALL: 'purchase-order:all' as Permission,
+
+  // variant permissions
+  VARIANT_CREATE: 'variant:create' as Permission,
+  VARIANT_READ: 'variant:read' as Permission,
+  VARIANT_UPDATE: 'variant:update' as Permission,
+  VARIANT_DELETE: 'variant:delete' as Permission,
+  VARIANT_ALL: 'variant:all' as Permission,
+
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,
 } as const;

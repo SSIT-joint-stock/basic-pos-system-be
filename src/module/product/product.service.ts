@@ -1,67 +1,28 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
-
-import { Injectable, Logger, StreamableFile } from '@nestjs/common';
+import { Injectable, StreamableFile } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { Inventory, Prisma, Product, ProductTemplate } from '@prisma/client';
 import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from 'app/common/response';
+  Prisma,
+  product_type,
+  ProductTemplate,
+  stock_movement_type,
+} from '@prisma/client';
+import { BadRequestError } from 'app/common/response';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import * as XLSX from 'xlsx';
 import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
 
-export type ProductWithInventory = Product & {
-  inventory: Inventory | null;
-  categories?: { id: string; name: string }[];
-  tags?: { id: string; name: string }[];
-};
-
-export interface CreateProductsBatchResult {
-  updatedCount: number;
-  createdCount: number;
-  updated: ProductWithInventory[];
-  created: ProductWithInventory[];
-}
 import { CreateProductTemplateDto } from './dto/create-product-template-dto';
+import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
 
 @Injectable()
 export class ProductService {
-  private readonly logger = new Logger(ProductService.name);
-
   private readonly errorMessages = {
-    // User Management
-    USER_NOT_FOUND: 'User not found',
-    EMAIL_ALREADY_EXISTS: 'An account with this email already exists',
-    USERNAME_ALREADY_EXISTS: 'Username is already taken',
-
     // Product Management
-    PRODUCT_NOT_FOUND: 'Product not found',
-    PRODUCT_SKU_EXISTS: 'A product with this SKU already exists',
-    PRODUCT_BARCODE_EXISTS: 'A product with this barcode already exists',
-
-    // Store Management
-    STORE_NOT_FOUND: 'Store not found',
-    STORE_ALREADY_EXISTS: 'Store with this name already exists',
-
-    // Inventory Management
-    INVENTORY_NOT_FOUND: 'Inventory not found',
-    INSUFFICIENT_STOCK: 'Insufficient stock for this operation',
-
-    // Order Management
-    ORDER_NOT_FOUND: 'Order not found',
-    ORDER_ALREADY_CANCELLED: 'Order has already been cancelled',
-    ORDER_CANNOT_BE_UPDATED: 'Order cannot be updated in its current status',
-
-    // General
-    UNAUTHORIZED: 'You are not authorized to perform this action',
-    FORBIDDEN: 'Access forbidden',
-    BAD_REQUEST: 'Invalid request data',
-    INTERNAL_ERROR: 'An unexpected error occurred. Please try again later',
+    PRODUCT_NOT_FOUND: 'Không tìm thấy sản phẩm!',
+    PRODUCT_SKU_EXISTS:
+      'Mã sản phẩm đã tồn tại trong cửa hàng. Vui lòng thử lập mã khác!',
 
     // File
     FILE_NOT_FOUND: 'File not found',
@@ -72,6 +33,7 @@ export class ProductService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly generateSku: GenerateProductSkuUseCase,
+    private readonly generateVariantSku: GenerateVariantSkuUseCase,
   ) {}
 
   async create(
@@ -79,135 +41,88 @@ export class ProductService {
     storeId: string,
     data: CreateProductDto,
   ) {
-    // 1) Pre-check unique
-    const exists = await this.prisma.product.findFirst({
-      where: {
-        sku: data.sku || (await this.generateSku.generateSku(storeId)),
-        store_id: storeId,
-      },
-    });
-
-    if (exists) {
-      throw new BadRequestError(this.errorMessages.PRODUCT_SKU_EXISTS);
-    }
-
-    // 2) Create + default inventory
-    const { categoryIds, ...res } = data;
-    const sku = data.sku || (await this.generateSku.generateSku(storeId));
-    const created = await this.prisma.product.create({
-      data: {
-        ...res,
-        sku: sku,
-        store_id: storeId,
-        created_by: user.id,
-        inventory: { create: {} },
-        categories: categoryIds?.length
-          ? {
-              connect: categoryIds.map((id) => ({ id })),
-            }
-          : undefined,
-      },
-      include: {
-        inventory: true,
-        categories: true,
-        // tags: true,
-      },
-    });
-    return created;
-  }
-
-  async findAll(storeId: string, query: Prisma.ProductFindManyArgs) {
-    const [products, total] = await Promise.all([
-      this.prisma.product.findMany({
-        where: {
-          ...(query.where ?? {}),
+    return this.prisma.$transaction(async (tx) => {
+      const genSku = await this.generateSku.generateSku(storeId);
+      await this.checkHasSku(data.sku || genSku, storeId);
+      const { categoryIds, tagIds, quantity, ...body } = data;
+      // create product
+      const newProduct = await tx.product.create({
+        data: {
+          ...body,
+          sku: data.sku || genSku,
           store_id: storeId,
+          created_by: user.id,
+          source_type: product_type.QUICK_CREATE,
+
+          categories: categoryIds?.length
+            ? { connect: categoryIds.map((id) => ({ id })) }
+            : undefined,
+
+          tags: tagIds?.length
+            ? { connect: tagIds.map((id) => ({ id })) }
+            : undefined,
         },
+
         include: {
-          inventory: {
-            select: { quantity: true, id: true },
-          },
+          categories: true,
+          tags: true,
+          variant: true,
         },
-      }),
-      this.prisma.product.count({
-        where: {
-          ...(query.where ?? {}),
+      });
+      // create variant now pos sys always set default is is_set_default_variant and when find some plan to implement this feat
+      // if (data.is_set_default_variant === true) {
+      const newVariant = await tx.variant.create({
+        data: {
+          product_id: newProduct?.id,
+          name: newProduct?.name,
+          sku:
+            (await this.generateVariantSku.generateSkuVariant(storeId)) || '',
+          price: newProduct?.price,
+        },
+      });
+      await tx.variantStock.create({
+        data: {
+          variant_id: newVariant?.id,
+          onHand: quantity || 0,
           store_id: storeId,
         },
-      }),
-    ]);
-    return {
-      data: products,
-      total,
-    };
+      });
+      await tx.stockMovement.create({
+        data: {
+          variant_id: newVariant?.id,
+          quantity: quantity || 0,
+          type: stock_movement_type.ADJUSTMENT,
+        },
+      });
+      // }
+    });
   }
 
   async findOne(storeId: string, id: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { store_id: storeId, id },
+    await this.checkHasProduct(id, storeId);
+    return await this.prisma.product.findUnique({
+      where: { store_id: storeId, id, is_deleted: false },
       include: {
-        // nếu muốn trả kèm quan hệ // FIX co the fix later
-        inventory: true,
         categories: true,
         tags: true,
+        variant: true,
       },
     });
-
-    if (!product) {
-      throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
-    }
-    return product;
   }
 
   async update(storeId: string, id: string, data: UpdateProductDto) {
     // 1) Lấy product hiện tại để kiểm tra tồn tại
-    const existing = await this.prisma.product.findUnique({
-      where: { store_id: storeId, id },
-      include: {
-        inventory: {
-          select: {
-            quantity: true,
-          },
-        },
-        categories: {
-          select: {
-            id: true,
-            name: true,
-            updatedAt: true,
-          },
-        },
-        tags: {
-          select: {
-            id: true,
-            name: true,
-            updatedAt: true,
-          },
-        },
-      },
-    });
-    if (!existing) {
-      throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
+
+    await this.checkHasProduct(id, storeId);
+
+    if (data.sku) {
+      await this.checkHasSku(data.sku, storeId, id);
     }
 
-    // 2) Nếu có cập nhật SKU thì check unique theo (store_id, sku)
-    const nextSku = (data as any)?.sku as string | undefined;
-    if (nextSku) {
-      const duplicated = await this.prisma.product.findFirst({
-        where: {
-          store_id: existing.store_id,
-          sku: nextSku,
-          id: { not: id },
-        },
-        select: { id: true },
-      });
-      if (duplicated) {
-        throw new ConflictError(this.errorMessages.PRODUCT_SKU_EXISTS);
-      }
-    }
-    const { categoryIds, ...res } = data;
+    const { categoryIds, tagIds, ...res } = data;
     // 3) Thực hiện update
     const updated = await this.prisma.product.update({
-      where: { id },
+      where: { id, store_id: storeId },
       data: {
         ...res,
 
@@ -217,31 +132,36 @@ export class ProductService {
                 set: categoryIds.map((id) => ({ id })),
               }
             : undefined,
+        tags:
+          tagIds !== undefined
+            ? {
+                set: tagIds.map((id) => ({ id })),
+              }
+            : undefined,
       },
-      include: { inventory: true, categories: true, tags: true }, // FIX: Sau co the bo
+      include: { categories: true, tags: true }, // FIX: Sau co the bo
     });
     return updated;
   }
 
   async remove(storeId: string, id: string) {
-    // 1. Check product tồn tại
-    const product = await this.prisma.product.findUnique({
-      where: { store_id: storeId, id },
-      select: { id: true },
+    await this.checkHasProduct(id, storeId);
+    // return await this.prisma.product.update({
+    //   where: { id, store_id: storeId },
+    //   data: {
+    //     deletedAt: new Date(),
+    //     is_deleted: true,
+    //   },
+    // });
+    return await this.prisma.product.delete({
+      where: { id, store_id: storeId },
     });
-
-    if (!product) {
-      throw new NotFoundError(this.errorMessages.PRODUCT_NOT_FOUND);
-    }
-
-    // 2. Xoá
-    await this.prisma.product.delete({ where: { id } });
   }
 
   async filterProducts(store_id: string, query: Prisma.ProductFindManyArgs) {
     // TODO: chua co meta
     const where: Prisma.ProductWhereInput = {
-      AND: [query.where ?? {}, { store_id }],
+      AND: [query.where ?? {}, { store_id, is_deleted: false }],
     };
 
     const [products, total] = await Promise.all([
@@ -250,12 +170,12 @@ export class ProductService {
         skip: query.skip,
         take: query.take,
         orderBy: query.orderBy,
+
         include: {
-          inventory: {
-            select: { quantity: true },
-          },
           categories: true,
           tags: true,
+          variant: true,
+          purchase_order_items: true,
         },
       }),
       this.prisma.product.count({
@@ -278,9 +198,6 @@ export class ProductService {
         take: query.take,
         orderBy: query.orderBy,
         include: {
-          inventory: {
-            select: { quantity: true },
-          },
           categories: true,
           tags: true,
         },
@@ -321,7 +238,6 @@ export class ProductService {
         cost: p.cost,
         image_url: p.image_url,
         source: 'PRODUCT',
-        inventory: p.inventory,
         categories: p.categories,
         tags: p.tags,
       })),
@@ -472,5 +388,35 @@ export class ProductService {
       disposition: 'attachment; filename="example_products.xlsx"',
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
+  }
+
+  private async checkHasProduct(productId: string, storeId: string) {
+    const hasProduct = await this.prisma.product.findFirst({
+      where: {
+        id: productId,
+        store_id: storeId,
+        is_deleted: false,
+      },
+    });
+
+    if (!hasProduct) {
+      throw new BadRequestError(this.errorMessages.PRODUCT_NOT_FOUND);
+    }
+
+    return hasProduct;
+  }
+  private async checkHasSku(sku: string, storeId: string, productId?: string) {
+    const hasSku = await this.prisma.product.findFirst({
+      where: {
+        sku,
+        store_id: storeId,
+        is_deleted: false,
+        NOT: { id: productId },
+      },
+    });
+
+    if (hasSku) {
+      throw new BadRequestError(this.errorMessages.PRODUCT_SKU_EXISTS);
+    }
   }
 }

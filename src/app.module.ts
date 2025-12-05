@@ -39,7 +39,6 @@ import { OAuthModule } from './module/oauth/oauth.module';
 import { StoreModule } from './module/store/store.module';
 import { CategoryModule } from './module/category/category.module';
 
-import { InventoryModule } from './module/inventory/inventory.module';
 import { StockMovementModule } from './module/stock-movement/stock-movement.module';
 import { OrdersModule } from './module/orders/orders.module';
 import { StatisticsModule } from './module/statistics/statistics.module';
@@ -51,6 +50,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { SuppliersModule } from './module/suppliers/suppliers.module';
 import { PurchaseOrderModule } from './module/purchase-order/purchase-order.module';
 import { TagModule } from './module/tag/tag.module';
+import { VariantModule } from './module/variant/variant.module';
+import { UnitConversionModule } from './module/unit-conversion/unit-conversion.module';
 
 @Module({
   imports: [
@@ -113,7 +114,6 @@ import { TagModule } from './module/tag/tag.module';
     JobsModule,
     ProductModule,
     StockMovementModule,
-    InventoryModule,
     HealthModule,
     CategoryModule,
     DocsModule,
@@ -126,6 +126,8 @@ import { TagModule } from './module/tag/tag.module';
     SuppliersModule,
     PurchaseOrderModule,
     TagModule,
+    VariantModule,
+    UnitConversionModule,
   ],
   providers: [
     TokenService,

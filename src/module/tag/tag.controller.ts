@@ -29,7 +29,7 @@ export class TagController {
     return this.tagService.create(createTagDto, storeId);
   }
 
-  @Get()
+  @Get(':storeId')
   async findAll(
     @FilterParse({
       allowPagination: true,
@@ -37,7 +37,7 @@ export class TagController {
       allowGetBetweenDate: true,
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
-      allowedSortBy: ['name'],
+      allowedSortBy: ['name', 'createdAt'],
       searchBy: ['name', 'description'],
       searchKey: 'q',
       schema: z.object({

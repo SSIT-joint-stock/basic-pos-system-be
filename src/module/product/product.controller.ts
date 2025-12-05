@@ -40,7 +40,7 @@ export class ProductController {
   ) {}
 
   @Get('filter-product')
-  @ApiSuccess('Filter product successfully')
+  @ApiSuccess('Lấy toàn bộ dự liệu sản phẩm!')
   @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
   async filterProducts(
     @FilterParse({
@@ -83,8 +83,48 @@ export class ProductController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
+  @Post()
+  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
+  @ApiSuccess('Tạo sản phẩm thành công!')
+  create(
+    @Param('storeId') storeId: string,
+    @UserWithPermissions() user: IUserWithPermissions,
+    @Body() createProductDto: CreateProductDto,
+  ) {
+    return this.productService.create(user, storeId, createProductDto);
+  }
+
+  @Get(':id')
+  @ApiSuccess('Lấy chi tiết sản phẩm!')
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
+  findOne(@Param('storeId') storeId: string, @Param('id') id: string) {
+    return this.productService.findOne(storeId, id);
+  }
+
+  @Patch(':id')
+  @RequirePermissions(
+    [PERMISSIONS.PRODUCT_UPDATE, PERMISSIONS.PRODUCT_ALL],
+    'OR',
+  )
+  @ApiSuccess('Cập nhật sản phẩm thành công!')
+  update(
+    @Param('storeId') storeId: string,
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
+    return this.productService.update(storeId, id, updateProductDto);
+  }
+
+  @Delete(':id')
+  @RequirePermissions([PERMISSIONS.PRODUCT_DELETE])
+  @ApiSuccess('Xóa sản phẩm thành công!')
+  remove(@Param('storeId') storeId: string, @Param('id') id: string) {
+    return this.productService.remove(storeId, id);
+  }
+
+  // more service use case ...
   @Get('suggestions')
-  @ApiSuccess('Suggest product successfully')
+  @ApiSuccess('Lấy toàn bộ dự liệu sản phẩm!')
   @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
   async getProductSuggestion(
     @FilterParse({
@@ -114,86 +154,17 @@ export class ProductController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @Post()
-  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @ApiSuccess('Create product successfully')
-  create(
-    @Param('storeId') storeId: string,
-    @UserWithPermissions() user: IUserWithPermissions,
-    @Body() createProductDto: CreateProductDto,
-  ) {
-    return this.productService.create(user, storeId, createProductDto);
-  }
-
   @Post('product-template')
   @RequirePermissions([PERMISSIONS.ALL])
-  @ApiSuccess('Create product successfully')
+  @ApiSuccess('Tạo template sản phẩm')
   createProductTemplate(@Body() items: CreateProductTemplateDto[]) {
     return this.productService.createProductsTemplate(items);
-  }
-
-  @Get()
-  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
-  @ApiSuccess('Find all product successfully')
-  async findAll(
-    @Param('storeId') storeId: string,
-    @FilterParse({
-      allowPagination: true,
-      allowSorting: true,
-      allowGetBetweenDate: true,
-      defaultSortBy: 'createdAt',
-      defaultSort: 'desc',
-      allowedSortBy: ['createdAt', 'total_amount'],
-      schema: z.object({
-        createdAt: z
-          .object({
-            gte: z.string().optional(),
-            lte: z.string().optional(),
-          })
-          .optional(),
-      }),
-    })
-    query,
-  ) {
-    const { data, total } = await this.productService.findAll(
-      storeId,
-      query.prismaQuery,
-    );
-    return PaginatedResponse.from(data, query.page, query.limit, total, '');
-  }
-
-  @Get(':id')
-  @ApiSuccess('Find product by Id successfully')
-  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
-  findOne(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.productService.findOne(storeId, id);
-  }
-
-  @Patch(':id')
-  @RequirePermissions(
-    [PERMISSIONS.PRODUCT_UPDATE, PERMISSIONS.PRODUCT_ALL],
-    'OR',
-  )
-  @ApiSuccess('Update product successfully')
-  update(
-    @Param('storeId') storeId: string,
-    @Param('id') id: string,
-    @Body() updateProductDto: UpdateProductDto,
-  ) {
-    return this.productService.update(storeId, id, updateProductDto);
-  }
-
-  @Delete(':id')
-  @RequirePermissions([PERMISSIONS.PRODUCT_DELETE])
-  @ApiSuccess('Delete product successfully')
-  remove(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.productService.remove(storeId, id);
   }
 
   @Post('import-excel')
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @UseInterceptors(FileInterceptor('file'))
-  @ApiSuccess('Import product successfully')
+  @ApiSuccess('Nhập sản phẩm từ file excel thành công!')
   importExcel(
     @Param('storeId') storeId: string,
     @UserWithPermissions() user: IUserWithPermissions,
@@ -205,13 +176,14 @@ export class ProductController {
   @Post('import-template-excel')
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @UseInterceptors(FileInterceptor('file'))
-  @ApiSuccess('Import product successfully')
+  @ApiSuccess('Nhập template sản phẩm từ file excel thành công!')
   async importTemplateExcel(@UploadedFile() file: Express.Multer.File) {
     return this.importProductService.setProductTemplateByExcel(file);
   }
 
   @Post('example-product-excel')
   @RawResponse()
+  @ApiSuccess('Lấy file mẫu sản phẩm thành công!')
   getExampleProductExcel(): StreamableFile {
     // return this.productService.downloadExampleExcel();
     return this.excel.downloadExampleExcel('product');

@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PurchaseOrderService } from './purchase-order.service';
 import { PurchaseOrderController } from './purchase-order.controller';
-import { InventoryModule } from '../inventory/inventory.module';
 import { StockMovementModule } from '../stock-movement/stock-movement.module';
 import { GeneratePurchaseCodeUseCase } from './use-case/genereate-order-number.usecase';
 import { PurchasePaymentService } from './purchase-payment.service';
@@ -13,6 +12,6 @@ import { PurchasePaymentService } from './purchase-payment.service';
     GeneratePurchaseCodeUseCase,
     PurchasePaymentService,
   ],
-  imports: [InventoryModule, StockMovementModule],
+  imports: [StockMovementModule],
 })
 export class PurchaseOrderModule {}

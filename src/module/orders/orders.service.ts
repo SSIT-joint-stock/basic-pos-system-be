@@ -4,7 +4,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { order_status, Prisma, stock_movement_type } from '@prisma/client';
-import { InventoryService } from 'app/module/inventory/inventory.service';
 import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
 import { IUser } from 'app/common/types/user.type';
 import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
@@ -13,7 +12,6 @@ import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
-    private inventory: InventoryService,
     private stockMovement: StockMovementService,
     private generateOrderCode: GenerateOrderCodeUseCase,
   ) {}
@@ -56,16 +54,16 @@ export class OrdersService {
           payment_method,
 
           status: orderStatus,
-          order_item: {
-            createMany: {
-              data: order_items.map((item) => ({
-                product_id: item.product_id,
-                quantity: item.quantity,
-                price: item.price,
-                meta: item.meta ?? {},
-              })),
-            },
-          },
+          // order_item: {
+          //   createMany: {
+          //     data: order_items.map((item) => ({
+          //       product_id: item.product_id,
+          //       quantity: item.quantity,
+          //       price: item.price,
+          //       meta: item.meta ?? {},
+          //     })),
+          //   },
+          // },
         },
       });
 
@@ -90,13 +88,6 @@ export class OrdersService {
       }
 
       for (const item of order.order_item) {
-        await this.inventory.modify(
-          stock_movement_type.RETURN_SALE,
-          storeId,
-          item.product_id,
-          item.quantity,
-          tx,
-        );
         await this.stockMovement.create(
           item.product_id,
           stock_movement_type.RETURN_SALE,
@@ -190,13 +181,6 @@ export class OrdersService {
       item.product_id,
       stock_movement_type.SALE,
       qty,
-      tx,
-    );
-    await this.inventory.modify(
-      stock_movement_type.SALE,
-      storeId,
-      item.product_id,
-      item.quantity,
       tx,
     );
   }

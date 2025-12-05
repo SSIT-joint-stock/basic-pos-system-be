@@ -28,6 +28,7 @@ export class TagService {
   }
 
   async findAll(query: Prisma.TagFindManyArgs, storeId: string) {
+    await this.store.checkStore(storeId);
     const where: Prisma.TagWhereInput = {
       AND: [query.where ?? {}, { store_id: storeId }],
     };

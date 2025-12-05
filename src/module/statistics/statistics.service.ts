@@ -14,8 +14,10 @@ export class StatisticsService {
 
     const getStatusInStock = await this.prismaService.stockMovement.findMany({
       where: {
-        product: {
-          store_id: storeId,
+        variants: {
+          product: {
+            store_id: storeId,
+          },
         },
       },
       orderBy: {
@@ -23,9 +25,15 @@ export class StatisticsService {
       },
       take: 5,
       include: {
-        product: {
+        variants: {
           select: {
             name: true,
+            price: true,
+            product: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -58,7 +66,7 @@ export class StatisticsService {
       })),
       ...getStatusInStock.map((item) => ({
         type: NotificationType.stock,
-        title: `Số lượng ${item.quantity} sản phẩm ${item.product.name} đã được ${item.type}`,
+        title: `Số lượng ${item.quantity} sản phẩm ${item.variants.name} đã được ${item.type}`,
         time: dayjs(item.createdAt).fromNow(),
       })),
     ]
@@ -280,9 +288,6 @@ export class StatisticsService {
         store_id: storeId,
         id: { in: soldProducts },
       },
-      include: {
-        inventory: true,
-      },
     });
     return products
       .map((product) => ({
@@ -290,9 +295,7 @@ export class StatisticsService {
           id: product.id,
           name: product.name,
           image_url: product.image_url,
-          inventory: {
-            quantity: product?.inventory?.quantity,
-          },
+
           price: product.price,
         },
         quantitySold: topProducts[product.id] || 0,
@@ -314,11 +317,6 @@ export class StatisticsService {
         name: true,
         price: true,
         image_url: true,
-        inventory: {
-          select: {
-            quantity: true,
-          },
-        },
       },
     });
     const orders = await this.prismaService.order.findMany({
@@ -346,11 +344,9 @@ export class StatisticsService {
       }
     }
     const result = products.map((product) => {
-      const inventory = product.inventory?.quantity || 0;
       const totalSold = salesMap.get(product.id) || 0;
       const avgDailySales = totalSold / 30;
-      const daysRemaining =
-        avgDailySales > 0 ? inventory / avgDailySales : Infinity;
+      const daysRemaining = avgDailySales > 0 ? 30 / avgDailySales : Infinity;
       let status: 'critical' | 'warning' | 'normal' = 'normal';
       if (daysRemaining < 20) status = 'critical';
       else if (daysRemaining < 30) status = 'warning';
@@ -359,9 +355,7 @@ export class StatisticsService {
           id: product.id,
           name: product.name,
           image_url: product.image_url,
-          inventory: {
-            quantity: product?.inventory?.quantity,
-          },
+          // inventory: {},
           price: product.price,
         },
         totalSold30Days: totalSold,
