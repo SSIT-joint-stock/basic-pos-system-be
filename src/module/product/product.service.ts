@@ -124,6 +124,8 @@ export class ProductService {
         tags: true,
         baseUnit: true,
         categories: true,
+        updatedAt: true,
+        createdAt: true,
         meta: true,
         variant: {
           select: {
@@ -158,11 +160,9 @@ export class ProductService {
       variant: product?.variant.map((item) => {
         return {
           ...item,
-          variant_stocks: item.variant_stocks[0] ?? {
-            onHand: 0,
-            reserved: 0,
-            damaged: 0,
-          },
+          onHand: item?.variant_stocks?.[0]?.onHand,
+          reserved: item?.variant_stocks?.[0]?.reserved,
+          damaged: item?.variant_stocks?.[0]?.damaged,
         };
       }),
       variant_stocks: undefined,
@@ -205,13 +205,7 @@ export class ProductService {
 
   async remove(storeId: string, id: string) {
     await this.checkHasProduct(id, storeId);
-    // return await this.prisma.product.update({
-    //   where: { id, store_id: storeId },
-    //   data: {
-    //     deletedAt: new Date(),
-    //     is_deleted: true,
-    //   },
-    // });
+
     return await this.prisma.product.delete({
       where: { id, store_id: storeId },
     });

@@ -2,8 +2,6 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
-  IsInt,
-  Min,
   IsEnum,
   IsUrl,
   IsObject,
@@ -11,7 +9,6 @@ import {
   IsNumber,
   IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { product_status } from '@prisma/client';
 
 export class CreateProductDto {
@@ -39,15 +36,13 @@ export class CreateProductDto {
   @IsString()
   barcode?: string;
 
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  price: number;
+  @IsOptional()
+  @IsNumber()
+  price?: number;
 
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  cost: number;
+  @IsOptional()
+  @IsNumber()
+  cost?: number;
 
   @IsOptional()
   @IsString()
@@ -65,10 +60,6 @@ export class CreateProductDto {
   @IsOptional()
   @IsObject()
   meta?: Record<string, any>;
-
-  @IsOptional()
-  @IsInt()
-  initial_quantity?: number;
 
   @IsOptional()
   @IsArray()

@@ -71,6 +71,7 @@ enum stock_movement_type {
   RETURN_SALE
   // Transfer the stock of a product from one store to another store (for example: transfer 10 units of a product from one store to another store)
   TRANSFER_IMPORT
+  // 
   TRANSFER_EXPORT
 }
 

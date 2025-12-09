@@ -27,9 +27,11 @@ export class VariantService {
     const generateSku =
       await this.generateSkuVariant.generateSkuVariant(storeId);
     const { stock, conversions, ...res } = dto;
-    await this.checkProduct(productId);
-    await this.checkStore(storeId);
-    await this.existedVariant(productId, undefined, dto.sku, dto.name);
+    await Promise.all([
+      this.checkStore(storeId),
+      this.checkProduct(productId),
+      this.existedVariant(productId, undefined, dto.sku, dto.name),
+    ]);
     return this.prisma.$transaction(async (tx) => {
       const newVariant = await tx.variant.create({
         data: {
@@ -74,10 +76,11 @@ export class VariantService {
     dto: UpdateVariantDto,
     storeId: string,
   ) {
-    // await this.checkProduct(productId, id);
-    await this.checkVariant(id, productId, storeId);
-    await this.existedVariant(productId, id, dto.sku, dto.name);
-    await this.existedVariant(productId, id, dto.sku, dto.name);
+    await Promise.all([
+      this.checkVariant(id, productId, storeId),
+      this.existedVariant(productId, id, dto.sku, dto.name),
+      this.existedVariant(productId, id, dto.sku, dto.name),
+    ]);
     const { conversions, ...variantInfo } = dto;
 
     const updated = await this.prisma.variant.update({
@@ -91,17 +94,18 @@ export class VariantService {
   }
 
   async remove(id: string, productId: string, storeId: string) {
-    await this.checkProduct(productId, id);
-    await this.checkVariant(id, productId, storeId);
-    return this.prisma.variant.delete({
+    await Promise.all([
+      this.checkProduct(productId, storeId),
+      this.checkVariant(id, productId, storeId),
+    ]);
+    const deleted = await this.prisma.variant.delete({
       where: {
         id,
         product_id: productId,
-        conversions: {
-          none: {},
-        },
       },
     });
+    await this.unitConversion.removeUnitConversion(id);
+    return deleted;
   }
 
   // Private helpers method

@@ -86,4 +86,11 @@ export class UnitConversionService {
       throw new ConflictError(this.errMsg.UNIT_CONVERSION_EXISTS);
     }
   }
+  async removeUnitConversion(variantId: string) {
+    return this.prisma.unitConversion.deleteMany({
+      where: {
+        variantId: variantId,
+      },
+    });
+  }
 }
