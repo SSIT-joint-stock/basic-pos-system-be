@@ -1,29 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
-import { CreatePurchaseOrderDto } from './dto/purchase-order.dto';
-import { IUser } from 'app/common/types/user.type';
 import { NotFoundError } from 'app/common/response';
 import {
   Prisma,
-  product_type,
   purchase_order_status,
   stock_movement_type,
 } from '@prisma/client';
 import { GeneratePurchaseCodeUseCase } from './use-case/genereate-order-number.usecase';
 
-interface PurchaseOrderItem {
-  product_id: string;
-  quantity: Prisma.Decimal;
-  unit_cost: Prisma.Decimal;
-  discount_rate: Prisma.Decimal;
-  tax_rate: Prisma.Decimal;
-  subtotal: Prisma.Decimal;
-  discount_amount: Prisma.Decimal;
-  tax_amount: Prisma.Decimal;
-  total: Prisma.Decimal;
-  notes: string | undefined;
-}
 @Injectable()
 export class PurchaseOrderService {
   constructor(

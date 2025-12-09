@@ -7,9 +7,11 @@ import { ProductTemplateProvider } from './product.template';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
 import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
 import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
+import { StockMovementModule } from '../stock-movement/stock-movement.module';
 
 @Module({
   controllers: [ProductController],
+  imports: [StockMovementModule],
   providers: [
     ProductService,
     ImportProductService,

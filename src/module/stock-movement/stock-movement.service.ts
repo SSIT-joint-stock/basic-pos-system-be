@@ -46,11 +46,13 @@ export class StockMovementService {
     return stockMovement;
   }
 
-  async findAll(product_id: string, query: Prisma.StockMovementFindManyArgs) {
+  async findAll(store_id: string, query: Prisma.StockMovementFindManyArgs) {
     const where: Prisma.StockMovementWhereInput = {
       AND: [query.where ?? {}],
       variants: {
-        product_id,
+        product: {
+          store_id: store_id,
+        },
       },
     };
 

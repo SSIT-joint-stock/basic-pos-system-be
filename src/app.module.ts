@@ -51,7 +51,6 @@ import { SuppliersModule } from './module/suppliers/suppliers.module';
 import { PurchaseOrderModule } from './module/purchase-order/purchase-order.module';
 import { TagModule } from './module/tag/tag.module';
 import { VariantModule } from './module/variant/variant.module';
-import { UnitConversionModule } from './module/unit-conversion/unit-conversion.module';
 
 @Module({
   imports: [
@@ -127,7 +126,6 @@ import { UnitConversionModule } from './module/unit-conversion/unit-conversion.m
     PurchaseOrderModule,
     TagModule,
     VariantModule,
-    UnitConversionModule,
   ],
   providers: [
     TokenService,

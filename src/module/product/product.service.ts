@@ -15,6 +15,7 @@ import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
 
 import { CreateProductTemplateDto } from './dto/create-product-template-dto';
 import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
+import { StockMovementService } from '../stock-movement/stock-movement.service';
 
 @Injectable()
 export class ProductService {
@@ -34,6 +35,7 @@ export class ProductService {
     private readonly prisma: PrismaService,
     private readonly generateSku: GenerateProductSkuUseCase,
     private readonly generateVariantSku: GenerateVariantSkuUseCase,
+    private readonly stockMovementService: StockMovementService,
   ) {}
 
   async create(
@@ -87,27 +89,84 @@ export class ProductService {
           store_id: storeId,
         },
       });
-      await tx.stockMovement.create({
-        data: {
-          variant_id: newVariant?.id,
-          quantity: quantity || 0,
-          type: stock_movement_type.ADJUSTMENT,
-        },
-      });
+      // chỉ ghi lại bản ghi stock movement khi quantity user nhập vào khác 0
+      if (quantity !== 0) {
+        await this.stockMovementService.create(
+          newVariant?.id,
+          stock_movement_type.ADJUSTMENT,
+          quantity || 0,
+          tx,
+        );
+      }
       // }
     });
   }
 
   async findOne(storeId: string, id: string) {
     await this.checkHasProduct(id, storeId);
-    return await this.prisma.product.findUnique({
-      where: { store_id: storeId, id, is_deleted: false },
-      include: {
-        categories: true,
+    const product = await this.prisma.product.findUnique({
+      where: {
+        store_id: storeId,
+        id,
+        is_deleted: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        sku: true,
+        price: true,
+        cost: true,
+        image_url: true,
+        product_status: true,
+        barcode: true,
+        created_by: true,
         tags: true,
-        variant: true,
+        baseUnit: true,
+        categories: true,
+        meta: true,
+        variant: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            price: true,
+            conversions: {
+              select: {
+                id: true,
+                name: true,
+                factor: true,
+              },
+            },
+            variant_stocks: {
+              where: {
+                store_id: storeId,
+              },
+              select: {
+                onHand: true,
+                reserved: true,
+                damaged: true,
+              },
+              take: 1,
+            },
+          },
+        },
       },
     });
+    return {
+      ...product,
+      variant: product?.variant.map((item) => {
+        return {
+          ...item,
+          variant_stocks: item.variant_stocks[0] ?? {
+            onHand: 0,
+            reserved: 0,
+            damaged: 0,
+          },
+        };
+      }),
+      variant_stocks: undefined,
+    };
   }
 
   async update(storeId: string, id: string, data: UpdateProductDto) {

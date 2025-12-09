@@ -4,107 +4,95 @@ import { UpdateVariantDto } from './dto/update-variant.dto';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ConflictError, NotFoundError } from 'app/common/response';
 import { GenerateVariantSkuUseCase } from './use-case/genereate-sku-variant.usecase';
+import { StockMovementService } from '../stock-movement/stock-movement.service';
+import { stock_movement_type } from '@prisma/client';
+import { UnitConversionService } from './unit-conversion/unit-conversion.service';
 
 @Injectable()
 export class VariantService {
   private readonly errMsg = {
     PRODUCT_NOT_FOUND: 'Sản phẩm không tồn tại trong kho!',
+    STORE_NOT_FOUND: 'Không tìm thấy cửa hàng!',
     VARIANT_NOT_FOUND: 'Không tìm thấy biến thể của sản phẩm!',
-    ALREADY_HAS_SKU: 'Mã biến thể đã tồn tai. Vui lòng thử lại!',
-    ALREADY_VARIANT_IN_PRODUCT:
-      'Biến thể nây đã tìm thấy trong sản phẩm. Vui lòng thử lại!',
+    VARIANT_EXISTED:
+      'Tên/mã (sku) biến thể nây được tìm thấy trong sản phẩm. Vui lòng thử lại!',
   };
   constructor(
     private readonly prisma: PrismaService,
     private readonly generateSkuVariant: GenerateVariantSkuUseCase,
+    private readonly stockMovement: StockMovementService,
+    private readonly unitConversion: UnitConversionService,
   ) {}
-  async create(dto: CreateVariantDto, productId: string) {
+  async create(dto: CreateVariantDto, productId: string, storeId: string) {
+    const generateSku =
+      await this.generateSkuVariant.generateSkuVariant(storeId);
+    const { stock, conversions, ...res } = dto;
     await this.checkProduct(productId);
-    await this.checkUniqueUnitName(
-      productId,
-      dto.conversions?.map((i) => i.name) ?? [],
-    );
-    return this.prisma.variant.create({
-      data: {
-        ...dto,
-        sku:
-          dto.sku ||
-          (await this.generateSkuVariant.generateSkuVariant(productId)),
-        product_id: productId,
-        conversions: dto.conversions?.length
-          ? {
-              create: dto.conversions?.map((c) => ({
-                name: c.name || '',
-                factor: c.factor || 1,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        conversions: true,
-      },
-    });
-  }
-
-  async findALlInProduct(id: string, productId: string) {
-    await this.checkProduct(productId, id);
-    await this.checkVariant(id, productId);
-  }
-
-  async update(id: string, productId: string, dto: UpdateVariantDto) {
-    await this.checkProduct(productId, id);
-    await this.checkVariant(id, productId);
-    await this.checkHasVariantSku(id, productId, dto?.sku);
-    await this.checkUniqueUnitName(
-      productId,
-      dto.conversions?.map((i) => i.name || '') ?? [],
-    );
-    return this.prisma.variant.update({
-      where: {
-        id,
-        product_id: productId,
-      },
-      data: {
-        ...dto,
-        conversions: {
-          // delete unit conversion when user choose
-          deleteMany: {
-            id: {
-              notIn: dto.conversions
-                ?.filter((i) => i.unit_id)
-                .map((i) => i.unit_id),
-            },
-          },
-          // create new unit conversion
-          create: dto.conversions
-            ?.filter((i) => !i.unit_id)
-            .map((c) => ({
-              name: c.name || '',
-              factor: c.factor || 1,
-            })),
-          // update unit conversion
-          update: dto.conversions
-            ?.filter((i) => i.unit_id)
-            .map((i) => ({
-              where: {
-                id: i.unit_id,
-              },
-              data: {
-                name: i.name || '',
-                factor: i.factor || 1,
-              },
-            })),
+    await this.checkStore(storeId);
+    await this.existedVariant(productId, undefined, dto.sku, dto.name);
+    return this.prisma.$transaction(async (tx) => {
+      const newVariant = await tx.variant.create({
+        data: {
+          ...res,
+          sku: dto.sku || generateSku,
+          product_id: productId,
         },
-      },
-      include: {
-        conversions: true,
-      },
+      });
+      await this.unitConversion.create(newVariant?.id, conversions || [], tx);
+      await tx.variantStock.create({
+        data: {
+          variant_id: newVariant.id,
+          onHand: stock || 0,
+          store_id: storeId,
+        },
+      });
+
+      if (stock !== 0)
+        await this.stockMovement.create(
+          newVariant.id,
+          stock_movement_type.ADJUSTMENT,
+          stock || 0,
+          tx,
+        );
     });
   }
 
-  async remove(id: string, productId: string) {
+  async findALlInProduct(productId: string, storeId: string) {
+    await this.checkProduct(productId, storeId);
+    return this.prisma.variant.findMany({
+      where: { product_id: productId, product: { store_id: storeId } },
+    });
+  }
+  async findOneInProduct(id: string, productId: string, storeId: string) {
+    await this.checkProduct(productId, storeId);
+    return await this.checkVariant(id, productId, storeId);
+  }
+
+  async update(
+    id: string,
+    productId: string,
+    dto: UpdateVariantDto,
+    storeId: string,
+  ) {
+    // await this.checkProduct(productId, id);
+    await this.checkVariant(id, productId, storeId);
+    await this.existedVariant(productId, id, dto.sku, dto.name);
+    await this.existedVariant(productId, id, dto.sku, dto.name);
+    const { conversions, ...variantInfo } = dto;
+
+    const updated = await this.prisma.variant.update({
+      where: { id, product_id: productId },
+      data: variantInfo,
+    });
+    if (conversions) {
+      await this.unitConversion.updateConversions(id, dto);
+    }
+    return updated;
+  }
+
+  async remove(id: string, productId: string, storeId: string) {
     await this.checkProduct(productId, id);
-    await this.checkVariant(id, productId);
+    await this.checkVariant(id, productId, storeId);
     return this.prisma.variant.delete({
       where: {
         id,
@@ -115,6 +103,8 @@ export class VariantService {
       },
     });
   }
+
+  // Private helpers method
 
   private async checkProduct(id: string, storeId?: string) {
     const product = await this.prisma.product.findUnique({
@@ -128,56 +118,70 @@ export class VariantService {
     }
     return product;
   }
-  private async checkVariant(id: string, productId: string) {
+  private async checkVariant(id: string, productId: string, storeId?: string) {
     const variant = await this.prisma.variant.findUnique({
       where: {
         id,
         product_id: productId,
+        product: {
+          store_id: storeId,
+        },
       },
       include: {
         conversions: true,
+        variant_stocks: {
+          where: {
+            store_id: storeId,
+          },
+          select: {
+            onHand: true,
+            reserved: true,
+            damaged: true,
+          },
+          take: 1,
+        },
       },
     });
     if (!variant) {
       throw new NotFoundError(this.errMsg.VARIANT_NOT_FOUND);
     }
+    return {
+      ...variant,
+      onHand: variant?.variant_stocks?.[0]?.onHand,
+      reserved: variant?.variant_stocks?.[0]?.reserved,
+      damaged: variant?.variant_stocks?.[0]?.damaged,
+    };
+  }
+  private async existedVariant(
+    productId: string,
+    id?: string,
+    sku?: string,
+    name?: string,
+  ) {
+    const variant = await this.prisma.variant.findFirst({
+      where: {
+        product_id: productId,
+        OR: [{ sku: sku }, { name: name }],
+        NOT: {
+          id: id, // Loại trừ variant hiện tại (nếu update)
+        },
+      },
+    });
+
+    if (variant) {
+      throw new ConflictError(this.errMsg.VARIANT_EXISTED);
+    }
     return variant;
   }
-  private async checkHasVariantSku(
-    id: string,
-    productId: string,
-    sku?: string,
-  ) {
-    const hasSkuVariant = await this.prisma.variant.findFirst({
+
+  private async checkStore(storeId: string) {
+    const store = await this.prisma.store.findUnique({
       where: {
-        id,
-        product_id: productId,
-        sku,
-        NOT: {
-          id,
-          product_id: productId,
-        },
+        id: storeId,
       },
     });
-    if (hasSkuVariant) {
-      throw new ConflictError(this.errMsg.ALREADY_HAS_SKU);
-    }
-  }
-  private async checkUniqueUnitName(productId: string, name: string[]) {
-    const hasUnitName = await this.prisma.variant.findFirst({
-      where: {
-        product_id: productId,
-        conversions: {
-          some: {
-            name: {
-              in: name,
-            },
-          },
-        },
-      },
-    });
-    if (hasUnitName) {
-      throw new ConflictError(this.errMsg.ALREADY_VARIANT_IN_PRODUCT);
+    if (!store) {
+      throw new NotFoundError(this.errMsg.STORE_NOT_FOUND);
     }
   }
 }
