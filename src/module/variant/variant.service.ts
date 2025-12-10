@@ -5,7 +5,7 @@ import { PrismaService } from 'app/prisma/prisma.service';
 import { ConflictError, NotFoundError } from 'app/common/response';
 import { GenerateVariantSkuUseCase } from './use-case/genereate-sku-variant.usecase';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
-import { stock_movement_type } from '@prisma/client';
+import { Prisma, product_status, stock_movement_type } from '@prisma/client';
 import { UnitConversionService } from './unit-conversion/unit-conversion.service';
 
 @Injectable()
@@ -68,6 +68,59 @@ export class VariantService {
   async findOneInProduct(id: string, productId: string, storeId: string) {
     await this.checkProduct(productId, storeId);
     return await this.checkVariant(id, productId, storeId);
+  }
+  async findAll(storeId: string, query: Prisma.VariantFindManyArgs) {
+    await this.checkStore(storeId);
+    const where: Prisma.VariantWhereInput = {
+      AND: [
+        query.where ?? {},
+        {
+          product: {
+            store_id: storeId,
+            product_status: product_status.ACTIVE,
+          },
+        },
+      ],
+    };
+
+    const [variants, total] = await Promise.all([
+      this.prisma.variant.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+        include: {
+          conversions: true,
+          variant_stocks: {
+            select: {
+              onHand: true,
+              reserved: true,
+              damaged: true,
+            },
+            where: {
+              store_id: storeId,
+            },
+            take: 1,
+          },
+        },
+      }),
+      this.prisma.variant.count({
+        where,
+      }),
+    ]);
+    const normalizedVariants = variants.map((variant) => {
+      const stock = variant.variant_stocks?.[0];
+
+      return {
+        ...variant,
+        onHand: stock?.onHand ?? 0,
+        reserved: stock?.reserved ?? 0,
+        damaged: stock?.damaged ?? 0,
+        variant_stocks: undefined,
+      };
+    });
+
+    return { data: normalizedVariants, total };
   }
 
   async update(

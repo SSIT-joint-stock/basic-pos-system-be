@@ -17,6 +17,12 @@ import { User } from 'app/common/decorators/user.decorator';
 import type { IUser } from 'app/common/types/user.type';
 import { stock_movement_type } from '@prisma/client';
 import { ApplyStockUseCase } from './use-case/apply-stock.usecase';
+import {
+  FilterParse,
+  type FilterParseResult,
+} from 'app/common/decorators/filter-parse.decorator';
+import z from 'zod';
+import { PaginatedResponse } from 'app/common/response';
 
 @Controller('variant')
 export class VariantController {
@@ -59,6 +65,43 @@ export class VariantController {
       user?.storeId || '',
     );
   }
+  @Get('')
+  @RequirePermission([PERMISSIONS.VARIANT_READ, PERMISSIONS.VARIANT_ALL])
+  async findAllByStore(
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'price', 'name'],
+      rangeFields: ['price'],
+      searchBy: ['name', 'sku', 'barcode'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(), // ⬅️ thêm q vào schema
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+        min_price: z.coerce.number().optional(),
+        max_price: z.coerce.number().optional(),
+        sku: z.string().optional(),
+        barcode: z.string().optional(),
+        categories: z.string().optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+    @User() { storeId }: IUser,
+  ) {
+    const { data, total } = await this.variantService.findAll(
+      storeId || '',
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
 
   @Patch(':id/update/:productId')
   @RequirePermission([PERMISSIONS.VARIANT_UPDATE, PERMISSIONS.VARIANT_ALL])
@@ -88,8 +131,9 @@ export class VariantController {
     return this.variantService.remove(id, productId, user?.storeId || '');
   }
 
-  @Post(':id/apply-stock/:productId')
+  @Patch(':id/apply-stock/:productId')
   @RequirePermission([PERMISSIONS.VARIANT_UPDATE, PERMISSIONS.VARIANT_ALL])
+  @ApiSuccess('Cập nhật tồn kho thành công!')
   async applyStockVariant(
     @Param('id') id: string,
     @Param('productId') productId: string,

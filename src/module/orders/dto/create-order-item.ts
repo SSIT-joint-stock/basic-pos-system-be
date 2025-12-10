@@ -4,6 +4,9 @@ export class CreateOrderItemDto {
   @IsUUID()
   product_id: string;
 
+  @IsUUID()
+  variant_id: string;
+
   @IsInt()
   @Min(1)
   quantity: number;

@@ -7,6 +7,7 @@ import { order_status, Prisma, stock_movement_type } from '@prisma/client';
 import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
 import { IUser } from 'app/common/types/user.type';
 import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
+import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
 
 @Injectable()
 export class OrdersService {
@@ -14,6 +15,7 @@ export class OrdersService {
     private prisma: PrismaService,
     private stockMovement: StockMovementService,
     private generateOrderCode: GenerateOrderCodeUseCase,
+    private applyStock: ApplyStockUseCase,
   ) {}
 
   //   TODO: Update quantity in inventory when Hoa complete his job
@@ -54,22 +56,22 @@ export class OrdersService {
           payment_method,
 
           status: orderStatus,
-          // order_item: {
-          //   createMany: {
-          //     data: order_items.map((item) => ({
-          //       product_id: item.product_id,
-          //       quantity: item.quantity,
-          //       price: item.price,
-          //       meta: item.meta ?? {},
-          //     })),
-          //   },
-          // },
+          order_item: {
+            createMany: {
+              data: order_items.map((item) => ({
+                product_id: item.product_id,
+                variant_id: item.variant_id,
+                quantity: item.quantity,
+                price: item.price,
+                meta: item.meta ?? {},
+              })),
+            },
+          },
         },
       });
 
       for (const item of order_items) {
-        await this.handleStockChange(storeId, item, tx);
-        await this.handleStockChange(storeId, item, tx);
+        await this.handleStockChange(storeId, item);
       }
 
       return { order, orderId: order.id };
@@ -172,16 +174,16 @@ export class OrdersService {
    */
   private async handleStockChange(
     storeId: string,
-    item: { product_id: string; quantity: number },
-    tx: Prisma.TransactionClient,
+    item: { product_id: string; quantity: number; variant_id: string },
   ) {
     const qty = -Math.abs(item.quantity);
 
-    await this.stockMovement.create(
-      item.product_id,
+    await this.applyStock.execute(
       stock_movement_type.SALE,
+      storeId,
+      item.variant_id,
+      item.product_id,
       qty,
-      tx,
     );
   }
 }

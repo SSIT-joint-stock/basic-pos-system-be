@@ -32,12 +32,12 @@ enum user_status {
 }
 
 enum order_status {
-  PENDING
-  PROCESSING
-  COMPLETED
-  CANCELLED
-  RETURNED
-  OVERAGE
+  PENDING // thanh toán đang chờ xử lý
+  PROCESSING // XỬ LÝ
+  COMPLETED // hoàn thành
+  CANCELLED // bị hủy
+  RETURNED // trả 
+  OVERAGE // quá trình
 }
 
 enum inventory_status {
@@ -88,6 +88,7 @@ enum supplier_status {
   INACTIVE
   DELETE
 }
+
 enum payment_status {
   UNPAID // Chưa thanh toán (đơn hàng mới tạo)
   PARTIAL // Thanh toán một phần (khách hàng đã thanh toán một phần)
