@@ -100,6 +100,12 @@ export class ProductService {
         );
       }
       // }
+      return {
+        ...newVariant,
+        product: {
+          baseUnit: newProduct?.baseUnit,
+        },
+      };
     });
   }
 

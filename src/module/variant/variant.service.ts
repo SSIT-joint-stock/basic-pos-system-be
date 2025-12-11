@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { ConflictError, NotFoundError } from 'app/common/response';
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from 'app/common/response';
 import { GenerateVariantSkuUseCase } from './use-case/genereate-sku-variant.usecase';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
 import { Prisma, product_status, stock_movement_type } from '@prisma/client';
@@ -14,6 +18,7 @@ export class VariantService {
     PRODUCT_NOT_FOUND: 'Sản phẩm không tồn tại trong kho!',
     STORE_NOT_FOUND: 'Không tìm thấy cửa hàng!',
     VARIANT_NOT_FOUND: 'Không tìm thấy biến thể của sản phẩm!',
+    CANNOT_DELETE_VARIANT: 'Không thể xoá biến thể cuối cùng của sản phẩm.',
     VARIANT_EXISTED:
       'Tên/mã (sku) biến thể nây được tìm thấy trong sản phẩm. Vui lòng thử lại!',
   };
@@ -91,6 +96,12 @@ export class VariantService {
         orderBy: query.orderBy,
         include: {
           conversions: true,
+          product: {
+            select: {
+              baseUnit: true,
+              name: true,
+            },
+          },
           variant_stocks: {
             select: {
               onHand: true,
@@ -147,10 +158,11 @@ export class VariantService {
   }
 
   async remove(id: string, productId: string, storeId: string) {
-    await Promise.all([
-      this.checkProduct(productId, storeId),
-      this.checkVariant(id, productId, storeId),
-    ]);
+    const product = await this.checkProduct(productId, storeId);
+    if (product.variant.length === 1) {
+      throw new BadRequestError(this.errMsg.CANNOT_DELETE_VARIANT);
+    }
+    await this.checkVariant(id, productId, storeId);
     const deleted = await this.prisma.variant.delete({
       where: {
         id,
@@ -168,6 +180,9 @@ export class VariantService {
       where: {
         id,
         store_id: storeId,
+      },
+      include: {
+        variant: true,
       },
     });
     if (!product) {
