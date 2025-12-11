@@ -46,7 +46,7 @@ export class ProductService {
     return this.prisma.$transaction(async (tx) => {
       const genSku = await this.generateSku.generateSku(storeId);
       await this.checkHasSku(data.sku || genSku, storeId);
-      const { categoryIds, tagIds, quantity, ...body } = data;
+      const { categoryIds, tagIds, quantity, cost, price, ...body } = data;
       // create product
       const newProduct = await tx.product.create({
         data: {
@@ -79,7 +79,8 @@ export class ProductService {
           name: newProduct?.name,
           sku:
             (await this.generateVariantSku.generateSkuVariant(storeId)) || '',
-          price: newProduct?.price,
+          price: price || 0,
+          cost: cost || 0,
         },
       });
       await tx.variantStock.create({
@@ -115,8 +116,6 @@ export class ProductService {
         name: true,
         description: true,
         sku: true,
-        price: true,
-        cost: true,
         image_url: true,
         product_status: true,
         barcode: true,
@@ -287,8 +286,6 @@ export class ProductService {
         id: p.id,
         name: p.name,
         barcode: p.barcode,
-        price: p.price,
-        cost: p.cost,
         image_url: p.image_url,
         source: 'PRODUCT',
         categories: p.categories,

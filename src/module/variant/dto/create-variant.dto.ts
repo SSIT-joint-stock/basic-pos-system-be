@@ -31,6 +31,10 @@ export class CreateVariantDto {
 
   @IsOptional()
   @IsNumber()
+  cost?: number;
+
+  @IsOptional()
+  @IsNumber()
   stock?: number;
 
   @IsOptional()

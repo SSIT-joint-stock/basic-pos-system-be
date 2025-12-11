@@ -106,6 +106,11 @@ export class StoreService {
             email: true,
           },
         },
+        store_payment: {
+          select: {
+            bank_qr_image_url: true,
+          },
+        },
         members: {
           include: {
             user: {

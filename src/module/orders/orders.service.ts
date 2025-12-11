@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -8,6 +6,7 @@ import { StockMovementService } from 'app/module/stock-movement/stock-movement.s
 import { IUser } from 'app/common/types/user.type';
 import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
 import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
+import { CreateOrderItemDto } from './dto/create-order-item';
 
 @Injectable()
 export class OrdersService {
@@ -18,25 +17,23 @@ export class OrdersService {
     private applyStock: ApplyStockUseCase,
   ) {}
 
-  //   TODO: Update quantity in inventory when Hoa complete his job
-
   async create(storeId: string, dto: CreateOrderDto, user: IUser) {
     const {
       code,
       customer_name,
-      subtotal_amount,
-      discount_amount,
       customer_pay_amount = 0,
-      tax_amount,
-      total_amount = 0,
       payment_method,
       order_items = [],
     } = dto;
 
+    const { subtotal_amount, discount_amount, tax_amount } =
+      this.calculateOrderTotals(order_items);
+    const total_amount = subtotal_amount - discount_amount + tax_amount;
     const orderStatus = this.determineOrderStatus(
       total_amount,
       customer_pay_amount,
     );
+
     const changeAmount = customer_pay_amount - total_amount;
 
     return this.prisma.$transaction(async (tx) => {
@@ -64,6 +61,8 @@ export class OrdersService {
                 quantity: item.quantity,
                 price: item.price,
                 meta: item.meta ?? {},
+                discount_rate: item.discount_rate,
+                tax_rate: item.tax_rate,
               })),
             },
           },
@@ -90,11 +89,12 @@ export class OrdersService {
       }
 
       for (const item of order.order_item) {
-        await this.stockMovement.create(
+        await this.applyStock.execute(
+          stock_movement_type.ADJUSTMENT,
+          storeId,
+          item.variant_id,
           item.product_id,
-          stock_movement_type.RETURN_SALE,
           item.quantity,
-          tx,
         );
 
         await tx.orderItem.deleteMany({
@@ -114,7 +114,7 @@ export class OrdersService {
       include: {
         order_item: {
           include: {
-            product: true,
+            variant: true,
           },
         },
       },
@@ -127,30 +127,36 @@ export class OrdersService {
       AND: [query?.where ?? {}, { store_id }],
     };
 
-    // build args for findMany: keep everything from query but use baseWhere
-    const findArgs: Prisma.OrderFindManyArgs = {
-      ...(query ?? {}),
-      where: baseWhere,
-    };
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where: baseWhere,
+        skip: query?.skip,
+        take: query?.take,
+        orderBy: query?.orderBy,
+        include: {
+          customer: true,
+          order_item: {
+            select: {
+              variant_id: true,
+              product_id: true,
+              price: true,
+              tax_rate: true,
+              discount_rate: true,
+              quantity: true,
+              meta: true,
 
-    // If user passed `select`, Prisma forbids `include` at same time.
-    // So ensure include is only set when select isn't present.
-    if (query?.select) {
-      delete (findArgs as any).include;
-    } else {
-      (findArgs as any).include = {
-        order_item: {
-          include: {
-            product: true,
+              variant: {
+                select: {
+                  id: true,
+                  price: true,
+                  name: true,
+                  sku: true,
+                },
+              },
+            },
           },
         },
-        ...(query?.include ?? {}),
-      };
-    }
-
-    const [orders, total] = await Promise.all([
-      this.prisma.order.findMany(findArgs),
-      // count must use the same baseWhere (so it counts with store_id filter)
+      }),
       this.prisma.order.count({ where: baseWhere }),
     ]);
 
@@ -185,5 +191,36 @@ export class OrdersService {
       item.product_id,
       qty,
     );
+  }
+  private calculateOrderTotals(order_items: CreateOrderItemDto[]) {
+    const calculatedItems = order_items.map((item) => {
+      const itemSubtotal = item.quantity * item.price;
+      const itemDiscount = itemSubtotal * (item.discount_rate || 0);
+      const subtotalAfterDiscount = itemSubtotal - itemDiscount;
+      const itemTax = subtotalAfterDiscount * ((item.tax_rate || 0) / 100);
+
+      return {
+        subtotal: itemSubtotal,
+        discount_amount: Math.round(itemDiscount),
+        tax_amount: Math.round(itemTax),
+        line_total: Math.round(subtotalAfterDiscount + itemTax),
+      };
+    });
+
+    return {
+      subtotal_amount: calculatedItems.reduce(
+        (sum, item) => sum + item.subtotal,
+        0,
+      ),
+      discount_amount: calculatedItems.reduce(
+        (sum, item) => sum + item.discount_amount,
+        0,
+      ),
+      tax_amount: calculatedItems.reduce(
+        (sum, item) => sum + item.tax_amount,
+        0,
+      ),
+      line_items: calculatedItems,
+    };
   }
 }

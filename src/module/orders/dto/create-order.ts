@@ -25,6 +25,7 @@ export class CreateOrderDto {
   @IsString()
   customer_name?: string;
 
+  @IsOptional()
   @IsInt()
   @Min(0)
   subtotal_amount: number;

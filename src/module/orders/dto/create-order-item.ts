@@ -11,6 +11,12 @@ export class CreateOrderItemDto {
   @Min(1)
   quantity: number;
 
+  @IsOptional()
+  discount_rate?: number;
+
+  @IsOptional()
+  tax_rate?: number;
+
   @IsInt()
   @Min(0)
   price: number;

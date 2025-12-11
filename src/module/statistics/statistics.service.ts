@@ -296,10 +296,10 @@ export class StatisticsService {
           name: product.name,
           image_url: product.image_url,
 
-          price: product.price,
+          // price: product.price,
         },
         quantitySold: topProducts[product.id] || 0,
-        total: topProducts[product.id] * product.price,
+        // total: topProducts[product.id] * product.price,
       }))
       .filter((product) => product.quantitySold > 0)
       .sort((a, b) => b.quantitySold - a.quantitySold)
@@ -315,7 +315,7 @@ export class StatisticsService {
       select: {
         id: true,
         name: true,
-        price: true,
+        // price: true,
         image_url: true,
       },
     });
@@ -356,7 +356,7 @@ export class StatisticsService {
           name: product.name,
           image_url: product.image_url,
           // inventory: {},
-          price: product.price,
+          // price: product.price,
         },
         totalSold30Days: totalSold,
         daysRemaining: Number(daysRemaining.toFixed(1)),

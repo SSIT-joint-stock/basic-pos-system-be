@@ -49,10 +49,9 @@ export class ProductController {
       allowGetBetweenDate: true,
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
-      allowedSortBy: ['createdAt', 'price', 'cost', 'name'],
-      rangeFields: ['cost', 'price'], // thêm dòng này
-      searchBy: ['name', 'description'], // thêm dòng này
-      searchKey: 'q', // FIX: nếu muốn đổi tên key tìm kiếm
+      allowedSortBy: ['createdAt', 'name'],
+      searchBy: ['name', 'description'],
+      searchKey: 'q',
       listFields: ['categories'],
       schema: z.object({
         q: z.string().optional(), // ⬅️ thêm q vào schema
@@ -62,10 +61,6 @@ export class ProductController {
             lte: z.string().optional(),
           })
           .optional(),
-        min_price: z.coerce.number().optional(),
-        max_price: z.coerce.number().optional(),
-        min_cost: z.coerce.number().optional(),
-        max_cost: z.coerce.number().optional(),
         sku: z.string().optional(),
         barcode: z.string().optional(),
         image_url: z.string().url().optional(),

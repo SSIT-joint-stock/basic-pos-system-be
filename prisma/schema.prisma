@@ -313,6 +313,8 @@ model Supplier {
   code            String?   // Mã nhà cung cấp (tự tạo, dễ nhớ)
   name            String   // Tên nhà cung cấp
   contact_person  String?  // Tên người liên hệ
+  address         String?
+  tax_code        String?
   email           String?  @default("") // Email liên hệ
   phone           String?  // Số đcdthuế
   bank_account    Json?    // Thông tin tài khoản ngân hàng (JSON object)
@@ -348,8 +350,6 @@ model Product {
   sku             String 
   baseUnit        String           // Đơn vị gốc (VD: "cái", "ml"). Immutable.
   barcode         String?
-  price           Int              @default(0)
-  cost            Int              @default(0)
   image_url       String?
   description     String?
   product_status  product_status   @default(ACTIVE)
@@ -384,6 +384,7 @@ model Variant {
   barcode String?
   name    String
   price   Int       @default(0)
+  cost Int?          @default(0)
   product      Product      @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   conversions  UnitConversion[]
   order_item      OrderItem[]
@@ -440,6 +441,8 @@ model ProductTemplate {
   meta            Json             @default("{}")
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+
+  @@map("product_template")
 }
 
 
@@ -567,6 +570,8 @@ model OrderItem {
   variant_id String   @db.Uuid
   product_id  String  @db.Uuid
   quantity   Int      @default(0)
+  discount_rate  Decimal? @default(0) 
+  tax_rate       Decimal? @default(0) 
   price      Int      @default(0)
   meta       Json     @default("{}")
   createdAt  DateTime @default(now())
