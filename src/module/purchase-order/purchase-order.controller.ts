@@ -12,6 +12,9 @@ import z from 'zod';
 import { payment_status, purchase_order_status } from '@prisma/client';
 import { PaginatedResponse } from 'app/common/response';
 import { PurchasePaymentService } from './purchase-payment.service';
+import type { IUser } from 'app/common/types/user.type';
+import { CreatePurchaseOrderDto } from './dto/purchase-order.dto';
+import { User } from 'app/common/decorators/user.decorator';
 
 @Controller('purchase-order')
 export class PurchaseOrderController {
@@ -19,50 +22,65 @@ export class PurchaseOrderController {
     private readonly purchaseOrderService: PurchaseOrderService,
     private readonly purchasePaymentService: PurchasePaymentService,
   ) {}
-  // @Post(':storeId')
-  // @ApiSuccess('Tạo đơn nhập hàng thành công!')
-  // @RequirePermission([PERMISSIONS.PURCHASE_ORDER_CREATE])
-  // async createPurchaseOrder(
-  //   @Param('storeId') storeId: string,
-  //   @Body() dto: CreatePurchaseOrderDto,
-  //   @User() user: IUser,
-  // ) {
-  //   return await this.purchaseOrderService.createPurchaseOrder(
-  //     storeId,
-  //     dto,
-  //     user,
-  //   );
-  // }
+  @Post('')
+  @ApiSuccess('Tạo đơn nhập hàng thành công!')
+  @RequirePermission([PERMISSIONS.PURCHASE_ORDER_CREATE])
+  async createPurchaseOrder(
+    @Body() dto: CreatePurchaseOrderDto,
+    @User() user: IUser,
+  ) {
+    return await this.purchaseOrderService.createPurchaseOrder(
+      user.storeId || '',
+      dto,
+      user,
+    );
+  }
 
-  @Post(':storeId/accept-payment/:id')
+  @Post('accept-payment/:id')
   @ApiSuccess('Xác nhận thanh toán đơn hàng thành công!')
   @RequirePermission([PERMISSIONS.PURCHASE_ORDER_UPDATE])
   async acceptPayment(
-    @Param('storeId') storeId: string,
+    @User() user: IUser,
     @Param('id') id: string,
     @Body() dto: AcceptPaymentImportPurchaseDto,
   ) {
-    return await this.purchasePaymentService.acceptPayment(storeId, id, dto);
+    return await this.purchasePaymentService.acceptPayment(
+      user.storeId || '',
+      id,
+      dto,
+    );
   }
 
-  @Post(':storeId/accept-import/:id')
+  @Post('accept-import/:id')
   @ApiSuccess('Xác nhận nhập kho thành công!')
   @RequirePermission([PERMISSIONS.PURCHASE_ORDER_UPDATE])
-  async acceptImport(
-    @Param('storeId') storeId: string,
-    @Param('id') id: string,
-  ) {
-    return await this.purchaseOrderService.acceptPurchaseImport(id, storeId);
+  async acceptImport(@User() user: IUser, @Param('id') id: string) {
+    return await this.purchaseOrderService.acceptPurchaseImport(
+      id,
+      user.storeId || '',
+      user,
+    );
   }
 
-  @Get(':storeId')
+  @Get(':id')
+  @RequirePermission([
+    PERMISSIONS.PURCHASE_ORDER_READ,
+    PERMISSIONS.PURCHASE_ORDER_ALL,
+  ])
+  async getPurchaseOrder(@User() user: IUser, @Param('id') id: string) {
+    return await this.purchaseOrderService.getPurchaseOrder(
+      id,
+      user.storeId || '',
+    );
+  }
+
+  @Get('')
   @ApiSuccess('Lấy toàn bộ đơn nhập hàng thành công!')
   @RequirePermission([
     PERMISSIONS.PURCHASE_ORDER_READ,
     PERMISSIONS.PURCHASE_ORDER_ALL,
   ])
   async getPurchaseOrders(
-    @Param('storeId') storeId: string,
     @FilterParse({
       allowPagination: true,
       allowSorting: true,
@@ -92,15 +110,16 @@ export class PurchaseOrderController {
       }),
     })
     query: FilterParseResult<any>,
+    @User() { storeId }: IUser,
   ) {
     const { data, total } = await this.purchaseOrderService.getPurchaseOrders(
-      storeId,
+      storeId || '',
       query.prismaQuery,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @Get(':storeId/payment-history/')
+  @Get('payment-history/')
   @ApiSuccess('Lấy lịch sử dụng thanh toán!')
   @RequirePermission([PERMISSIONS.PURCHASE_ORDER_READ])
   async getPaymentHistory(
@@ -114,11 +133,11 @@ export class PurchaseOrderController {
       schema: z.object({}),
     })
     query: FilterParseResult<any>,
-    @Param('storeId') storeId: string,
+    @User() { storeId }: IUser,
   ) {
     const { data, total } = await this.purchasePaymentService.getPaymentHistory(
       query.prismaQuery,
-      storeId,
+      storeId || '',
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }

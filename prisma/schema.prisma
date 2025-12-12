@@ -666,6 +666,9 @@ model PurchaseOrderItem {
   
   // Thông tin mua
   quantity          Decimal @db.Decimal(10, 2) // Số lượng mua
+  unit              String?  // VD: "Thùng"      
+  applied_factor     Int?  // VD: 24 (Base Unit thì = 1)
+  total_base_qty      Int? // = inputQuanity * appliedFactor (VD : 48)
   unit_cost         Decimal  @db.Decimal(15, 2) // giá nhập 
   discount_rate     Decimal  @default(0) @db.Decimal(5, 4)  // Chiết khấu % (0.1 = 0.1%)
   tax_rate          Decimal  @default(0) @db.Decimal(5, 4)  // Thuế % (0.1 = 0.1%)
@@ -677,7 +680,7 @@ model PurchaseOrderItem {
   total             Decimal @db.Decimal(15, 2) // Thành tiền =  subtotal - discount_amount + tax_amount
   
   // Ghi chú
-  notes             String?
+  notes             String?  
 
   // Relations
   purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Đơn hàng
