@@ -100,14 +100,8 @@ enum payment_status {
 // purchase_order_status: Trạng thái của đơn đặt hàng nhập hàng (Purchase Order)
 // Theo dõi quy trình xử lý đơn hàng mua từ nhà cung cấp
 enum purchase_order_status {
-  DRAFT // Bản nháp (chưa gửi cho nhà cung cấp)
   PENDING // Đang chờ duyệt (chờ quản lý phê duyệt)
-  APPROVED // Đã được duyệt (quản lý đã phê duyệt)
-  ORDERED // Đã đặt hàng (đã gửi cho nhà cung cấp)
-  RECEIVING // Đang trong quá trình nhận hàng (hàng đang đến kho)
   RECEIVED // Đã nhận hàng đầy đủ (đã nhận toàn bộ hàng đặt)
-  PARTIAL_RECEIVED // Đã nhận hàng một phần (nhà cung cấp gửi một phần)
-  CANCELLED // Đã hủy (hủy đơn hàng mua)
 }
 /**
  * User model
@@ -601,7 +595,7 @@ model PurchaseOrder {
   
   // Thông tin cơ bản
   store_id        String                @db.Uuid // ID cửa hàng (multi-tenant isolation)
-  order_number    String                // Số hóa đơn (auto-generated)
+  order_number    String                // mã phiếu nhập (auto-generated)
   supplier_id     String                @db.Uuid // ID nhà cung cấp
   supplier_code   String?
   // Thời gian
@@ -610,7 +604,7 @@ model PurchaseOrder {
   received_date   DateTime?             // Ngày thực tế nhận hàng
   
   // Trạng thái
-  status          purchase_order_status @default(DRAFT) // Trạng thái đơn hàng
+  status          purchase_order_status @default(PENDING) // Trạng thái đơn hàng
   
   // Tài chính
   subtotal        Decimal               @default(0) @db.Decimal(15, 2) // Tổng tiền hàng (trước chiết khấu/thuế)
@@ -665,6 +659,7 @@ model PurchaseOrderItem {
   // unit_id           String  @db.Uuid // ID đơn vị mua
   
   // Thông tin mua
+  item_name          String @default("")
   quantity          Decimal @db.Decimal(10, 2) // Số lượng mua
   unit              String?  // VD: "Thùng"      
   applied_factor     Int?  // VD: 24 (Base Unit thì = 1)

@@ -26,7 +26,7 @@ export class PurchasePaymentService {
         throw new NotFoundError(this.errMsg.PURCHASE_ORDER_NOT_FOUND);
       }
       if (
-        purchaseOrder.status !== purchase_order_status.ORDERED &&
+        purchaseOrder.status !== purchase_order_status.PENDING &&
         purchaseOrder.status !== purchase_order_status.RECEIVED
       ) {
         throw new BadRequestError(this.errMsg.INVALID_STATUS);
@@ -143,18 +143,13 @@ export class PurchasePaymentService {
       total,
     };
   }
-  async getPaymentSummary(
-    storeId: string,
-    id: string,
-    purchaseOrderId: string,
-  ) {
-    return this.prisma.purchasePayment.findMany({
+  async getPaymentSummary(storeId: string, purchaseOrderId: string) {
+    return this.prisma.purchasePayment.findFirst({
       where: {
         purchase_order: {
           id: purchaseOrderId,
           store_id: storeId,
         },
-        id,
       },
     });
   }

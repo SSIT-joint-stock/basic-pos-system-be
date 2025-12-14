@@ -55,6 +55,7 @@ export class PurchaseOrderController {
   @ApiSuccess('Xác nhận nhập kho thành công!')
   @RequirePermission([PERMISSIONS.PURCHASE_ORDER_UPDATE])
   async acceptImport(@User() user: IUser, @Param('id') id: string) {
+    console.log(id);
     return await this.purchaseOrderService.acceptPurchaseImport(
       id,
       user.storeId || '',
@@ -93,6 +94,7 @@ export class PurchaseOrderController {
         'tax_amount',
         'total',
         'shipping_fee',
+        'createdAt',
       ],
       rangeFields: ['total', 'subtotal'],
       searchBy: ['order_number', 'supplier_code'],
@@ -112,11 +114,19 @@ export class PurchaseOrderController {
     query: FilterParseResult<any>,
     @User() { storeId }: IUser,
   ) {
-    const { data, total } = await this.purchaseOrderService.getPurchaseOrders(
-      storeId || '',
-      query.prismaQuery,
+    const { data, total, summary } =
+      await this.purchaseOrderService.getPurchaseOrders(
+        storeId || '',
+        query.prismaQuery,
+      );
+    return PaginatedResponse.from(
+      data,
+      query.page,
+      query.limit,
+      total,
+      '',
+      summary,
     );
-    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   @Get('payment-history/')
@@ -140,5 +150,15 @@ export class PurchaseOrderController {
       storeId || '',
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  @Get('payment-history/:id')
+  @ApiSuccess('Lấy chi tiết lịch sử dụng thanh toán!')
+  @RequirePermission([PERMISSIONS.PURCHASE_ORDER_READ])
+  async getPaymentHistoryDetail(@Param('id') id: string, @User() user: IUser) {
+    return await this.purchasePaymentService.getPaymentSummary(
+      id,
+      user?.storeId || '',
+    );
   }
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { BadRequestError, NotFoundError } from 'app/common/response';
 import {
+  payment_status,
   Prisma,
   purchase_order_status,
   stock_movement_type,
@@ -95,20 +96,21 @@ export class PurchaseOrderService {
           }
           appliedFactor = conversion.factor;
         }
+        const inputQty = new Prisma.Decimal(quantity);
+        const appliedFactorDecimal = new Prisma.Decimal(appliedFactor);
+        const baseQty = inputQty.mul(appliedFactorDecimal);
 
-        const qty = new Prisma.Decimal(quantity);
         const cost = new Prisma.Decimal(unit_cost);
         const discount = new Prisma.Decimal(discount_rate || 0);
         const tax = new Prisma.Decimal(tax_rate || 0);
 
         // cacu total
-        const itemSubtotal = qty.mul(cost);
+        const itemSubtotal = baseQty.mul(cost);
         const itemDiscount = itemSubtotal.mul(discount.div(100));
         const itemTax = itemSubtotal.sub(itemDiscount).mul(tax.div(100));
         const itemTotal = itemSubtotal.sub(itemDiscount).add(itemTax);
 
         // cacu total base quty
-        const totalBaseQty = Math.ceil(Number(qty) * appliedFactor);
         subtotal = subtotal.add(itemSubtotal);
         totalDiscount = totalDiscount.add(itemDiscount);
         totalTax = totalTax.add(itemTax);
@@ -116,11 +118,12 @@ export class PurchaseOrderService {
         purchaseOrderItems.push({
           product_id,
           variant_id,
-          quantity: qty,
+          item_name: variant?.name,
+          quantity: inputQty,
           unit_cost: cost,
           unit: unit ?? product?.baseUnit,
           applied_factor: appliedFactor,
-          total_base_qty: totalBaseQty,
+          total_base_qty: Number(baseQty),
           discount_rate: discount,
           tax_rate: tax,
           subtotal: itemSubtotal,
@@ -142,7 +145,7 @@ export class PurchaseOrderService {
           expected_date: dto.expected_date,
           notes: dto.notes,
           created_by: user.id,
-          status: purchase_order_status.ORDERED,
+          status: purchase_order_status.PENDING,
           supplier_id: supplier.id,
           discount_amount: totalDiscount,
           tax_amount: totalTax,
@@ -165,7 +168,7 @@ export class PurchaseOrderService {
       );
 
       return {
-        purchase_order_id: purchaseOrder.id,
+        id: purchaseOrder.id,
         order_number: purchaseOrder.order_number,
         supplier_id: purchaseOrder.supplier_id,
         store_id: storeId,
@@ -197,68 +200,50 @@ export class PurchaseOrderService {
   }
 
   async acceptPurchaseImport(id: string, storeId: string, user: IUser) {
-    return this.prisma.$transaction(async (tx) => {
-      await this.checkStore(storeId);
-      const purchaseOrder = await this.checkPurchaseOrder(id, storeId);
-      await tx.purchaseOrder.update({
-        where: {
-          id: id,
-          store_id: storeId,
-        },
-        data: {
-          status: purchase_order_status.RECEIVED,
-          received_date: new Date(),
-          approved_at: new Date(),
-          approved_by: user.username,
-        },
-      });
-      // update inventory per items in purchase order
-      const items = await tx.purchaseOrderItem.findMany({
-        where: {
-          purchase_order_id: id,
-        },
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          variant: {
-            select: {
-              conversions: true,
-              variant_stocks: true,
-            },
-          },
-        },
-      });
-      if (purchaseOrder.status === purchase_order_status.RECEIVED) {
-        throw new BadRequestError(this.errMsg.PURCHASE_ORDER_ALREADY_ACCEPTED);
-      }
-      if (purchaseOrder.status === purchase_order_status.ORDERED) {
-        await Promise.all(
-          items.map(async (item) => {
-            await this.applyStock.execute(
-              stock_movement_type.PURCHASE,
-              storeId,
-              item.variant_id,
-              item.product_id,
-              Number(item.total_base_qty),
-            );
-          }),
-        );
-      } else {
-        throw new BadRequestError(this.errMsg.PURCHASE_ORDER_NOT_ACCEPTED);
-      }
+    await this.checkStore(storeId);
 
-      return {
-        purchase_order_id: id,
-        order_number: purchaseOrder.order_number,
-        status: purchaseOrder.status,
-        created_at: purchaseOrder.createdAt,
-      };
+    const purchaseOrder = await this.checkPurchaseOrder(id, storeId);
+
+    if (purchaseOrder.status === purchase_order_status.RECEIVED) {
+      throw new BadRequestError(this.errMsg.PURCHASE_ORDER_ALREADY_ACCEPTED);
+    }
+
+    const items = await this.prisma.purchaseOrderItem.findMany({
+      where: { purchase_order_id: id },
     });
+
+    if (purchaseOrder.status !== purchase_order_status.PENDING) {
+      throw new BadRequestError(this.errMsg.PURCHASE_ORDER_NOT_ACCEPTED);
+    }
+
+    for (const item of items) {
+      await this.applyStock.execute(
+        stock_movement_type.PURCHASE,
+        storeId,
+        item.variant_id,
+        item.product_id,
+        Number(item.total_base_qty) || 0,
+      );
+    }
+
+    const updatedPurchaseOrder = await this.prisma.purchaseOrder.update({
+      where: { id: id },
+      data: {
+        status: purchase_order_status.RECEIVED,
+        received_date: new Date(),
+        approved_at: new Date(),
+        approved_by: user.id,
+      },
+    });
+
+    return {
+      purchase_order_id: id,
+      order_number: updatedPurchaseOrder.order_number,
+      status: updatedPurchaseOrder.status,
+      created_at: updatedPurchaseOrder.createdAt,
+    };
   }
+
   async getPurchaseOrders(
     storeId: string,
     query: Prisma.PurchaseOrderFindManyArgs,
@@ -273,7 +258,7 @@ export class PurchaseOrderService {
       ],
     };
 
-    const [purchaseOrders, total] = await Promise.all([
+    const [purchaseOrders, total, summary] = await Promise.all([
       this.prisma.purchaseOrder.findMany({
         where,
         skip: query.skip,
@@ -311,10 +296,21 @@ export class PurchaseOrderService {
       this.prisma.purchaseOrder.count({
         where,
       }),
+      this.prisma.purchaseOrder.aggregate({
+        where: {
+          payment_status: payment_status.PAID,
+        },
+        _sum: {
+          total: true,
+        },
+      }),
     ]);
     return {
       data: purchaseOrders,
       total,
+      summary: {
+        totalPurchaseAmount: summary._sum.total ?? 0,
+      },
     };
   }
   async getPurchaseOrder(id: string, storeId: string) {
@@ -342,6 +338,7 @@ export class PurchaseOrderService {
             email: true,
           },
         },
+        payments: true,
       },
     });
   }
