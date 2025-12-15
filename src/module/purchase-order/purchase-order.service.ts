@@ -132,6 +132,19 @@ export class PurchaseOrderService {
           total: itemTotal,
           notes: notes ? notes : null,
         });
+        await tx.variantStock.update({
+          where: {
+            variant_id_store_id: {
+              variant_id,
+              store_id: storeId,
+            },
+          },
+          data: {
+            reserved: {
+              increment: Number(baseQty),
+            },
+          },
+        });
       }
       const total = subtotal.sub(totalDiscount).add(totalTax);
       const purchaseOrder = await tx.purchaseOrder.create({
@@ -156,6 +169,7 @@ export class PurchaseOrderService {
           items: true,
         },
       });
+
       const createdItems = await Promise.all(
         purchaseOrderItems.map((item) =>
           tx.purchaseOrderItem.create({
@@ -224,6 +238,19 @@ export class PurchaseOrderService {
         item.product_id,
         Number(item.total_base_qty) || 0,
       );
+      await this.prisma.variantStock.update({
+        where: {
+          variant_id_store_id: {
+            variant_id: item.variant_id,
+            store_id: storeId,
+          },
+        },
+        data: {
+          reserved: {
+            decrement: Number(item.total_base_qty),
+          },
+        },
+      });
     }
 
     const updatedPurchaseOrder = await this.prisma.purchaseOrder.update({

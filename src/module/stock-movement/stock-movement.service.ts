@@ -68,6 +68,7 @@ export class StockMovementService {
               id: true,
               name: true,
               price: true,
+              sku: true,
             },
           },
         },

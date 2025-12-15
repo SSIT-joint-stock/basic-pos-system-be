@@ -2,16 +2,13 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
-  IsInt,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
   IsUrl,
-  Min,
 } from 'class-validator';
 import { product_status } from '@prisma/client';
-import { Type } from 'class-transformer';
 
 export class UpdateProductDto {
   @IsString()
@@ -35,16 +32,6 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   barcode?: string;
-
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  price: number;
-
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  cost: number;
 
   @IsOptional()
   @IsString()
