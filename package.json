@@ -64,6 +64,7 @@
     "cookie-parser": "^1.4.7",
     "cron": "^4.3.0",
     "dayjs": "^1.11.13",
+    "exceljs": "^4.4.0",
     "google-auth-library": "^10.3.0",
     "handlebars": "^4.7.8",
     "jsonwebtoken": "^9.0.2",

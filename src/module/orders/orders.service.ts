@@ -135,6 +135,13 @@ export class OrdersService {
         orderBy: query?.orderBy,
         include: {
           customer: true,
+          cashier: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
           order_item: {
             select: {
               variant_id: true,

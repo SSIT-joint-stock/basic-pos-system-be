@@ -53,5 +53,4 @@ export class CommonService {
     );
     return response.data;
   }
-  // https://api.era8.com.vn/api/v1/external-api/tax/1
 }

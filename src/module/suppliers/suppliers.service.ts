@@ -130,6 +130,7 @@ export class SuppliersService {
   private async checkSupplier(id: string, storeId: string) {
     const supplier = await this.prisma.supplier.findUnique({
       where: { id, store_id: storeId },
+      include: { purchase_orders: true },
     });
     if (!supplier) {
       throw new NotFoundError(

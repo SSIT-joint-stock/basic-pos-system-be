@@ -12,7 +12,6 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductService } from './product.service';
@@ -23,20 +22,17 @@ import { RequirePermissions } from 'app/common/decorators/permission.decorator';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
-import { ApiSuccess, RawResponse } from 'app/common/decorators';
+import { ApiSuccess } from 'app/common/decorators';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
 import { product_status } from '@prisma/client';
 import { ImportProductService } from './import-product.service';
-import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
-import { CreateProductTemplateDto } from './dto/create-product-template-dto';
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
   constructor(
     private readonly productService: ProductService,
     private readonly importProductService: ImportProductService,
-    private readonly excel: ExcelTemplateService,
   ) {}
 
   @Get('filter-product')
@@ -117,45 +113,6 @@ export class ProductController {
     return this.productService.remove(storeId, id);
   }
 
-  // more service use case ...
-  @Get('suggestions')
-  @ApiSuccess('Lấy toàn bộ dự liệu sản phẩm!')
-  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
-  async getProductSuggestion(
-    @FilterParse({
-      allowPagination: true,
-      allowSorting: true,
-      allowGetBetweenDate: true,
-      defaultSortBy: 'createdAt',
-      defaultSort: 'desc',
-      allowedSortBy: ['createdAt'],
-      searchBy: ['name'], // thêm dòng này
-      searchKey: 'q', // FIX: nếu muốn đổi tên key tìm kiếm
-      schema: z.object({
-        q: z.string().optional(), // ⬅️ thêm q vào schema
-        createdAt: z
-          .object({
-            gte: z.string().optional(),
-            lte: z.string().optional(),
-          })
-          .optional(),
-      }),
-    })
-    query,
-  ) {
-    const { data, total } = await this.productService.getProductSuggestion(
-      query.prismaQuery,
-    );
-    return PaginatedResponse.from(data, query.page, query.limit, total, '');
-  }
-
-  @Post('product-template')
-  @RequirePermissions([PERMISSIONS.ALL])
-  @ApiSuccess('Tạo template sản phẩm')
-  createProductTemplate(@Body() items: CreateProductTemplateDto[]) {
-    return this.productService.createProductsTemplate(items);
-  }
-
   @Post('import-excel')
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @UseInterceptors(FileInterceptor('file'))
@@ -168,19 +125,11 @@ export class ProductController {
     return this.importProductService.importExcelFile(file);
   }
 
-  @Post('import-template-excel')
-  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiSuccess('Nhập template sản phẩm từ file excel thành công!')
-  async importTemplateExcel(@UploadedFile() file: Express.Multer.File) {
-    return this.importProductService.setProductTemplateByExcel(file);
-  }
-
-  @Post('example-product-excel')
-  @RawResponse()
-  @ApiSuccess('Lấy file mẫu sản phẩm thành công!')
-  getExampleProductExcel(): StreamableFile {
-    // return this.productService.downloadExampleExcel();
-    return this.excel.downloadExampleExcel('product');
-  }
+  // @Post('example-product-excel')
+  // @RawResponse()
+  // @ApiSuccess('Lấy file mẫu sản phẩm thành công!')
+  // getExampleProductExcel(): StreamableFile {
+  //   // return this.productService.downloadExampleExcel();
+  //   return this.excel.downloadExampleExcel('product');
+  // }
 }

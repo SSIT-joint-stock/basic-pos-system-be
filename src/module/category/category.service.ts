@@ -8,8 +8,8 @@ import { Prisma } from '@prisma/client';
 @Injectable()
 export class CategoryService {
   private readonly errorMessages = {
-    CATEGORY_NOT_FOUND: 'Category not found',
-    CATEGORY_ALREADY_EXISTS: 'Category already exists',
+    CATEGORY_NOT_FOUND: 'Danh mục không tồn tại! Vui lòng thử lại',
+    CATEGORY_ALREADY_EXISTS: 'Tên danh mục đã tồn tại! Vui lòng thử lại',
   };
   constructor(private readonly prismaService: PrismaService) {}
   async create(createCategoryDto: CreateCategoryDto, storeId: string) {
