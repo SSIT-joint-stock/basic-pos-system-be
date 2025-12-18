@@ -1,7 +1,14 @@
 import * as ExcelJS from 'exceljs';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ExcelTemplateConfig } from './excel-template.types';
-import { CategoryDataExcel } from './template/category';
+
+/**
+ * Một vài lưu ý trước khi sử dụng service
+ * ExcelJS tự map theo key nên khi export, import hãy đặt đúng tên key tránh trường hơp mà key khác nhau nên bị kh thấy hoắc kh import đc dữ liệu
+ * Khi import luôn phải tạo file schema để bảo toàn vẹn dữ liêu
+ * đoc lại code trước khi sử dụng, thứ tự đọc -> đồng bộ từ trên xuống dưới với 3 hàm download template, export data, import data và 2 hàm hỗ trợ worksheet và style
+ * lưu ý thêm hiện import, export chưa đc kiểm thưr có thể import hay export được bao nhiêu dòng dữ liệu, sau này sẽ kiểm tra và đưa ra phuonwg án phù hợp
+ */
 
 @Injectable()
 export class ExcelTemplateService {
@@ -34,7 +41,7 @@ export class ExcelTemplateService {
    * @returns Promise<Buffer> File Excel đã được xuất
    */
 
-  async exportData(config: ExcelTemplateConfig, data: CategoryDataExcel[]) {
+  async exportData(config: ExcelTemplateConfig, data: any[]) {
     const workbook = new ExcelJS.Workbook();
     const worksheet = this.createWorksheet(workbook, config);
     worksheet.addRows(data);
@@ -80,7 +87,7 @@ export class ExcelTemplateService {
       try {
         // Bỏ qua các dòng trống
         // Skip empty rows
-        const isEmptyRow = config.columns.every((col, idx) => {
+        const isEmptyRow = config?.columns.every((col, idx) => {
           const cellValue = row.getCell(idx + 1).value;
           return !cellValue || String(cellValue).trim() === '';
         });
@@ -145,27 +152,105 @@ export class ExcelTemplateService {
   ) {
     const worksheet = workbook.addWorksheet(config.sheetName);
 
-    // Set columns
+    // HEADER 2 TẦNG
+    if (config.headerGroups?.length) {
+      const flatColumns = config.headerGroups.flatMap((g) => g.columns);
+
+      // Set columns 1 LẦN DUY NHẤT (key + width)
+      worksheet.columns = flatColumns.map((c) => ({
+        key: c.key,
+        width: c.width ?? 48,
+      }));
+
+      let colIndex = 1;
+
+      // Row 1: header lớn | Row 2: header con
+      config.headerGroups.forEach((group) => {
+        const startCol = colIndex;
+        const endCol = colIndex + group.columns.length - 1;
+
+        worksheet.mergeCells(1, startCol, 1, endCol);
+        const groupCell = worksheet.getCell(1, startCol);
+        groupCell.value = group.title;
+        this.styleGroupHeader(groupCell);
+
+        group.columns.forEach((col) => {
+          const headerCell = worksheet.getCell(2, colIndex);
+          headerCell.value = col.header;
+          this.styleSubHeader(headerCell);
+          colIndex++;
+        });
+      });
+
+      // Height + freeze
+      worksheet.getRow(1).height = 32;
+      worksheet.getRow(2).height = 28;
+      worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+
+      // Wrap text toàn sheet
+      worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: 'center',
+            wrapText: true,
+          };
+        });
+      });
+
+      return worksheet;
+    }
+
+    //FALLBACK HEADER 1 TẦNG
     worksheet.columns = config.columns.map((col) => ({
       header: col.header,
       key: col.key,
-      width: col.width ?? 20,
+      width: col.width ?? 48,
     }));
 
-    // Freeze header
     worksheet.views = [{ state: 'frozen', ySplit: 1 }];
-
-    // Header style
-    worksheet.getRow(1).eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4472C4' },
-      };
-    });
+    worksheet.getRow(1).eachCell((cell) => this.styleGroupHeader(cell));
 
     return worksheet;
+  }
+
+  private styleGroupHeader(cell: ExcelJS.Cell) {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+    cell.alignment = {
+      vertical: 'middle',
+      horizontal: 'center',
+      wrapText: true,
+    };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' }, // xanh
+    };
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' },
+    };
+  }
+
+  private styleSubHeader(cell: ExcelJS.Cell) {
+    cell.font = { bold: true, color: { argb: 'FF000000' }, size: 11 };
+    cell.alignment = {
+      vertical: 'middle',
+      horizontal: 'center',
+      wrapText: true,
+    };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFFFFF' }, // trắng
+    };
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' },
+    };
   }
 }

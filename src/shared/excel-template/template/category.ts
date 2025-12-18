@@ -53,7 +53,7 @@ export const CATEGORY_EXCEL_TEMPLATE: ExcelTemplateConfig = {
   fileName: `danh_muc.xlsx`,
   schema: CategoryExcelSchema,
   columns: [
-    { header: 'Tên danh mục', key: 'name', width: 40 },
+    { header: 'Tên danh mục*', key: 'name', width: 40 },
     { header: 'Mô tả', key: 'description', width: 40 },
     { header: 'Ngày tạo', key: 'createdAt', width: 40 },
   ],
