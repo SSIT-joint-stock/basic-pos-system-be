@@ -104,6 +104,9 @@ export const envSchema = z.object({
     .int()
     .min(1)
     .default(7 * 24 * 60 * 60 * 1000), // 7 days
+
+  // Client
+  FRONTEND_URL: z.string().default('http://localhost:3001'),
 });
 
 // define the environment variables type

@@ -25,6 +25,7 @@ export class CreateOrderDto {
   @IsString()
   customer_name?: string;
 
+  @IsOptional()
   @IsInt()
   @Min(0)
   subtotal_amount: number;
@@ -43,6 +44,16 @@ export class CreateOrderDto {
   @IsInt()
   @Min(0)
   total_amount?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  customer_pay_amount?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  change_amount?: number;
 
   @IsOptional()
   @IsEnum(payment_method)

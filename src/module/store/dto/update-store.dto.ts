@@ -11,4 +11,8 @@ export class UpdateStoreDto {
   phone_number?: string;
   @IsOptional()
   business_hour?: string;
+  @IsOptional()
+  city?: string;
+  @IsOptional()
+  state?: string;
 }

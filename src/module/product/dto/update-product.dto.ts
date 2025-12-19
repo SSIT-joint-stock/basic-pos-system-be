@@ -1,9 +1,66 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateProductDto } from './create-product.dto';
-import { IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUrl,
+} from 'class-validator';
+import { product_status } from '@prisma/client';
 
-export class UpdateProductDto extends PartialType(CreateProductDto) {
+export class UpdateProductDto {
   @IsString()
-  @IsNotEmpty({ message: 'Vui lòng nhập mã sản phẩm' })
+  @IsNotEmpty({
+    message: 'Vui lòng nhập tên sản phẩm',
+  })
+  @IsOptional()
+  name: string;
+
+  @IsString()
+  @IsOptional()
   sku: string;
+
+  @IsString()
+  @IsNotEmpty({
+    message: 'Vui lòng nhập đơn vị cơ bản',
+  })
+  @IsOptional()
+  baseUnit: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsUrl()
+  image_url?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsEnum(product_status)
+  @IsOptional()
+  product_status?: product_status = product_status.ACTIVE;
+
+  @IsOptional()
+  @IsObject()
+  meta?: Record<string, any>;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagIds?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  is_set_default_variant?: true;
 }

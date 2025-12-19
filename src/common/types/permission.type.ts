@@ -70,6 +70,41 @@ export const PERMISSIONS = {
   INVENTORY_READ: 'inventory:read' as Permission,
   INVENTORY_ALL: 'inventory:all' as Permission,
 
+  // Tags permissions
+  TAGS_CREATE: 'tags:create' as Permission,
+  TAGS_READ: 'tags:read' as Permission,
+  TAGS_UPDATE: 'tags:update' as Permission,
+  TAGS_DELETE: 'tags:delete' as Permission,
+  TAGS_ALL: 'tags:all' as Permission,
+
+  // Payment store permissions
+  PAYMENT_STORE_CREATE: 'payment:create' as Permission,
+  PAYMENT_STORE_READ: 'payment:read' as Permission,
+  PAYMENT_STORE_UPDATE: 'payment:update' as Permission,
+  PAYMENT_STORE_DELETE: 'payment:delete' as Permission,
+  PAYMENT_STORE_ALL: 'payment:all' as Permission,
+
+  // Supplier permissions
+  SUPPLIER_CREATE: 'supplier:create' as Permission,
+  SUPPLIER_READ: 'supplier:read' as Permission,
+  SUPPLIER_UPDATE: 'supplier:update' as Permission,
+  SUPPLIER_DELETE: 'supplier:delete' as Permission,
+  SUPPLIER_ALL: 'supplier:all' as Permission,
+
+  // Purchase order permissions
+  PURCHASE_ORDER_CREATE: 'purchase-order:create' as Permission,
+  PURCHASE_ORDER_READ: 'purchase-order:read' as Permission,
+  PURCHASE_ORDER_UPDATE: 'purchase-order:update' as Permission,
+  PURCHASE_ORDER_DELETE: 'purchase-order:delete' as Permission,
+  PURCHASE_ORDER_ALL: 'purchase-order:all' as Permission,
+
+  // variant permissions
+  VARIANT_CREATE: 'variant:create' as Permission,
+  VARIANT_READ: 'variant:read' as Permission,
+  VARIANT_UPDATE: 'variant:update' as Permission,
+  VARIANT_DELETE: 'variant:delete' as Permission,
+  VARIANT_ALL: 'variant:all' as Permission,
+
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,
 } as const;

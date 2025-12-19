@@ -23,7 +23,7 @@ export class StoreController {
   constructor(private readonly storeService: StoreService) {}
 
   @Post()
-  @ApiSuccess('Store created successfully')
+  @ApiSuccess('Tạo cửa hàng thành công!')
   create(@Body() createStoreDto: CreateStoreDto, @User() user: IUser) {
     return this.storeService.create(createStoreDto, user);
   }
@@ -37,7 +37,7 @@ export class StoreController {
   @Get(':storeId')
   @UseGuards(PermissionGuard)
   @RequirePermissions([PERMISSIONS.STORE_READ])
-  @ApiSuccess('Get store successfully')
+  @ApiSuccess('Lấy thông tin cửa hàng thành công!')
   findOne(@Param('storeId') storeId: string, @User() user: IUser) {
     return this.storeService.findOne(storeId, user);
   }
@@ -45,7 +45,7 @@ export class StoreController {
   @Patch(':storeId')
   @UseGuards(PermissionGuard)
   @RequirePermissions([PERMISSIONS.STORE_UPDATE, PERMISSIONS.STORE_ALL])
-  @ApiSuccess('Update store successfully')
+  @ApiSuccess('Cập nhật cửa hàng thành công!')
   update(
     @Param('storeId') storeId: string,
     @Body() updateStoreDto: UpdateStoreDto,
@@ -55,7 +55,7 @@ export class StoreController {
   }
 
   @Delete(':storeId')
-  @ApiSuccess('Delete store successfully')
+  @ApiSuccess('Xoá cửa hàng thành công!')
   @UseGuards(PermissionGuard)
   @RequirePermissions([PERMISSIONS.STORE_DELETE, PERMISSIONS.STORE_ALL])
   remove(@Param('storeId') storeId: string, @User() user: IUser) {
@@ -64,7 +64,7 @@ export class StoreController {
 
   // Store member management
   @Post('add-member/:storeId')
-  @ApiSuccess('Add member to store successfully')
+  @ApiSuccess('Thêm thành viên thành công')
   addMemberToStore(
     @Param('storeId') storeId: string,
     @Body() body: { emailUser: string },
@@ -74,7 +74,7 @@ export class StoreController {
   }
 
   @Delete('delete-member/:storeId')
-  @ApiSuccess('Remove member from store successfully')
+  @ApiSuccess('Xóa thành viên thành công')
   removeMember(
     @Param('storeId') storeId: string,
     @Body('memberUserId') memberUserId: string,

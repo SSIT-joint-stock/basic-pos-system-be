@@ -1,6 +1,15 @@
+import express from 'express';
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Res,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order';
 import { User } from 'app/common/decorators/user.decorator';
@@ -9,10 +18,14 @@ import z from 'zod';
 import { order_status, payment_method } from '@prisma/client';
 import { PaginatedResponse } from 'app/common/response';
 import type { IUser } from 'app/common/types/user.type';
+import { OrdersExcelService } from './orders-excel.service';
 
 @Controller('stores/:storeId/orders')
 export class OrdersController {
-  constructor(private readonly order: OrdersService) {}
+  constructor(
+    private readonly order: OrdersService,
+    private readonly excel: OrdersExcelService,
+  ) {}
 
   @Post()
   create(
@@ -26,6 +39,13 @@ export class OrdersController {
   @Delete()
   delete(@Param('storeId') storeId: string, @Body() body: { orderId: string }) {
     return this.order.delete(body.orderId, storeId);
+  }
+  @Get(':orderId')
+  findById(
+    @Param('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.order.findById(orderId, storeId);
   }
 
   @Get()
@@ -56,5 +76,35 @@ export class OrdersController {
       query.prismaQuery,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  // Router for excel
+  @Get('/excel/template')
+  async downloadExampleOrder(@Res() res: express.Response) {
+    const buffer = await this.excel.downloadExampleOrder();
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=category_template.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.end(buffer);
+  }
+
+  @Get('/excel/export')
+  async exportExcelOrders(
+    @Res() res: express.Response,
+    @Param('storeId') storeId: string,
+  ) {
+    const buffer = await this.excel.exportOrders(storeId);
+    res.setHeader('Content-Disposition', 'attachment; filename=orders.xlsx');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
   }
 }

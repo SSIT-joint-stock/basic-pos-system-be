@@ -10,7 +10,7 @@ export class NotFoundError extends BaseClientError {
     code: string = 'NOT_FOUND',
     details: Record<string, unknown> = {},
   ) {
-    super(`${resource} not found`, 404, code, details);
+    super(`${resource} `, 404, code, details);
   }
 }
 

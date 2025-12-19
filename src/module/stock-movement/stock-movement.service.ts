@@ -29,7 +29,7 @@ export class StockMovementService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(
-    product_id: string,
+    variant_id: string,
     type: stock_movement_type,
     quantity: number,
     tx: Prisma.TransactionClient | PrismaService,
@@ -38,7 +38,7 @@ export class StockMovementService {
 
     const stockMovement = await client.stockMovement.create({
       data: {
-        product_id: product_id,
+        variant_id: variant_id,
         type: type,
         quantity: quantity,
       },
@@ -49,8 +49,10 @@ export class StockMovementService {
   async findAll(store_id: string, query: Prisma.StockMovementFindManyArgs) {
     const where: Prisma.StockMovementWhereInput = {
       AND: [query.where ?? {}],
-      product: {
-        store_id,
+      variants: {
+        product: {
+          store_id: store_id,
+        },
       },
     };
 
@@ -61,11 +63,12 @@ export class StockMovementService {
         take: query.take,
         orderBy: query.orderBy,
         include: {
-          product: {
+          variants: {
             select: {
               id: true,
               name: true,
               price: true,
+              sku: true,
             },
           },
         },
@@ -80,12 +83,12 @@ export class StockMovementService {
     };
   }
 
-  async findOne(store_id: string, id: string) {
+  async findOne(product_id: string, id: string) {
     const existing = await this.prisma.stockMovement.findUnique({
       where: {
         id,
-        product: {
-          store_id,
+        variants: {
+          product_id,
         },
       },
     });
