@@ -62,6 +62,7 @@ export class AuthController {
       sameSite: this.configCookie.sameSite,
       domain: this.configCookie.domain || undefined,
       maxAge: this.configCookie.maxAge,
+      secure: this.configCookie.secure,
     });
     return {
       access_token: result.access_token,
@@ -126,6 +127,7 @@ export class AuthController {
         sameSite: this.configCookie.sameSite,
         domain: this.configCookie.domain || undefined,
         maxAge: this.configCookie.maxAge,
+        secure: this.configCookie.secure,
       });
 
       return {
@@ -175,6 +177,7 @@ export class AuthController {
       sameSite: this.configCookie.sameSite,
       domain: this.configCookie.domain || undefined,
       maxAge: this.configCookie.maxAge,
+      secure: this.configCookie.secure,
     });
     return {
       access_token: result.access_token,
