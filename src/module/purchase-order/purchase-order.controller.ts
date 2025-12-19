@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import express from 'express';
+import { PurchaseOrderExcelService } from './purchase-order-excel.service';
+import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import { PurchaseOrderService } from './purchase-order.service';
 import { ApiSuccess } from 'app/common/decorators';
 import { RequirePermission } from 'app/common/decorators/permission.decorator';
@@ -21,6 +23,7 @@ export class PurchaseOrderController {
   constructor(
     private readonly purchaseOrderService: PurchaseOrderService,
     private readonly purchasePaymentService: PurchasePaymentService,
+    private readonly excel: PurchaseOrderExcelService,
   ) {}
   @Post('')
   @ApiSuccess('Tạo đơn nhập hàng thành công!')
@@ -160,5 +163,21 @@ export class PurchaseOrderController {
       id,
       user?.storeId || '',
     );
+  }
+
+  @Get('excel/template')
+  async downloadPurchaseOrderTemplate(@Res() res: express.Response) {
+    const buffer = await this.excel.downloadExamplePurchaseOrder();
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=phieu_nhap_hang.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.end(buffer);
   }
 }
