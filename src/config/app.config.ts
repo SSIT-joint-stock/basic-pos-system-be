@@ -8,7 +8,4 @@ export default registerAs('app', () => ({
   origins: process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim())
     : ['http://localhost:3000'],
-  clientId: process.env.CLIENT_ID ?? 'phamminh',
-  clientSecret: process.env.CLIENT_SECRET ?? 'phaminh',
-  jwtSecret: process.env.JWT_SECRET ?? 'this_is_secret',
 }));

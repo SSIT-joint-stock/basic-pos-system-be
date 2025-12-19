@@ -34,6 +34,8 @@ import { HealthModule } from './health/health.module';
 import { ProductModule } from './module/product/product.module';
 import { OAuthModule } from './module/oauth/oauth.module';
 import { StoreModule } from './module/store/store.module';
+import jwtConfig from './config/jwt.config';
+import oauthConfig from './config/oauth.config';
 import { CategoryModule } from './module/category/category.module';
 
 import { InventoryModule } from './module/inventory/inventory.module';
@@ -75,8 +77,17 @@ import { CustomerModule } from './module/customer/customer.module';
       envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`],
       // validate with Zod
       validate: validateEnv, // use Zod to validate and type
-      load: [appConfig, databaseConfig, jobsConfig, emailConfig, cookieConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        jobsConfig,
+        jwtConfig,
+        oauthConfig,
+        emailConfig,
+        cookieConfig,
+      ],
     }),
+
     LoggerCoreModule,
     LoggerModule.forFeature(['HTTP', 'DATABASE', 'APP', 'EMAIL']),
     PrismaModule,
