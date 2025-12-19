@@ -1,69 +1,79 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { Prisma, stock_movement_type } from '@prisma/client';
-import { InventoryService } from 'app/module/inventory/inventory.service';
+import { order_status, Prisma, stock_movement_type } from '@prisma/client';
 import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
 import { IUser } from 'app/common/types/user.type';
+import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
+import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
+import { CreateOrderItemDto } from './dto/create-order-item';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
-    private inventory: InventoryService,
     private stockMovement: StockMovementService,
+    private generateOrderCode: GenerateOrderCodeUseCase,
+    private applyStock: ApplyStockUseCase,
   ) {}
 
-  //   TODO: Update quantity in inventory when Hoa complete his job
-  create(storeId: string, dto: CreateOrderDto, user: IUser) {
+  async create(storeId: string, dto: CreateOrderDto, user: IUser) {
+    const {
+      code,
+      customer_name,
+      customer_pay_amount = 0,
+      payment_method,
+      order_items = [],
+    } = dto;
+
+    const { subtotal_amount, discount_amount, tax_amount } =
+      this.calculateOrderTotals(order_items);
+    const total_amount = subtotal_amount - discount_amount + tax_amount;
+    const orderStatus = this.determineOrderStatus(
+      total_amount,
+      customer_pay_amount,
+    );
+
+    const changeAmount = customer_pay_amount - total_amount;
+
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
           store_id: storeId,
-          code: dto.code,
+          code:
+            code || (await this.generateOrderCode.generateOrderCode(storeId)),
           cashier_id: user.id,
-          customer_name: dto.customer_name,
-          subtotal_amount: dto.subtotal_amount,
-          discount_amount: dto.discount_amount,
-          tax_amount: dto.tax_amount,
-          total_amount: dto.total_amount,
-          payment_method: dto.payment_method,
-          status: dto.status,
+          customer_name,
+          subtotal_amount,
+          discount_amount,
+          customer_pay_amount,
+          change_amount: changeAmount,
+          tax_amount,
+          total_amount,
+          payment_method,
+
+          status: orderStatus,
           order_item: {
             createMany: {
-              data: dto.order_items.map((item) => ({
+              data: order_items.map((item) => ({
                 product_id: item.product_id,
+                variant_id: item.variant_id,
                 quantity: item.quantity,
                 price: item.price,
-                meta: item.meta || {},
+                meta: item.meta ?? {},
+                discount_rate: item.discount_rate,
+                tax_rate: item.tax_rate,
               })),
             },
           },
         },
       });
 
-      const order_items = dto.order_items;
-
       for (const item of order_items) {
-        await this.stockMovement.create(
-          item.product_id,
-          stock_movement_type.SALE,
-          -Math.abs(item.quantity),
-          tx,
-        );
-
-        await this.inventory.modify(
-          stock_movement_type.SALE,
-          storeId,
-          item.product_id,
-          item.quantity,
-          tx,
-        );
+        await this.handleStockChange(storeId, item);
       }
 
-      return order;
+      return { order, orderId: order.id };
     });
   }
 
@@ -71,7 +81,7 @@ export class OrdersService {
     return await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId, store_id: storeId },
-        include: { order_item: true },
+        include: { order_item: {} },
       });
 
       if (!order) {
@@ -79,18 +89,12 @@ export class OrdersService {
       }
 
       for (const item of order.order_item) {
-        await this.inventory.modify(
-          stock_movement_type.RETURN_SALE,
+        await this.applyStock.execute(
+          stock_movement_type.ADJUSTMENT,
           storeId,
+          item.variant_id,
           item.product_id,
           item.quantity,
-          tx,
-        );
-        await this.stockMovement.create(
-          item.product_id,
-          stock_movement_type.RETURN_SALE,
-          item.quantity,
-          tx,
         );
 
         await tx.orderItem.deleteMany({
@@ -104,42 +108,126 @@ export class OrdersService {
     });
   }
 
+  async findById(orderId: string, storeId: string) {
+    return await this.prisma.order.findUnique({
+      where: { id: orderId, store_id: storeId },
+      include: {
+        order_item: {
+          include: {
+            variant: true,
+          },
+        },
+      },
+    });
+  }
+
   async findAll(store_id: string, query?: Prisma.OrderFindManyArgs) {
     // ensure store filter is always applied
     const baseWhere: Prisma.OrderWhereInput = {
       AND: [query?.where ?? {}, { store_id }],
     };
 
-    // build args for findMany: keep everything from query but use baseWhere
-    const findArgs: Prisma.OrderFindManyArgs = {
-      ...(query ?? {}),
-      where: baseWhere,
-    };
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where: baseWhere,
+        skip: query?.skip,
+        take: query?.take,
+        orderBy: query?.orderBy,
+        include: {
+          customer: true,
+          cashier: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
+          order_item: {
+            select: {
+              variant_id: true,
+              product_id: true,
+              price: true,
+              tax_rate: true,
+              discount_rate: true,
+              quantity: true,
+              meta: true,
 
-    // If user passed `select`, Prisma forbids `include` at same time.
-    // So ensure include is only set when select isn't present.
-    if (query?.select) {
-      delete (findArgs as any).include;
-    } else {
-      (findArgs as any).include = {
-        order_item: {
-          include: {
-            product: true,
+              variant: {
+                select: {
+                  id: true,
+                  price: true,
+                  name: true,
+                  sku: true,
+                },
+              },
+            },
           },
         },
-        ...(query?.include ?? {}),
-      };
-    }
-
-    const [orders, total] = await Promise.all([
-      this.prisma.order.findMany(findArgs),
-      // count must use the same baseWhere (so it counts with store_id filter)
+      }),
       this.prisma.order.count({ where: baseWhere }),
     ]);
 
     return {
       data: orders,
       total,
+    };
+  }
+
+  /**
+   * Xác định trạng thái đơn hàng dựa trên tổng tiền và số tiền khách trả.
+   */
+  private determineOrderStatus(total: number, paid: number): order_status {
+    if (total === paid) return order_status.COMPLETED;
+    if (total > paid) return order_status.PENDING;
+    return order_status.OVERAGE;
+  }
+  /**
+   * Cập nhật tồn kho và lịch sử tồn kho cho từng sản phẩm.
+   *
+   */
+  private async handleStockChange(
+    storeId: string,
+    item: { product_id: string; quantity: number; variant_id: string },
+  ) {
+    const qty = -Math.abs(item.quantity);
+
+    await this.applyStock.execute(
+      stock_movement_type.SALE,
+      storeId,
+      item.variant_id,
+      item.product_id,
+      qty,
+    );
+  }
+  private calculateOrderTotals(order_items: CreateOrderItemDto[]) {
+    const calculatedItems = order_items.map((item) => {
+      const itemSubtotal = item.quantity * item.price;
+      const itemDiscount = itemSubtotal * (item.discount_rate || 0);
+      const subtotalAfterDiscount = itemSubtotal - itemDiscount;
+      const itemTax = subtotalAfterDiscount * ((item.tax_rate || 0) / 100);
+
+      return {
+        subtotal: itemSubtotal,
+        discount_amount: Math.round(itemDiscount),
+        tax_amount: Math.round(itemTax),
+        line_total: Math.round(subtotalAfterDiscount + itemTax),
+      };
+    });
+
+    return {
+      subtotal_amount: calculatedItems.reduce(
+        (sum, item) => sum + item.subtotal,
+        0,
+      ),
+      discount_amount: calculatedItems.reduce(
+        (sum, item) => sum + item.discount_amount,
+        0,
+      ),
+      tax_amount: calculatedItems.reduce(
+        (sum, item) => sum + item.tax_amount,
+        0,
+      ),
+      line_items: calculatedItems,
     };
   }
 }

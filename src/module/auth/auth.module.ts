@@ -7,6 +7,8 @@ import { EmailService } from 'app/email/email.service';
 import { CodeService } from 'app/common/helpers/code.util';
 import { TokenService } from './token.service';
 import { BcryptService } from 'app/common/helpers/bcrypt.util';
+import { ConfigModule } from '@nestjs/config';
+import jwtConfig from 'app/config/jwt.config';
 
 @Module({
   controllers: [AuthController],
@@ -18,6 +20,6 @@ import { BcryptService } from 'app/common/helpers/bcrypt.util';
     TokenService,
     BcryptService,
   ],
-  imports: [UsersModule],
+  imports: [UsersModule, ConfigModule.forFeature(jwtConfig)],
 })
 export class AuthModule {}

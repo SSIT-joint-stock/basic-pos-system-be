@@ -39,6 +39,7 @@ interface FilterParseOptions<TSchema extends ZodObject<any>> {
   rangeFields?: string[]; // Hoa thêm dòng này
   searchBy?: string[]; // ⬅️ thêm
   searchKey?: string; // ⬅️ thêm (mặc định 'q')
+  listFields?: string[];
 }
 
 ////////////////////////////////////////////////////////////////// Hoa add
@@ -196,6 +197,35 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
       }
 
       result.filters = filters;
+      if (options.listFields?.length) {
+        for (const field of options.listFields) {
+          const val = (validatedQuery as any)[field];
+          if (typeof val === 'string') {
+            const arr = val
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean);
+
+            // ✅ Nếu field là relation N:N, chuyển sang Prisma format
+            if (field === 'categories') {
+              if (arr.length) {
+                (filters as any)[field] = {
+                  some: {
+                    id: {
+                      in: arr,
+                    },
+                  },
+                };
+              } else {
+                (filters as any)[field] = undefined;
+              }
+            } else {
+              // các listField bình thường
+              (filters as any)[field] = arr;
+            }
+          }
+        }
+      }
 
       //
       // Get Between Date

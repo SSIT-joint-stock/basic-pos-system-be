@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import z from 'zod';
 import {
   Controller,
   Get,
@@ -11,7 +12,6 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductService } from './product.service';
@@ -22,18 +22,21 @@ import { RequirePermissions } from 'app/common/decorators/permission.decorator';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUserWithPermissions } from 'app/common/types/permission.type';
 import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
-import { ApiSuccess, RawResponse } from 'app/common/decorators';
-import z from 'zod';
+import { ApiSuccess } from 'app/common/decorators';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { PaginatedResponse } from 'app/common/response';
 import { product_status } from '@prisma/client';
+import { ImportProductService } from './import-product.service';
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly importProductService: ImportProductService,
+  ) {}
 
   @Get('filter-product')
-  @ApiSuccess('Filter product successfully')
+  @ApiSuccess('Lấy toàn bộ dự liệu sản phẩm!')
   @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
   async filterProducts(
     @FilterParse({
@@ -42,10 +45,10 @@ export class ProductController {
       allowGetBetweenDate: true,
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
-      allowedSortBy: ['createdAt', 'price', 'cost'],
-      rangeFields: ['cost', 'price'], // thêm dòng này
-      searchBy: ['name', 'description'], // thêm dòng này
-      searchKey: 'q', // FIX: nếu muốn đổi tên key tìm kiếm
+      allowedSortBy: ['createdAt', 'name'],
+      searchBy: ['name', 'description'],
+      searchKey: 'q',
+      listFields: ['categories'],
       schema: z.object({
         q: z.string().optional(), // ⬅️ thêm q vào schema
         createdAt: z
@@ -54,14 +57,11 @@ export class ProductController {
             lte: z.string().optional(),
           })
           .optional(),
-        min_price: z.coerce.number().optional(),
-        max_price: z.coerce.number().optional(),
-        min_cost: z.coerce.number().optional(),
-        max_cost: z.coerce.number().optional(),
         sku: z.string().optional(),
         barcode: z.string().optional(),
         image_url: z.string().url().optional(),
         product_status: z.enum(product_status).optional(),
+        categories: z.string().optional(),
       }),
     })
     query,
@@ -76,7 +76,7 @@ export class ProductController {
 
   @Post()
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @ApiSuccess('Create product successfully')
+  @ApiSuccess('Tạo sản phẩm thành công!')
   create(
     @Param('storeId') storeId: string,
     @UserWithPermissions() user: IUserWithPermissions,
@@ -85,38 +85,8 @@ export class ProductController {
     return this.productService.create(user, storeId, createProductDto);
   }
 
-  @Get()
-  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
-  @ApiSuccess('Find all product successfully')
-  async findAll(
-    @Param('storeId') storeId: string,
-    @FilterParse({
-      allowPagination: true,
-      allowSorting: true,
-      allowGetBetweenDate: true,
-      defaultSortBy: 'createdAt',
-      defaultSort: 'desc',
-      allowedSortBy: ['createdAt', 'total_amount'],
-      schema: z.object({
-        createdAt: z
-          .object({
-            gte: z.string().optional(),
-            lte: z.string().optional(),
-          })
-          .optional(),
-      }),
-    })
-    query,
-  ) {
-    const { data, total } = await this.productService.findAll(
-      storeId,
-      query.prismaQuery,
-    );
-    return PaginatedResponse.from(data, query.page, query.limit, total, '');
-  }
-
   @Get(':id')
-  @ApiSuccess('Find product by Id successfully')
+  @ApiSuccess('Lấy chi tiết sản phẩm!')
   @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
   findOne(@Param('storeId') storeId: string, @Param('id') id: string) {
     return this.productService.findOne(storeId, id);
@@ -127,7 +97,7 @@ export class ProductController {
     [PERMISSIONS.PRODUCT_UPDATE, PERMISSIONS.PRODUCT_ALL],
     'OR',
   )
-  @ApiSuccess('Update product successfully')
+  @ApiSuccess('Cập nhật sản phẩm thành công!')
   update(
     @Param('storeId') storeId: string,
     @Param('id') id: string,
@@ -138,37 +108,28 @@ export class ProductController {
 
   @Delete(':id')
   @RequirePermissions([PERMISSIONS.PRODUCT_DELETE])
-  @ApiSuccess('Delete product successfully')
+  @ApiSuccess('Xóa sản phẩm thành công!')
   remove(@Param('storeId') storeId: string, @Param('id') id: string) {
     return this.productService.remove(storeId, id);
-  }
-
-  @Post('invoice-create-product')
-  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @ApiSuccess('Create invoice product successfully!!')
-  createProductsBatch(
-    @Param('storeId') storeId: string,
-    @UserWithPermissions() user: IUserWithPermissions,
-    @Body() items: CreateProductDto[],
-  ) {
-    return this.productService.createProductsBatch(storeId, user, items);
   }
 
   @Post('import-excel')
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @UseInterceptors(FileInterceptor('file'))
-  @ApiSuccess('Import product successfully')
-  async importExcel(
+  @ApiSuccess('Nhập sản phẩm từ file excel thành công!')
+  importExcel(
     @Param('storeId') storeId: string,
     @UserWithPermissions() user: IUserWithPermissions,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.productService.createProductByExcel(file, storeId, user.id);
+    return this.importProductService.importExcelFile(file);
   }
 
-  @Post('example-product-excel')
-  @RawResponse()
-  getExampleProductExcel(): StreamableFile {
-    return this.productService.downloadExampleExcel();
-  }
+  // @Post('example-product-excel')
+  // @RawResponse()
+  // @ApiSuccess('Lấy file mẫu sản phẩm thành công!')
+  // getExampleProductExcel(): StreamableFile {
+  //   // return this.productService.downloadExampleExcel();
+  //   return this.excel.downloadExampleExcel('product');
+  // }
 }

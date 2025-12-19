@@ -44,6 +44,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -52,6 +53,7 @@
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/serve-static": "^5.0.3",
     "@nestjs/terminus": "^11.0.0",
+    "@nestjs/throttler": "^6.4.0",
     "@prisma/client": "^6.15.0",
     "@tailwindcss/cli": "^4.1.13",
     "axios": "^1.11.0",
@@ -62,6 +64,7 @@
     "cookie-parser": "^1.4.7",
     "cron": "^4.3.0",
     "dayjs": "^1.11.13",
+    "exceljs": "^4.4.0",
     "google-auth-library": "^10.3.0",
     "handlebars": "^4.7.8",
     "jsonwebtoken": "^9.0.2",

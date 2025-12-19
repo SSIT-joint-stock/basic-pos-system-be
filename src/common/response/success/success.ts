@@ -9,16 +9,18 @@ export class ApiResponse<T = any> {
   public success: boolean;
   public data?: T;
   public message?: string;
+  public summary?: object;
   public meta: {
     timestamp: string;
     version: string;
     requestId?: string;
   };
 
-  constructor(success: boolean, data?: T, message?: string) {
+  constructor(success: boolean, data?: T, message?: string, summary?: object) {
     this.success = success;
     this.data = data;
     this.message = message;
+    this.summary = summary;
     this.meta = {
       timestamp: new Date().toISOString(),
       version: 'v1',
@@ -59,6 +61,9 @@ export class ApiResponse<T = any> {
     if (this.data !== undefined) {
       response.data = this.data;
     }
+    if (this.summary !== undefined) {
+      response.summary = this.summary;
+    }
 
     if (this.message) {
       response.message = this.message;
@@ -88,8 +93,9 @@ export class PaginatedResponse<T> extends ApiResponse<T[]> {
     limit: number,
     total: number,
     message?: string,
+    summary?: object,
   ) {
-    super(true, data, message);
+    super(true, data, message, summary);
     const totalPages = Math.ceil(total / limit);
 
     this.pagination = {
@@ -111,8 +117,9 @@ export class PaginatedResponse<T> extends ApiResponse<T[]> {
     limit: number,
     total: number,
     message?: string,
+    summary?: object,
   ): PaginatedResponse<T> {
-    return new PaginatedResponse(data, page, limit, total, message);
+    return new PaginatedResponse(data, page, limit, total, message, summary);
   }
 
   /**

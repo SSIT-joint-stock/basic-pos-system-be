@@ -17,6 +17,10 @@ export class StoreService {
     private readonly prismaService: PrismaService,
     private readonly permissionService: PermissionService,
   ) {}
+  private readonly errMsg = {
+    STORE_NOT_FOUND: 'Cửa hàng không tồn tại',
+    STORE_ALREADY_EXISTS: 'Cửa hàng đã tồn tại',
+  };
   async create(createStoreDto: CreateStoreDto, user: IUser) {
     // create store when user is owner
     return await this.prismaService.store.create({
@@ -100,6 +104,11 @@ export class StoreService {
             id: true,
             username: true,
             email: true,
+          },
+        },
+        store_payment: {
+          select: {
+            bank_qr_image_url: true,
           },
         },
         members: {
@@ -257,6 +266,16 @@ export class StoreService {
   }
   async getPermissionsInStore(storeId: string, user: IUser) {
     return await this.permissionService.getUserWithPermissions(storeId, user);
+  }
+  async checkStore(storeId: string) {
+    const store = await this.prismaService.store.findUnique({
+      where: {
+        id: storeId,
+      },
+    });
+    if (!store) {
+      throw new NotFoundError(this.errMsg.STORE_NOT_FOUND);
+    }
   }
 
   // HELPER METHODS PRIVATE

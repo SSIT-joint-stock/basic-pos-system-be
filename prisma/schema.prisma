@@ -32,11 +32,12 @@ enum user_status {
 }
 
 enum order_status {
-  PENDING
-  PROCESSING
-  COMPLETED
-  CANCELLED
-  RETURNED
+  PENDING // thanh toán đang chờ xử lý
+  PROCESSING // XỬ LÝ
+  COMPLETED // hoàn thành
+  CANCELLED // bị hủy
+  RETURNED // trả 
+  OVERAGE // quá trình
 }
 
 enum inventory_status {
@@ -49,6 +50,12 @@ enum product_status {
   ACTIVE
   INACTIVE
   SOLD
+}
+
+enum product_type {
+  PURCHASE // được tạo do nhập hàng ...
+  QUICK_CREATE // được tạo do user tạo nhanh bằng tay
+  //... tạo bằng đặt hàng, ....
 }
 
 enum stock_movement_type {
@@ -64,15 +71,38 @@ enum stock_movement_type {
   RETURN_SALE
   // Transfer the stock of a product from one store to another store (for example: transfer 10 units of a product from one store to another store)
   TRANSFER_IMPORT
+  // 
   TRANSFER_EXPORT
 }
 
 enum payment_method {
-  CASH
-  CREDIT_CARD
-  DEBIT_CARD
+  CASH // Tiền mặt (thanh toán trực tiếp)
+  CREDIT_CARD // Thẻ tín dụng
+  DEBIT_CARD // Thẻ ghi nợ
+  BANK_TRANSFER // Chuyển khoản ngân hàng
+  DIGITAL_WALLET // Ví điện tử (MoMo, ZaloPay, etc.)
 }
 
+enum supplier_status {
+  ACTIVE
+  INACTIVE
+  DELETE
+}
+
+enum payment_status {
+  UNPAID // Chưa thanh toán (đơn hàng mới tạo)
+  PARTIAL // Thanh toán một phần (khách hàng đã thanh toán một phần)
+  PAID // Đã thanh toán đầy đủ (thanh toán hoàn toàn)
+  OVERDUE // Quá hạn thanh toán (cho đơn hàng nợ/trả sau)
+}
+
+
+// purchase_order_status: Trạng thái của đơn đặt hàng nhập hàng (Purchase Order)
+// Theo dõi quy trình xử lý đơn hàng mua từ nhà cung cấp
+enum purchase_order_status {
+  PENDING // Đang chờ duyệt (chờ quản lý phê duyệt)
+  RECEIVED // Đã nhận hàng đầy đủ (đã nhận toàn bộ hàng đặt)
+}
 /**
  * User model
  * User is a model that represents the user of the system
@@ -105,7 +135,8 @@ model User {
   memberships      StoreMember[] // user is member of the store
   products_created Product[] // user is creator of the product
   orders_cashier   Order[] // user is cashier of the order
-
+  created_purchases PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
+  approved_purchases       PurchaseOrder[]       @relation("PurchaseOrderApprovedBy") 
   // indexes
   @@index([role, status])
   @@map("user")
@@ -119,30 +150,94 @@ model User {
  * Store has many members
  */
 model Store {
-  id            String   @id @default(uuid()) @db.Uuid
-  owner_id      String   @db.Uuid
-  name          String
-  description   String?
-  phone_number  String?
-  address       String?
+  id          String   @id @default(uuid()) @db.Uuid
+  owner_id    String   @db.Uuid
+  name        String
+  description String?
+  phone_number String?
+  city      String?
+  state     String?
+  address String?
   business_hour String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
   // relations
   owner            User              @relation(fields: [owner_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
   members          StoreMember[]
   products         Product[]
   categories       Category[]
+  tags             Tag[]
   customer         Customer[]
   statistics_daily StatisticsDaily[]
   orders           Order[]
+  store_payment        StorePayment[]                                       // Thông tin thanh toán
+  store_reward_point   StoreRewardPoint[]    
+  supplier Supplier[]
+  purchase_orders PurchaseOrder[]
+  variant_stock VariantStock[]
 
   // indexes
   @@index([owner_id])
   @@index([name])
   @@map("store")
 }
+
+
+// StorePayment: Quản lý thông tin thanh toán của cửa hàng
+// Lưu trữ chi tiết tài khoản ngân hàng và QR code thanh toán
+model StorePayment {
+  // ID và thông tin cơ bản
+  id                  String   @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  store_id            String   @db.Uuid // ID cửa hàng (foreign key)
+  
+  // Thông tin ngân hàng
+  bank_code           String  // Mã ngân hàng (ví dụ: "VCCB" cho Vietcombank)
+  bank_name           String  // Tên ngân hàng
+  bank_account_number String  // Số tài khoản ngân hàng
+  bank_account_name   String  // Tên chủ tài khoản
+  bank_qr_image_url   String?  // URL hình ảnh QR code thanh toán
+  note                String?
+  // Thời gian
+  createdAt           DateTime @default(now()) // Ngày tạo
+  updatedAt           DateTime @updatedAt // Ngày cập nhật lần cuối
+  updated_by          String?   @db.Uuid // ID người cập nhật lần cuối
+
+  // Relations
+  store               Store @relation(fields: [store_id], references: [id], onDelete: Cascade) // Cửa hàng
+
+  // Indexes
+  @@index([store_id]) // Index cửa hàng
+  @@map("store_payment") // Tên bảng trong database
+}
+
+
+// StoreRewardPoint: Quản lý cấu hình điểm thưởng của cửa hàng
+// Xác định tỷ lệ chuyển đổi điểm thưởng thành tiền mặt
+model StoreRewardPoint {
+  // ID
+  id                String @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  
+  // Thông tin cơ bản
+  store_id          String @db.Uuid // ID cửa hàng (foreign key)
+  convert_to        String @default("VND") @db.VarChar(255) // Đơn vị tiền tệ (VND, USD, etc.)
+  convert_rate      Int    @default(100000) // Tỷ lệ: 100000 đơn vị tiền = 1 điểm thưởng
+  point_value       Int    @default(5000) // Giá trị 1 điểm thưởng (đơn vị tiền)
+  description       String? @db.VarChar(255) // Mô tả chính sách điểm
+  is_apply          Boolean @default(false)
+
+  // Thời gian
+  createdAt        DateTime @default(now()) // Ngày tạo
+  updatedAt         DateTime @updatedAt // Ngày cập nhật lần cuối
+
+  // Relations
+  stores         Store  @relation(fields: [store_id], references: [id], onDelete: Cascade) // Cửa hàng
+
+  // Indexes
+  @@index([store_id]) // Index cửa hàng
+  @@map("store_reward_point") // Tên bảng trong database
+}
+
 
 /**
  * Store member model
@@ -197,6 +292,40 @@ model Customer {
   @@map("customer")
 }
 
+
+// Supplier: Quản lý thông tin nhà cung cấp hàng hoá
+// Lưu trữ thông tin liên hệ, địa chỉ và lịch sử mua hàng
+model Supplier {
+  // ID
+  id              String   @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  // Thông tin cơ bản
+  store_id        String   @db.Uuid // ID cửa hàng (multi-tenant isolation)
+  code            String?   // Mã nhà cung cấp (tự tạo, dễ nhớ)
+  name            String   // Tên nhà cung cấp
+  contact_person  String?  // Tên người liên hệ
+  address         String?
+  tax_code        String?
+  email           String?  @default("") // Email liên hệ
+  phone           String?  // Số đcdthuế
+  bank_account    Json?    // Thông tin tài khoản ngân hàng (JSON object)
+  notes           String?  // Ghi chú thêm
+  status       supplier_status  @default(ACTIVE) // Có còn hoạt động không
+  total_purchased Decimal  @default(0) @db.Decimal(15, 2) // Tổng giá trị hàng đã mua từ nhà cung cấp này (dùng để phân tích)
+  // Thời gian
+  createdAt       DateTime @default(now()) // Ngày tạo
+  updatedAt       DateTime @updatedAt // Ngày cập nhật lần cuối
+  deletedAt       DateTime? 
+  // Relations
+  store           Store           @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Cửa hàng
+  purchase_orders PurchaseOrder[] // Danh sách đơn hàng mua từ nhà cung cấp này
+  // Unique Constraints
+  @@unique([store_id, code]) // Mã nhà cung cấp không được trùng trong 1 cửa hàng
+  // Indexes
+  @@index([store_id, status]) // Index nhà cung cấp hoạt động
+  @@map("supplier") // Tên bảng trong database
+}
+
+
 /**
  * Product model
  * Product is a model that represents the product of a product
@@ -205,28 +334,31 @@ model Customer {
  * Product has one user
  */
 model Product {
-  id              String          @id @default(uuid()) @db.Uuid
-  store_id        String          @db.Uuid
-  name            String
-  sku             String
+  id              String           @id @default(uuid()) @db.Uuid 
+  store_id        String           @db.Uuid
+  name            String           
+  sku             String 
+  baseUnit        String           // Đơn vị gốc (VD: "cái", "ml"). Immutable.
   barcode         String?
-  price           Int             @default(0)
-  cost            Int             @default(0)
   image_url       String?
   description     String?
-  product_status  product_status  @default(ACTIVE)
-  meta            Json            @default("{}")
-  created_by      String          @db.Uuid
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  product_status  product_status   @default(ACTIVE)
+  meta            Json             @default("{}")
+  source_type     product_type      @default(QUICK_CREATE)
+  is_set_default_variant Boolean?  @default(true)
+  is_deleted Boolean? @default(false)
+  created_by      String           @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
   // relations
   created_by_user User            @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Cascade)
   store           Store           @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   categories      Category[]
-  inventory       Inventory?
+  variant       Variant[]
   tags            Tag[]
-  stock_movements StockMovement[]
   order_item      OrderItem[]
+  purchase_order_items PurchaseOrderItem[]
 
   @@unique([store_id, sku])
   // indexes
@@ -234,28 +366,74 @@ model Product {
   @@index([created_by, product_status, name])
   @@map("product")
 }
+model Variant {
+  id      String @id @default(uuid()) @db.Uuid
+  product_id    String  @db.Uuid
+  sku     String
+  barcode String?
+  name    String
+  price   Int       @default(0)
+  cost Int?          @default(0)
+  product      Product      @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  conversions  UnitConversion[]
+  order_item      OrderItem[]
+  purchase_order_items PurchaseOrderItem[]
+  variant_stocks VariantStock[]
+  stock_movements StockMovement[]
 
-/**
- * Inventory model
- * Inventory is a model that represents the inventory of a product
- * It is used to track the inventory of a product
- */
-model Inventory {
-  id         String           @id @default(uuid()) @db.Uuid
-  product_id String           @unique @db.Uuid
-  quantity   Int              @default(0)
-  discount   Int              @default(0)
-  total      Int              @default(0)
-  status     inventory_status @default(ACTIVE)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
-  // relations
-  product    Product          @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  @@index([product_id, name])
+  @@unique([product_id, name]) 
+  @@unique([product_id, sku])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt 
 
-  // indexes
-  @@index([product_id, status])
-  @@map("inventory")
+
+  @@map("variant")
 }
+model VariantStock {
+  id String     @id @default(uuid()) @db.Uuid
+  store_id String @db.Uuid
+  variant_id String @db.Uuid
+  onHand Int @default(0) // Tồn kho thực tế
+  reserved Int? @default(0) // Tồn đã giữ chỗ (đơn chưa nhập, chưa xuất)
+  damaged Int? @default(0) // Tồn hỏng / lock kiểm kê
+  
+  createdAt DateTime @default(now())
+  updateAt DateTime  @updatedAt
+
+  variant Variant @relation(fields: variant_id, references: id, onDelete: Cascade, onUpdate: Cascade)
+  store   Store  @relation(fields: [store_id], references: [id])
+
+  @@unique([variant_id, store_id])
+  @@map("variant_stocks")
+}
+
+
+model UnitConversion {
+  id   String  @id @default(uuid()) @db.Uuid 
+  name  String
+  factor Int
+  variantId String @db.Uuid 
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  @@unique([variantId, name])
+  @@map("unit_conversions")
+}
+
+model ProductTemplate {
+  id              String           @id @default(uuid()) @db.Uuid 
+  name            String
+  barcode         String           @unique
+  price           Int              @default(0)
+  cost            Int              @default(0)
+  image_url       String?
+  description     String?
+  meta            Json             @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("product_template")
+}
+
 
 /**
  * Category model
@@ -273,12 +451,13 @@ model Category {
   store       Store     @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   products    Product[]
 
-  @@unique([store_id, name])
   // indexes
   @@index([store_id])
   @@index([name])
   @@map("category")
 }
+
+
 
 /**
  * Tag model
@@ -287,30 +466,37 @@ model Category {
  */
 model Tag {
   id          String    @id @default(uuid()) @db.Uuid
+  store_id    String    @db.Uuid
   name        String
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   // relations
+  store       Store     @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   products    Product[]
 
+
   // indexes
+  @@index([store_id])
   @@index([name])
+
+  @@unique([store_id, name])
   @@map("tag")
 }
 
 model StockMovement {
   id         String              @id @default(uuid()) @db.Uuid
-  product_id String              @db.Uuid
+  variant_id String              @db.Uuid
   quantity   Int
   type       stock_movement_type
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
   // relations
-  product    Product             @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variants    Variant             @relation(fields: [variant_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   // indexes
-  @@index([product_id])
+  @@index([variant_id])
+
   @@map("stock_movement")
 }
 
@@ -327,6 +513,10 @@ model Order {
   customer_name   String?
   store_id        String         @db.Uuid
   // amount
+  // the total customer pay for the order
+  customer_pay_amount Int @default(0)
+  // the total need to return or customer to pay for total amount 
+  change_amount Int @default(0)
   // the total amount of the order before discount and tax: subtotal_amount = quantity * price
   subtotal_amount Int            @default(0)
   // the total amount of the order after discount: discount_amount = subtotal_amount * discount_rate
@@ -362,21 +552,157 @@ model Order {
 model OrderItem {
   id         String   @id @default(uuid()) @db.Uuid
   order_id   String   @db.Uuid
-  product_id String   @db.Uuid
+  variant_id String   @db.Uuid
+  product_id  String  @db.Uuid
   quantity   Int      @default(0)
+  discount_rate  Decimal? @default(0) 
+  tax_rate       Decimal? @default(0) 
   price      Int      @default(0)
   meta       Json     @default("{}")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   // relations
   order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variant    Variant  @relation(fields: [variant_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product   Product   @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   // indexes
   @@index([order_id])
+  @@index([variant_id])
   @@index([product_id])
   @@map("order_item")
 }
+
+
+// ===============================
+// PURCHASE ORDER - HÓA ĐƠN NHẬP HÀNG
+// ===============================
+// PurchaseOrder: Đơn hàng mua từ nhà cung cấp
+// Core entity cho quản lý nhập hàng, từ draft đến nhận hàng
+model PurchaseOrder {
+  // ID
+  id              String                @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  
+  // Thông tin cơ bản
+  store_id        String                @db.Uuid // ID cửa hàng (multi-tenant isolation)
+  order_number    String                // mã phiếu nhập (auto-generated)
+  supplier_id     String                @db.Uuid // ID nhà cung cấp
+  supplier_code   String?
+  // Thời gian
+  order_date      DateTime              @default(now()) // Ngày đặt hàng
+  expected_date   DateTime?             // Ngày dự kiến nhận hàng
+  received_date   DateTime?             // Ngày thực tế nhận hàng
+  
+  // Trạng thái
+  status          purchase_order_status @default(PENDING) // Trạng thái đơn hàng
+  
+  // Tài chính
+  subtotal        Decimal               @default(0) @db.Decimal(15, 2) // Tổng tiền hàng (trước chiết khấu/thuế)
+  discount_amount Decimal               @default(0) @db.Decimal(15, 2) // Tổng chiết khấu
+  tax_amount      Decimal               @default(0) @db.Decimal(15, 2) // Tiền thuế
+  shipping_fee    Decimal?               @default(0) @db.Decimal(15, 2) // Phí vận chuyển
+  total           Decimal               @default(0) @db.Decimal(15, 2) // Tổng cộng
+  paid_amount     Decimal               @default(0) @db.Decimal(15, 2) // Đã thanh toán
+  
+  // Thanh toán
+  payment_method  payment_method?       // Phương thức thanh toán
+  payment_status  payment_status        @default(UNPAID) 
+    
+  // Ghi chú
+  notes           String?               // Ghi chú đơn hàng
+  
+  // Quản lý
+  created_by      String                @db.Uuid // ID người tạo đơn hàng
+  approved_by     String?               @db.Uuid // ID người duyệt đơn hàng
+  approved_at     DateTime?             // Thời gian duyệt
+  
+  // Thời gian
+  createdAt       DateTime              @default(now()) // Ngày tạo
+  updatedAt       DateTime              @updatedAt // Ngày cập nhật lần cuối
+
+  // Relations
+  store     Store               @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Cửa hàng
+  supplier  Supplier            @relation(fields: [supplier_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Nhà cung cấp
+  creator   User                @relation("PurchaseOrderCreatedBy", fields: [created_by], references: [id], onDelete: Restrict, onUpdate: Cascade) // Người tạo
+  approver  User?               @relation("PurchaseOrderApprovedBy", fields: [approved_by], references: [id], onDelete: Restrict, onUpdate: Cascade) // Người duyệt
+  items     PurchaseOrderItem[] // Chi tiết các sản phẩm trong đơn hàng
+  payments  PurchasePayment[]   // Lịch sử thanh toán
+
+  // Unique Constraints
+  @@unique([store_id, order_number]) // Số hóa đơn không được trùng trong 1 cửa hàng
+  
+  // Indexes
+  @@index([store_id, status, order_date]) // Index truy vấn theo cửa hàng, trạng thái, ngày
+  @@index([supplier_id, status]) // Index truy vấn theo nhà cung cấp
+  @@map("purchase_order") // Tên bảng trong database
+}
+// PurchaseOrderItem: Chi tiết sản phẩm trong đơn hàng mua
+// Line items của mỗi purchase order
+model PurchaseOrderItem {
+  // ID
+  id                String  @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  
+  // Foreign Keys
+  purchase_order_id String  @db.Uuid // ID đơn hàng mua
+  product_id        String  @db.Uuid // ID sản phẩm
+  variant_id        String  @db.Uuid
+  // unit_id           String  @db.Uuid // ID đơn vị mua
+  
+  // Thông tin mua
+  item_name          String @default("")
+  quantity          Decimal @db.Decimal(10, 2) // Số lượng mua
+  unit              String?  // VD: "Thùng"      
+  applied_factor     Int?  // VD: 24 (Base Unit thì = 1)
+  total_base_qty      Int? // = inputQuanity * appliedFactor (VD : 48)
+  unit_cost         Decimal  @db.Decimal(15, 2) // giá nhập 
+  discount_rate     Decimal  @default(0) @db.Decimal(5, 4)  // Chiết khấu % (0.1 = 0.1%)
+  tax_rate          Decimal  @default(0) @db.Decimal(5, 4)  // Thuế % (0.1 = 0.1%)
+
+  // tiền sau tính toán
+  subtotal          Decimal  @default(0) @db.Decimal(15, 2) // tông tiền trước thuế và chiết khấu unit_cost * quantity
+  discount_amount   Decimal  @default(0) @db.Decimal(15, 2) //  subtotal * (discount_rate / 100)
+  tax_amount        Decimal  @default(0) @db.Decimal(15, 2) // (subtotal - discount_amount) * (tax_rate / 100)
+  total             Decimal @db.Decimal(15, 2) // Thành tiền =  subtotal - discount_amount + tax_amount
+  
+  // Ghi chú
+  notes             String?  
+
+  // Relations
+  purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Đơn hàng
+  product        Product       @relation(fields: [product_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Sản phẩm
+  variant        Variant          @relation(fields: [variant_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Biến thể
+
+  // Indexes
+  @@index([purchase_order_id]) // Index theo đơn hàng
+  @@index([product_id]) // Index theo sản phẩm
+  @@map("purchase_order_item") // Tên bảng trong database
+}
+// PurchasePayment: Lịch sử thanh toán cho đơn hàng mua
+// Theo dõi các lần thanh toán/trả tiền cho nhà cung cấp
+model PurchasePayment {
+  // ID
+  id                String         @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  
+  // Thông tin thanh toán
+  purchase_order_id String         @db.Uuid // ID đơn hàng mua
+  unit_cost         Decimal        @db.Decimal(15, 2) // Số tiền thanh toán
+
+  payment_method    payment_method // Phương thức thanh toán (CASH, CARD, BANK_TRANSFER, etc.)
+  payment_date      DateTime       @default(now()) // Ngày thanh toán
+  reference         String?        // Mã tham chiếu (transaction ID, check number, etc.)
+  notes             String?        // Ghi chú thêm
+  
+  // Thời gian
+  createdAt         DateTime       @default(now()) // Ngày tạo
+  updatedAt         DateTime?
+  // Relations
+  purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Đơn hàng
+
+  // Indexes
+  @@index([purchase_order_id]) // Index theo đơn hàng
+  @@map("purchase_payment") // Tên bảng trong database
+}
+
 
 model StatisticsDaily {
   id        String   @id @default(uuid()) @db.Uuid
