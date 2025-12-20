@@ -180,4 +180,23 @@ export class PurchaseOrderController {
 
     res.end(buffer);
   }
+
+  @Get('/excel/export/')
+  async exportPurchaseOrdersExcel(
+    @Res() res: express.Response,
+    @Param('storeId') storeId: string,
+  ) {
+    const buffer = await this.excel.exportPurchaseOrders(storeId);
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=phieu_nhap_hang.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.end(buffer);
+  }
 }
