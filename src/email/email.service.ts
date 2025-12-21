@@ -54,18 +54,31 @@ export class EmailService {
 
       this.logger.log(`Email sent to ${to} with subject "${subject}"`);
     } catch (err) {
-      this.logger.error(` Failed to send email to ${to}: ${err.message}`);
+      this.logger.error(
+        ` Failed to send email to ${to}: ${err.message as string}`,
+      );
       throw err;
     }
   }
 
   async sendVerificationEmail(to: string, code: string, ttl: Date) {
-    const html = this.renderTemplate('verification', { code, ttl });
+    const html = this.renderTemplate('verification', {
+      code,
+      ttl: this.getMinutes(ttl),
+    });
     return this.sendMail(to, 'Verify your email', '', html);
   }
 
   async sendForgotPasswordEmail(to: string, code: string, ttl: Date) {
-    const html = this.renderTemplate('forgot-password', { code, ttl });
+    const html = this.renderTemplate('forgot-password', {
+      code,
+      ttl: this.getMinutes(ttl),
+    });
     return this.sendMail(to, 'Reset your password', '', html);
   }
+
+  private getMinutes = (date: Date) => {
+    const now = new Date();
+    return Math.round((date.getTime() - now.getTime()) / 60000);
+  };
 }
