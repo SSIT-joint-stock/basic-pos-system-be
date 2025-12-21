@@ -51,6 +51,8 @@ export class AuthService {
     USER_NOT_FOUND: 'Tài khoản không tồn tại',
     EMAIL_ALREADY_EXISTS: 'Một tài khoản với email này đã tồn tại',
     USERNAME_ALREADY_EXISTS: 'Tên người dùng đã được sử dụng',
+
+    STORE_NOT_FOUND: 'Cửa hàng không tồn tại',
   } as const;
 
   constructor(
@@ -240,7 +242,7 @@ export class AuthService {
       },
     });
     if (!memberShip && store.owner_id !== payload.id)
-      throw new ForbiddenError('You are not a member of this store');
+      throw new ForbiddenError('Bạn không phải là thành viên của cửa hàng này');
     if (!user) {
       throw new ValidationError(this.errorMessages.INVALID_REFRESH_TOKEN);
     }
@@ -278,13 +280,13 @@ export class AuthService {
         id: userId,
       },
     });
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError(this.errorMessages.USER_NOT_FOUND);
     const store = await this.prismaService.store.findUnique({
       where: {
         id: storeId,
       },
     });
-    if (!store) throw new NotFoundError('Store not found');
+    if (!store) throw new NotFoundError(this.errorMessages.STORE_NOT_FOUND);
     const memberShip = await this.prismaService.storeMember.findFirst({
       where: {
         userId,
@@ -292,7 +294,7 @@ export class AuthService {
       },
     });
     if (!memberShip && store.owner_id !== userId)
-      throw new ForbiddenError('You are not a member of this store');
+      throw new ForbiddenError('Bạn không phải là thành viên của cửa hàng này');
     const token = this.tokenService.generateTokenPair({
       id: user.id,
       email: user.email,
@@ -314,7 +316,7 @@ export class AuthService {
         id: userId,
       },
     });
-    if (!user) throw new NotFoundError('User not found');
+    if (!user) throw new NotFoundError(this.errorMessages.USER_NOT_FOUND);
     const store = await this.prismaService.store.findUnique({
       where: {
         id: storeId,
@@ -328,7 +330,7 @@ export class AuthService {
       },
     });
     if (!memberShip && store.owner_id !== userId)
-      throw new ForbiddenError('You are not a member of this store');
+      throw new ForbiddenError('Bạn không phải là thành viên của cửa hàng này');
     return {
       user: {
         id: user.id,
@@ -415,7 +417,6 @@ export class AuthService {
     expiredAt: Date,
   ): void {
     setImmediate(() => {
-      console.log('dit me m');
       this.emailService
         .sendVerificationEmail(email, code, expiredAt)
         .then(() => {
