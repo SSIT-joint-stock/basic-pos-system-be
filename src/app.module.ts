@@ -13,8 +13,10 @@ import {
   databaseConfig,
   emailConfig,
   jobsConfig,
+  jwtConfig,
   limitRequestConfig,
   limitRequestConfigFactory,
+  oauthConfig,
   validateEnv,
 } from './config';
 
@@ -35,10 +37,7 @@ import { RolesGuard } from './module/auth/guards/roles.guard';
 import { TokenService } from './module/auth/token.service';
 import { HealthModule } from './health/health.module';
 import { ProductModule } from './module/product/product.module';
-import { OAuthModule } from './module/oauth/oauth.module';
 import { StoreModule } from './module/store/store.module';
-import jwtConfig from './config/jwt.config';
-import oauthConfig from './config/oauth.config';
 import { CategoryModule } from './module/category/category.module';
 
 import { StockMovementModule } from './module/stock-movement/stock-movement.module';
@@ -53,6 +52,7 @@ import { SuppliersModule } from './module/suppliers/suppliers.module';
 import { PurchaseOrderModule } from './module/purchase-order/purchase-order.module';
 import { TagModule } from './module/tag/tag.module';
 import { VariantModule } from './module/variant/variant.module';
+import { OauthModule } from './module/oauth/oauth.module';
 
 @Module({
   imports: [
@@ -113,7 +113,7 @@ import { VariantModule } from './module/variant/variant.module';
     AuthModule,
     StoreModule,
     ProductModule,
-    OAuthModule,
+    OauthModule,
     ScheduleModule.forRoot(),
     JobsModule,
     ProductModule,

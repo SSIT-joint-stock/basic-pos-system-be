@@ -57,6 +57,12 @@ enum product_type {
   QUICK_CREATE // được tạo do user tạo nhanh bằng tay
   //... tạo bằng đặt hàng, ....
 }
+enum provider_type {
+  GOOGLE
+  FACEBOOK
+  GITHUB
+  MANUAL
+}
 
 enum stock_movement_type {
   // Adjust the stock of a product by adding or subtracting the stock (for example: add 10 units to the stock)
@@ -111,8 +117,8 @@ enum purchase_order_status {
  */
 model User {
   id            String      @id @default(uuid()) @db.Uuid
-  providerId    String?
-  provider      String?
+  provider_id    String?
+  provider      provider_type? @default(MANUAL)
   email         String      @unique
   password      String?
   username      String      @unique

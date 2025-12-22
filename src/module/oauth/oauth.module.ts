@@ -1,16 +1,12 @@
 import { Module } from '@nestjs/common';
-import { OAuthService } from './oauth.service';
-import { OAuthController } from './oauth.controller';
-import { TokenService } from 'app/module/auth/token.service';
-import { PrismaService } from 'app/prisma/prisma.service';
-import { UsersService } from 'app/users/users.service';
-import { appConfig } from 'app/config';
-import { ConfigModule } from '@nestjs/config';
-
+import { PassportModule } from '@nestjs/passport';
+import { TokenService } from '../auth/token.service';
+import { OauthController } from './oauth.controller';
+import { OauthService } from './oauth.service';
+import { GoogleStrategy } from 'app/strategy/google.strategy';
 @Module({
-  imports: [ConfigModule.forFeature(appConfig)],
-  controllers: [OAuthController],
-  providers: [OAuthService, TokenService, PrismaService, UsersService],
-  exports: [OAuthService],
+  imports: [PassportModule.register({ defaultStrategy: 'google' })],
+  controllers: [OauthController],
+  providers: [OauthService, TokenService, GoogleStrategy],
 })
-export class OAuthModule {}
+export class OauthModule {}

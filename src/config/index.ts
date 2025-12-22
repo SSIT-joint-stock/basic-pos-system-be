@@ -4,6 +4,8 @@ export { default as jobsConfig } from './jobs.config';
 export { default as emailConfig } from './email.config';
 export { default as cookieConfig } from './cookie.config';
 export { default as apiConfig } from './api.config';
+export { default as jwtConfig } from './jwt.config';
+export { default as oauthConfig } from './oauth.config';
 export {
   default as limitRequestConfig,
   limitRequestConfig as limitRequestConfigFactory,
