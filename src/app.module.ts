@@ -137,14 +137,14 @@ import { VariantModule } from './module/variant/variant.module';
     HttpLogInterceptor,
     ResponseInterceptor,
     AllExceptionsFilter,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: JwtAuthGuard,
+    // },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: RolesGuard,
+    // },
   ],
 })
 export class AppModule {}

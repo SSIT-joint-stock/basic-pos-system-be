@@ -393,3 +393,173 @@
 - Tìm kiếm (`q`) nên được áp dụng trên **name**.
 
 ---
+
+Dưới đây là **phần MD bổ sung** cho Customer, tương ứng với 3 API Excel bạn đã thêm trong controller:
+
+- `GET /stores/:storeId/customers/excel/example`
+- `POST /stores/:storeId/customers/excel/import` (field upload: `excel_customer`)
+- `GET /stores/:storeId/customers/excel/export`
+
+Mình cũng sửa luôn **permission** theo đúng bảng bạn mô tả (CUSTOMER\_\*), và ghi chú rõ các lỗi/định dạng file.
+
+---
+
+# 8. Excel – Mẫu / Import / Export Khách hàng
+
+## 8.1 Tải file Excel mẫu (Template)
+
+### Mô tả
+
+| Thuộc tính    | Giá trị                                    |
+| ------------- | ------------------------------------------ |
+| Request URL   | `/stores/:storeId/customers/excel/example` |
+| Method        | **GET**                                    |
+| Header        | `Authorization: Bearer <token>`            |
+| Quyền yêu cầu | `CUSTOMER_CREATE`                          |
+| Response      | File `.xlsx`                               |
+
+### Response (200)
+
+- Trả về file Excel mẫu: `customer_template.xlsx`
+
+### Notes
+
+- File mẫu có các cột theo template hệ thống (Tên khách hàng\*, SĐT, Email, Địa chỉ, City, State, Zip, Country, …).
+- Các dòng ví dụ được điền sẵn để người dùng nhập theo.
+
+---
+
+## 8.2 Import khách hàng từ Excel
+
+### Mô tả
+
+| Thuộc tính    | Giá trị                                   |
+| ------------- | ----------------------------------------- |
+| Request URL   | `/stores/:storeId/customers/excel/import` |
+| Method        | **POST**                                  |
+| Header        | `Authorization: Bearer <token>`           |
+| Content-Type  | `multipart/form-data`                     |
+| Quyền yêu cầu | `CUSTOMER_CREATE`                         |
+| Upload field  | `excel_customer`                          |
+| Response      | JSON                                      |
+
+### Form-data
+
+| Key            | Type | Required | Ghi chú                                        |
+| -------------- | ---- | -------- | ---------------------------------------------- |
+| excel_customer | File | ✓        | File `.xlsx` đúng sheet name + đúng format cột |
+
+### Quy tắc validate dữ liệu (tham khảo)
+
+- `name`: bắt buộc, không rỗng
+- `email`: optional, nếu có phải đúng định dạng email
+- `phone`: optional, nếu có phải hợp lệ theo rule hệ thống (tuỳ schema)
+- `zip`: optional (hoặc bắt buộc tuỳ schema), nếu có chỉ nhận 5 chữ số (nếu bạn enforce)
+
+### Success Response (201/200)
+
+```json
+{
+  "success": true,
+  "meta": {
+    "timestamp": "2025-12-23T05:28:00.954Z",
+    "version": "v1"
+  },
+  "data": {
+    "count": 10
+  },
+  "message": "Import customers successfully"
+}
+```
+
+### Error Response
+
+#### 400 – Dữ liệu Excel không hợp lệ (schema validate)
+
+> Khi có lỗi validate, hệ thống trả về tối đa 10 lỗi đầu tiên + tổng số lỗi.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "File Excel có dữ liệu không hợp lệ. Vui lòng nhập đúng dữ liệu với mẫu Excel!",
+    "details": {
+      "errors": [
+        {
+          "row": 3,
+          "errors": {
+            "email": ["Email không hợp lệ"]
+          }
+        }
+      ],
+      "validCount": 5,
+      "totalErrors": 1
+    }
+  },
+  "meta": {
+    "timestamp": "2025-12-23T05:30:00.000Z",
+    "version": "v1"
+  }
+}
+```
+
+#### 409 – Trùng dữ liệu (email/phone) trong file hoặc đã tồn tại
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Email trùng trong file: a@gmail.com | SĐT đã tồn tại: 0901234567",
+    "details": {}
+  },
+  "meta": {
+    "timestamp": "2025-12-23T05:31:00.000Z",
+    "version": "v1"
+  }
+}
+```
+
+### Notes
+
+- Sheet name phải đúng (ví dụ: `Customers`). Sai sheet → lỗi `Không tìm thấy sheet`.
+- Dòng rỗng sẽ được bỏ qua.
+- Hệ thống có thể normalize `email` (lowercase) và `phone` (bỏ khoảng trắng, dấu `-`, `.`) trước khi check trùng.
+
+---
+
+## 8.3 Export danh sách khách hàng ra Excel
+
+### Mô tả
+
+| Thuộc tính    | Giá trị                                   |
+| ------------- | ----------------------------------------- |
+| Request URL   | `/stores/:storeId/customers/excel/export` |
+| Method        | **GET**                                   |
+| Header        | `Authorization: Bearer <token>`           |
+| Quyền yêu cầu | `CUSTOMER_READ`                           |
+| Response      | File `.xlsx`                              |
+
+### Response (200)
+
+- Trả về file Excel: `customer.xlsx`
+
+### Notes
+
+- File export sẽ có các cột giống template (name, phone, email, …).
+- `createdAt` sẽ xuất theo dữ liệu DB.
+
+---
+
+# 9. Ghi chú Permissions cho Excel
+
+| Endpoint                                   | Method | Permission gợi ý  |
+| ------------------------------------------ | ------ | ----------------- |
+| `/stores/:storeId/customers/excel/example` | GET    | `CUSTOMER_CREATE` |
+| `/stores/:storeId/customers/excel/import`  | POST   | `CUSTOMER_CREATE` |
+| `/stores/:storeId/customers/excel/export`  | GET    | `CUSTOMER_READ`   |
+
+> Hiện controller của bạn đang dùng `PERMISSIONS.PRODUCT_*` (FIX later). Khi sửa, bạn map lại theo `CUSTOMER_*` để đúng tài liệu.
+
+---
