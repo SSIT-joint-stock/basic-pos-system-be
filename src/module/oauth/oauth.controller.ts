@@ -1,17 +1,19 @@
 import { Controller, Get, Inject, Req, Res, UseGuards } from '@nestjs/common';
-import { OauthService } from './oauth.service';
-import { cookieConfig } from 'app/config';
 import { type ConfigType } from '@nestjs/config';
-import { Public } from 'app/common/decorators/public.decorator';
 import { AuthGuard } from '@nestjs/passport';
+import { Public } from 'app/common/decorators/public.decorator';
 import { GoogleProfile } from 'app/common/types/google-profile.type';
+import { apiConfig, cookieConfig } from 'app/config';
 import { Request, type Response } from 'express';
+import { OauthService } from './oauth.service';
 
 @Controller('oauth')
 export class OauthController {
   constructor(
     @Inject(cookieConfig.KEY)
     private readonly configCookie: ConfigType<typeof cookieConfig>,
+    @Inject(apiConfig.KEY)
+    private readonly configApi: ConfigType<typeof apiConfig>,
     private readonly oauthService: OauthService,
   ) {}
   @Public()
@@ -31,9 +33,8 @@ export class OauthController {
   ) {
     // Handle the Google OAuth callback
     try {
-      const feURl = 'http://localhost:3000/oauth-success';
-      console.log(req.user);
       const result = await this.oauthService.validateOauth(req.user);
+
       res.cookie('refresh_token', result.refresh_token, {
         httpOnly: this.configCookie.httpOnly,
         sameSite: this.configCookie.sameSite,
@@ -41,7 +42,10 @@ export class OauthController {
         maxAge: this.configCookie.maxAge,
         secure: this.configCookie.secure,
       });
-      res.redirect(feURl);
+      const redirectUrlFe = result.hasStore
+        ? `${this.configApi.fe_url}/auth/login/select-store`
+        : `${this.configApi.fe_url}/auth/login/create-store`;
+      res.redirect(redirectUrlFe);
       return result;
     } catch (err) {
       console.log(err);

@@ -1,6 +1,6 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { IUser } from 'app/common/types/user.type';
 import type { ConfigType } from '@nestjs/config';
+import { IUser } from 'app/common/types/user.type';
 import { jwtConfig } from 'app/config';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 

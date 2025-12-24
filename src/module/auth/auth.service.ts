@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RegisterDto } from './dto/register.dto';
-import { UsersService } from 'app/users/users.service';
-import { PrismaService } from 'app/prisma/prisma.service';
+import { Store, User, user_status } from '@prisma/client';
+import { BcryptService } from 'app/common/helpers/bcrypt.util';
+import { CodeService } from 'app/common/helpers/code.util';
 import {
   ConflictError,
   ForbiddenError,
@@ -9,13 +9,13 @@ import {
   ValidationError,
 } from 'app/common/response';
 import { EmailService } from 'app/email/email.service';
-import { VerifyEmailDto } from './dto/verify-email.dto';
+import { PrismaService } from 'app/prisma/prisma.service';
+import { UsersService } from 'app/users/users.service';
 import { EmailRequestDto } from './dto/email-request.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { LoginDto } from './dto/login.dto';
-import { BcryptService } from 'app/common/helpers/bcrypt.util';
-import { CodeService } from 'app/common/helpers/code.util';
-import { user_status, User, Store } from '@prisma/client';
+import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { TokenService } from './token.service';
 export interface AuthResponse {
   access_token: string;
@@ -224,25 +224,32 @@ export class AuthService {
     const payload = this.tokenService.verifyRefreshToken(refreshToken);
 
     const user = await this.prismaService.user.findUnique({
-      where: {
-        id: payload.id,
-        refresh_token: refreshToken,
-      },
+      where: { id: payload.id, refresh_token: refreshToken },
     });
-    const store = await this.prismaService.store.findUnique({
-      where: {
-        id: payload.storeId,
-      },
-    });
-    if (!store) throw new NotFoundError('Store not found');
-    const memberShip = await this.prismaService.storeMember.findFirst({
-      where: {
-        userId: payload.id,
-        storeId: payload.storeId,
-      },
-    });
-    if (!memberShip && store.owner_id !== payload.id)
-      throw new ForbiddenError('Bạn không phải là thành viên của cửa hàng này');
+
+    let store: Store | null = null;
+    if (payload.storeId) {
+      store = await this.prismaService.store.findUnique({
+        where: { id: payload.storeId },
+      });
+    } else {
+      store = await this.prismaService.store.findFirst({
+        where: { owner_id: payload.id },
+      });
+    }
+
+    // Kiểm tra quyền chỉ khi store tồn tại
+    if (store) {
+      const memberShip = await this.prismaService.storeMember.findFirst({
+        where: { userId: payload.id, storeId: store.id },
+      });
+      if (!memberShip && store.owner_id !== payload.id) {
+        throw new ForbiddenError(
+          'Bạn không phải là thành viên của cửa hàng này',
+        );
+      }
+    }
+
     if (!user) {
       throw new ValidationError(this.errorMessages.INVALID_REFRESH_TOKEN);
     }
@@ -255,16 +262,12 @@ export class AuthService {
       role: user.role,
       status: user.status,
       username: user.username,
-      storeId: payload.storeId,
+      storeId: store?.id || '',
     });
 
     await this.updateUserRefreshToken(user.id, tokens.refresh_token);
 
-    return {
-      ...tokens,
-      user,
-      store,
-    };
+    return { ...tokens, user, store };
   }
 
   async logout(userId: string): Promise<void> {

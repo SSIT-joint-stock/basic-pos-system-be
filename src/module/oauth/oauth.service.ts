@@ -13,7 +13,6 @@ export class OauthService {
   async validateOauth(profile: GoogleProfile) {
     const { id, emails, name, displayName } = profile;
     const email = emails[0]?.value;
-    console.log(email);
     const firstName = name?.givenName || '';
     const lastName = name?.familyName || '';
 
@@ -50,10 +49,14 @@ export class OauthService {
         data: { refresh_token: refresh_token, lastLoginAt: new Date() },
       });
     }
+    const store = await this.prisma.store.findFirst({
+      where: { owner_id: user.id },
+    });
     return {
       user,
       access_token,
       refresh_token,
+      hasStore: !!store,
     };
   }
 }
