@@ -226,7 +226,9 @@ export class AuthService {
     const user = await this.prismaService.user.findUnique({
       where: { id: payload.id, refresh_token: refreshToken },
     });
-
+    if (!user) {
+      throw new NotFoundError(this.errorMessages.USER_NOT_FOUND);
+    }
     let store: Store | null = null;
     if (payload.storeId) {
       store = await this.prismaService.store.findUnique({
@@ -250,10 +252,6 @@ export class AuthService {
       }
     }
 
-    if (!user) {
-      throw new ValidationError(this.errorMessages.INVALID_REFRESH_TOKEN);
-    }
-
     this.validateUserCanLogin(user);
 
     const tokens = this.tokenService.generateTokenPair({
@@ -262,7 +260,7 @@ export class AuthService {
       role: user.role,
       status: user.status,
       username: user.username,
-      storeId: store?.id || '',
+      storeId: store?.id,
     });
 
     await this.updateUserRefreshToken(user.id, tokens.refresh_token);
@@ -370,6 +368,15 @@ export class AuthService {
     }
     return user;
   }
+  async findUserByRefreshToken(refreshToken: string): Promise<User> {
+    const user = await this.prismaService.user.findFirst({
+      where: { refresh_token: refreshToken },
+    });
+    if (!user) {
+      throw new NotFoundError(this.errorMessages.USER_NOT_FOUND);
+    }
+    return user;
+  }
 
   private validateVerificationCode(user: User, code: string): void {
     if (user.verification_code !== code) {
@@ -384,7 +391,7 @@ export class AuthService {
     }
   }
 
-  private validateUserCanLogin(user: User): void {
+  validateUserCanLogin(user: User): void {
     if (!user.is_verified) {
       throw new ValidationError(this.errorMessages.EMAIL_NOT_VERIFIED);
     }
@@ -394,7 +401,7 @@ export class AuthService {
     }
   }
 
-  private async updateUserRefreshToken(
+  async updateUserRefreshToken(
     userId: string,
     refreshToken: string,
   ): Promise<void> {

@@ -119,7 +119,6 @@ export const FilterParse = <TSchema extends ZodObject<any>>(
       const validatedQuery = parsed.data as DefaultUserQueryType &
         InferFilters<TSchema>;
 
-      // console.log(validatedQuery);
       const result = {} as FilterParseResult<InferFilters<TSchema>>;
       const filters = {} as Partial<InferFilters<TSchema>> & {
         createdAt?: { gte?: Date; lte?: Date };

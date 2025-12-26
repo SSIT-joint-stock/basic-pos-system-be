@@ -1,28 +1,29 @@
-import { EmailRequestDto } from './dto/email-request.dto';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
-  Controller,
-  Post,
   Body,
-  Res,
+  Controller,
   Get,
-  Req,
-  UnauthorizedException,
-  Param,
   Inject,
+  Param,
+  Post,
+  Req,
+  Res,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { VerifyEmailDto } from './dto/verify-email.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import express from 'express';
+import type { ConfigType } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
+import { ApiSuccess } from 'app/common/decorators';
 import { Public } from 'app/common/decorators/public.decorator';
 import { User } from 'app/common/decorators/user.decorator';
-import { ApiSuccess } from 'app/common/decorators';
+import { UnauthorizedError } from 'app/common/response';
 import type { IUser } from 'app/common/types/user.type';
-import type { ConfigType } from '@nestjs/config';
 import { cookieConfig } from 'app/config';
-import { Throttle } from '@nestjs/throttler';
+import express from 'express';
+import { AuthService } from './auth.service';
+import { EmailRequestDto } from './dto/email-request.dto';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -115,7 +116,7 @@ export class AuthController {
     const refreshToken: string = req.cookies?.refresh_token;
 
     if (!refreshToken) {
-      throw new UnauthorizedException(
+      throw new UnauthorizedError(
         'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!',
       );
     }
@@ -145,19 +146,29 @@ export class AuthController {
         expires_in: 900,
       };
     } catch (error) {
-      res.clearCookie('refresh_token');
-      throw error;
+      if (error instanceof UnauthorizedError) {
+        res.clearCookie('refresh_token');
+      }
     }
   }
 
+  @Public()
   @Post('logout')
   @ApiSuccess('Tài khoản đăng xuất thành công!')
-  logout(
+  async logout(
     @User() user: IUser,
     @Res({ passthrough: true }) res: express.Response,
+    @Req() req: express.Request,
   ) {
+    const refreshToken: string = req.cookies?.refresh_token;
+    if (refreshToken) {
+      const user = await this.authService.findUserByRefreshToken(refreshToken);
+      if (user) {
+        await this.authService.logout(user.id);
+      }
+    }
     res.clearCookie('refresh_token');
-    return this.authService.logout(user.id);
+    res.clearCookie('provider_id');
   }
 
   @Get('profile')

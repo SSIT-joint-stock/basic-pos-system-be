@@ -1,8 +1,8 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-import { TokenService } from '../token.service';
-import { ForbiddenError } from 'app/common/response';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from 'app/common/decorators/public.decorator';
+import { UnauthorizedError } from 'app/common/response';
+import { TokenService } from '../token.service';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -27,7 +27,7 @@ export class JwtAuthGuard implements CanActivate {
     // get token form header Authorization
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new ForbiddenError(
+      throw new UnauthorizedError(
         'Access token not found in Authorization header',
       );
     }
@@ -41,7 +41,9 @@ export class JwtAuthGuard implements CanActivate {
 
       return true;
     } catch {
-      throw new ForbiddenError('Invalid or expired access token');
+      throw new UnauthorizedError(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!',
+      );
     }
   }
 }
