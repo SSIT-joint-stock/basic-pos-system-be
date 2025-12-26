@@ -1,32 +1,32 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import z from 'zod';
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ProductService } from './product.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { PermissionGuard } from 'app/permissions/guard/permission.guard';
-import { RequirePermissions } from 'app/common/decorators/permission.decorator';
-import { PERMISSIONS } from 'app/common/types/permission.type';
-import type { IUserWithPermissions } from 'app/common/types/permission.type';
-import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
+import { product_status } from '@prisma/client';
 import { ApiSuccess } from 'app/common/decorators';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
+import { RequirePermissions } from 'app/common/decorators/permission.decorator';
+import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
 import { PaginatedResponse } from 'app/common/response';
-import { product_status } from '@prisma/client';
+import type { IUserWithPermissions } from 'app/common/types/permission.type';
+import { PERMISSIONS } from 'app/common/types/permission.type';
+import { PermissionGuard } from 'app/permissions/guard/permission.guard';
+import z from 'zod';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { ImportProductService } from './import-product.service';
+import { ProductService } from './product.service';
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
@@ -46,7 +46,7 @@ export class ProductController {
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
       allowedSortBy: ['createdAt', 'name'],
-      searchBy: ['name', 'description'],
+      searchBy: ['name', 'description', 'sku', 'barcode'],
       searchKey: 'q',
       listFields: ['categories'],
       schema: z.object({
