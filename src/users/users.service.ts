@@ -38,11 +38,7 @@ export class UsersService {
       where: { username },
     });
   }
-  async findByProviderId(providerId: string) {
-    return this.prisma.user.findFirst({
-      where: { providerId },
-    });
-  }
+
   async generateUsername(email: string): Promise<string> {
     const username = email.split('@')[0];
     const user = await this.findByUsername(username);

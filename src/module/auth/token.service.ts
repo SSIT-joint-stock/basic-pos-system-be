@@ -1,8 +1,8 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { IUser } from 'app/common/types/user.type';
-import jwtConfig from 'app/config/jwt.config';
+import { Inject, Injectable } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-
+import { UnauthorizedError } from 'app/common/response';
+import { IUser } from 'app/common/types/user.type';
+import { jwtConfig } from 'app/config';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
 @Injectable()
@@ -35,13 +35,13 @@ export class TokenService {
     try {
       const decoded = jwt.verify(token, this.accessSecret);
       if (typeof decoded === 'string') {
-        throw new UnauthorizedException(
+        throw new UnauthorizedError(
           'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
         );
       }
       return decoded;
     } catch {
-      throw new UnauthorizedException(
+      throw new UnauthorizedError(
         'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.',
       );
     }
@@ -51,13 +51,13 @@ export class TokenService {
     try {
       const decoded = jwt.verify(token, this.refreshSecret);
       if (typeof decoded === 'string') {
-        throw new UnauthorizedException(
+        throw new UnauthorizedError(
           'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
         );
       }
       return decoded;
     } catch {
-      throw new UnauthorizedException(
+      throw new UnauthorizedError(
         'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại',
       );
     }

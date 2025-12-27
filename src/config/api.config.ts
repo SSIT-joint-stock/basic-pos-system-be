@@ -9,4 +9,6 @@ export default registerAs('api', () => ({
   viet_qr: process.env.QR_API_VN ?? 'https://img.vietqr.io/image',
   tax_code_vn:
     process.env.TAX_CODE_API_VN ?? 'https://api.vietqr.io/v2/business',
+
+  fe_url: process.env.FE_URL ?? 'http://localhost:3000',
 }));

@@ -1,22 +1,22 @@
-import express from 'express';
-import { PurchaseOrderExcelService } from './purchase-order-excel.service';
 import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
-import { PurchaseOrderService } from './purchase-order.service';
+import { payment_status, purchase_order_status } from '@prisma/client';
 import { ApiSuccess } from 'app/common/decorators';
-import { RequirePermission } from 'app/common/decorators/permission.decorator';
-import { PERMISSIONS } from 'app/common/types/permission.type';
-import { AcceptPaymentImportPurchaseDto } from './dto/accept-payment-puchase.dto';
 import {
   FilterParse,
   type FilterParseResult,
 } from 'app/common/decorators/filter-parse.decorator';
-import z from 'zod';
-import { payment_status, purchase_order_status } from '@prisma/client';
-import { PaginatedResponse } from 'app/common/response';
-import { PurchasePaymentService } from './purchase-payment.service';
-import type { IUser } from 'app/common/types/user.type';
-import { CreatePurchaseOrderDto } from './dto/purchase-order.dto';
+import { RequirePermission } from 'app/common/decorators/permission.decorator';
 import { User } from 'app/common/decorators/user.decorator';
+import { PaginatedResponse } from 'app/common/response';
+import { PERMISSIONS } from 'app/common/types/permission.type';
+import type { IUser } from 'app/common/types/user.type';
+import express from 'express';
+import z from 'zod';
+import { AcceptPaymentImportPurchaseDto } from './dto/accept-payment-puchase.dto';
+import { CreatePurchaseOrderDto } from './dto/purchase-order.dto';
+import { PurchaseOrderExcelService } from './purchase-order-excel.service';
+import { PurchaseOrderService } from './purchase-order.service';
+import { PurchasePaymentService } from './purchase-payment.service';
 
 @Controller('purchase-order')
 export class PurchaseOrderController {
@@ -58,7 +58,6 @@ export class PurchaseOrderController {
   @ApiSuccess('Xác nhận nhập kho thành công!')
   @RequirePermission([PERMISSIONS.PURCHASE_ORDER_UPDATE])
   async acceptImport(@User() user: IUser, @Param('id') id: string) {
-    console.log(id);
     return await this.purchaseOrderService.acceptPurchaseImport(
       id,
       user.storeId || '',
