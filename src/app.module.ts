@@ -53,6 +53,7 @@ import { PurchaseOrderModule } from './module/purchase-order/purchase-order.modu
 import { TagModule } from './module/tag/tag.module';
 import { VariantModule } from './module/variant/variant.module';
 import { OauthModule } from './module/oauth/oauth.module';
+import { StoreMemberModule } from './module/store-member/store-member.module';
 
 @Module({
   imports: [
@@ -131,6 +132,7 @@ import { OauthModule } from './module/oauth/oauth.module';
     PurchaseOrderModule,
     TagModule,
     VariantModule,
+    StoreMemberModule,
   ],
   providers: [
     TokenService,
