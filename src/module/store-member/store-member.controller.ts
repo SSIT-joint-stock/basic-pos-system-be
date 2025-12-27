@@ -1,3 +1,4 @@
+import express from 'express';
 import {
   Controller,
   Get,
@@ -6,6 +7,7 @@ import {
   Patch,
   Param,
   Delete,
+  Res,
 } from '@nestjs/common';
 import { ApiSuccess } from 'app/common/decorators';
 import { User } from 'app/common/decorators/user.decorator';
@@ -15,9 +17,14 @@ import { StoreMemberService } from './store-member.service';
 import { AddExistingMemberDto } from './dto/add-existing-member.dto';
 import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { StoreMemberExcelService } from './store-member-excel.service';
+import { Response } from 'express';
 @Controller('store-member')
 export class StoreMemberController {
-  constructor(private readonly storeMemberService: StoreMemberService) {}
+  constructor(
+    private readonly storeMemberService: StoreMemberService,
+    private readonly storeMemberExcelService: StoreMemberExcelService,
+  ) {}
 
   @Post('add-member/:storeId')
   @ApiSuccess('Thêm thành viên thành công')
@@ -79,5 +86,44 @@ export class StoreMemberController {
       dto,
       user,
     );
+  }
+  @Get(':storeId/excel/template')
+  async downloadStoreMemberTemplate(@Res() res: express.Response) {
+    const buffer =
+      await this.storeMemberExcelService.downloadExampleStoreMember();
+
+    res.set({
+      'Content-Disposition': 'attachment; filename=thanh_vien_cua_hang.xlsx',
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Length': buffer.length,
+    });
+
+    res.end(buffer);
+  }
+
+  /**
+   * Export danh sách Store Member
+   * GET /api/v1/store-member/:storeId/excel/export
+   */
+  @Get(':storeId/excel/export')
+  async exportStoreMembersExcel(
+    @Param('storeId') storeId: string,
+    @User() user: IUser,
+    @Res() res: express.Response,
+  ) {
+    const buffer = await this.storeMemberExcelService.exportStoreMembers(
+      storeId,
+      user,
+    );
+
+    res.set({
+      'Content-Disposition': 'attachment; filename=thanh_vien_cua_hang.xlsx',
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Length': buffer.length,
+    });
+
+    res.end(buffer);
   }
 }

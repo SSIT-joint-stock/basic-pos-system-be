@@ -3,6 +3,7 @@ import {
   payment_method,
   payment_status,
   purchase_order_status,
+  StoreMemberRole,
 } from '@prisma/client';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class FormatStatus {
     PAID: 'Đã thanh toán',
     REFUNDED: 'Đã hoàn tiền',
   };
+
   // ===== PURCHASE ORDER (NHẬP HÀNG) =====
   purchaseOrderStatus(status: purchase_order_status): string {
     const map: Record<purchase_order_status, string> = {
@@ -46,5 +48,14 @@ export class FormatStatus {
       DIGITAL_WALLET: 'Ví điện tử',
     };
     return map[method];
+  }
+
+  // ===== STORE MEMBER ROLE =====
+  storeMemberRole(role: StoreMemberRole): string {
+    const map: Record<StoreMemberRole, string> = {
+      OWNER: 'Chủ cửa hàng',
+      MEMBER: 'Nhân viên',
+    };
+    return map[role];
   }
 }
