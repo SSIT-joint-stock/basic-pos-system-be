@@ -53,6 +53,7 @@ import { SuppliersModule } from './module/suppliers/suppliers.module';
 import { PurchaseOrderModule } from './module/purchase-order/purchase-order.module';
 import { TagModule } from './module/tag/tag.module';
 import { VariantModule } from './module/variant/variant.module';
+import { StoreMemberModule } from './module/store-member/store-member.module';
 
 @Module({
   imports: [
@@ -131,6 +132,7 @@ import { VariantModule } from './module/variant/variant.module';
     PurchaseOrderModule,
     TagModule,
     VariantModule,
+    StoreMemberModule,
   ],
   providers: [
     TokenService,

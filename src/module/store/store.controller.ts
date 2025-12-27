@@ -61,34 +61,6 @@ export class StoreController {
   remove(@Param('storeId') storeId: string, @User() user: IUser) {
     return this.storeService.remove(storeId, user);
   }
-
-  // Store member management
-  @Post('add-member/:storeId')
-  @ApiSuccess('Thêm thành viên thành công')
-  addMemberToStore(
-    @Param('storeId') storeId: string,
-    @Body() body: { emailUser: string },
-    @User() user: IUser,
-  ) {
-    return this.storeService.addMemberToStore(storeId, body.emailUser, user);
-  }
-
-  @Delete('delete-member/:storeId')
-  @ApiSuccess('Xóa thành viên thành công')
-  removeMember(
-    @Param('storeId') storeId: string,
-    @Body('memberUserId') memberUserId: string,
-    @User() user: IUser,
-  ) {
-    return this.storeService.removeMember(storeId, memberUserId, user);
-  }
-
-  @Get('members/:storeId')
-  @ApiSuccess('Get members in store successfully')
-  getMembersInStore(@Param('storeId') storeId: string, @User() user: IUser) {
-    return this.storeService.getMembersInStore(storeId, user);
-  }
-
   // Get Permissions
   @Get('members/permissions/:storeId')
   @ApiSuccess('Get permissions in store successfully')
