@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import {
+  payment_method,
+  payment_status,
+  purchase_order_status,
+} from '@prisma/client';
 
 @Injectable()
 export class FormatStatus {
@@ -11,4 +16,35 @@ export class FormatStatus {
     PAID: 'Đã thanh toán',
     REFUNDED: 'Đã hoàn tiền',
   };
+  // ===== PURCHASE ORDER (NHẬP HÀNG) =====
+  purchaseOrderStatus(status: purchase_order_status): string {
+    const map: Record<purchase_order_status, string> = {
+      PENDING: 'Chờ duyệt',
+      RECEIVED: 'Đã nhận hàng',
+    };
+    return map[status];
+  }
+
+  // ===== PAYMENT STATUS =====
+  paymentStatus(status: payment_status): string {
+    const map: Record<payment_status, string> = {
+      UNPAID: 'Chưa thanh toán',
+      PARTIAL: 'Thanh toán một phần',
+      PAID: 'Đã thanh toán',
+      OVERDUE: 'Quá hạn',
+    };
+    return map[status];
+  }
+
+  // ===== PAYMENT METHOD =====
+  paymentMethod(method: payment_method): string {
+    const map: Record<payment_method, string> = {
+      CASH: 'Tiền mặt',
+      CREDIT_CARD: 'Thẻ tín dụng',
+      DEBIT_CARD: 'Thẻ ghi nợ',
+      BANK_TRANSFER: 'Chuyển khoản',
+      DIGITAL_WALLET: 'Ví điện tử',
+    };
+    return map[method];
+  }
 }

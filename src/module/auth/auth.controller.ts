@@ -22,6 +22,7 @@ import { ApiSuccess } from 'app/common/decorators';
 import type { IUser } from 'app/common/types/user.type';
 import type { ConfigType } from '@nestjs/config';
 import { cookieConfig } from 'app/config';
+import { Throttle } from '@nestjs/throttler';
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -34,7 +35,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @ApiSuccess(
-    'Tạo tài khoản thành công. Vui lòng kiểm tra email để xác thực tài khoản',
+    'Tạo tài khoản thành công. Vui lòng kiểm tra email để xác thực tài khoản!',
   )
   async register(@Body() dto: RegisterDto) {
     const result = await this.authService.register(dto);
@@ -84,22 +85,23 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 1, ttl: 30000 } })
   @Post('reverify-email')
-  @ApiSuccess('Gửi email xác thực tài khoản thành công!')
+  @ApiSuccess('Gửi mã xác thực tài khoản thành công. Vui lòng kiểm tra email!')
   async resendVerificationEmail(@Body() dto: EmailRequestDto) {
     await this.authService.resendVerificationEmail(dto);
   }
 
   @Public()
   @Post('forgot-password')
-  @ApiSuccess('Mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email')
+  @ApiSuccess('Mã đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email!')
   async forgotPassword(@Body() dto: EmailRequestDto) {
     await this.authService.forgotPassword(dto);
   }
 
   @Public()
   @Post('reset-password')
-  @ApiSuccess('Đặt lại mật khẩu thành công')
+  @ApiSuccess('Đặt lại mật khẩu thành công!')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.authService.resetPassword(dto);
   }
@@ -114,7 +116,7 @@ export class AuthController {
 
     if (!refreshToken) {
       throw new UnauthorizedException(
-        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!',
       );
     }
 

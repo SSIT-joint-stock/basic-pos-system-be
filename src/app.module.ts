@@ -48,11 +48,12 @@ import { CustomerModule } from './module/customer/customer.module';
 import { CommonModule } from './module/common/common.module';
 import { StorePaymentModule } from './module/store-payment/store-payment.module';
 import { StoreRewardPointModule } from './module/store-reward-point/store-reward-point.module';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { SuppliersModule } from './module/suppliers/suppliers.module';
 import { PurchaseOrderModule } from './module/purchase-order/purchase-order.module';
 import { TagModule } from './module/tag/tag.module';
 import { VariantModule } from './module/variant/variant.module';
+import { StoreMemberModule } from './module/store-member/store-member.module';
 
 @Module({
   imports: [
@@ -131,20 +132,25 @@ import { VariantModule } from './module/variant/variant.module';
     PurchaseOrderModule,
     TagModule,
     VariantModule,
+    StoreMemberModule,
   ],
   providers: [
     TokenService,
     HttpLogInterceptor,
     ResponseInterceptor,
     AllExceptionsFilter,
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: JwtAuthGuard,
-    // },
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: RolesGuard,
-    // },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

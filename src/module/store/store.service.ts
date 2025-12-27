@@ -2,12 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PrismaService } from 'app/prisma/prisma.service';
-import {
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-} from 'app/common/response';
-import { StoreMemberRole } from '@prisma/client';
+import { ForbiddenError, NotFoundError } from 'app/common/response';
 import { PermissionService } from 'app/permissions/permission.service';
 import { IUser } from 'app/common/types/user.type';
 
@@ -168,100 +163,6 @@ export class StoreService {
     }
     return await this.prismaService.store.delete({
       where: { id: storeId },
-    });
-  }
-
-  // Store member management methods
-  async addMemberToStore(storeId: string, userEmail: string, owner: IUser) {
-    // Only owner can add members
-    const isOwner = await this.checkIsOwner(storeId, owner.id);
-
-    if (!isOwner) {
-      throw new ForbiddenError('Only store owner can add members');
-    }
-
-    // Check if user exists
-    const userExists = await this.prismaService.user.findUnique({
-      where: { email: userEmail },
-    });
-
-    if (!userExists) {
-      throw new ConflictError('User not found');
-    }
-    if (userExists.is_verified === false) {
-      throw new ForbiddenError('User is not verified');
-    }
-    // Không cho owner tự add mình
-    if (userExists.id === owner.id) {
-      throw new ConflictError('Owner cannot be added as a member');
-    }
-
-    const memberExits = await this.prismaService.storeMember.findFirst({
-      where: {
-        userId: userExists.id,
-        storeId: storeId,
-      },
-    });
-    if (memberExits) {
-      throw new ConflictError('User already exists in this store');
-    }
-
-    return await this.prismaService.storeMember.create({
-      data: {
-        storeId,
-        userId: userExists.id,
-        role: StoreMemberRole.MEMBER,
-      },
-      include: {
-        user: {
-          select: { id: true, username: true, email: true },
-        },
-      },
-    });
-  }
-
-  async getMembersInStore(storeId: string, owner: IUser) {
-    const isOwner = await this.checkIsOwner(storeId, owner.id);
-    if (!isOwner) {
-      throw new ForbiddenError('Only store owner can get members');
-    }
-    return await this.prismaService.storeMember.findMany({
-      where: {
-        storeId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-      },
-    });
-  }
-
-  async removeMember(storeId: string, memberUserId: string, owner: IUser) {
-    // Only owner can remove members
-    const isOwner = await this.checkIsOwner(storeId, owner.id);
-
-    if (!isOwner) {
-      throw new ForbiddenError('Only store owner can remove members');
-    }
-    const userExists = await this.prismaService.user.findUnique({
-      where: { id: memberUserId },
-    });
-    if (!userExists) {
-      throw new NotFoundError('Member not found in this store');
-    }
-
-    return await this.prismaService.storeMember.delete({
-      where: {
-        storeId_userId: {
-          storeId,
-          userId: memberUserId,
-        },
-      },
     });
   }
   async getPermissionsInStore(storeId: string, user: IUser) {
