@@ -20,29 +20,33 @@ export class StoreMemberService {
     private readonly bcryptService: BcryptService,
   ) {}
   private readonly errMsg = {
-    ONLY_OWNER_CAN_ADD_MEMBER: 'Only store owner can add members',
-    ONLY_OWNER_CAN_REMOVE_MEMBER: 'Only store owner can remove members',
-    ONLY_OWNER_CAN_UPDATE_ROLE: 'Only store owner can update member role',
-    ONLY_OWNER_CAN_VIEW_MEMBERS: 'Only store owner can view members',
+    ONLY_OWNER_CAN_ADD_MEMBER: 'Chỉ chủ cửa hàng mới có quyền thêm thành viên',
+    ONLY_OWNER_CAN_REMOVE_MEMBER:
+      'Chỉ chủ cửa hàng mới có quyền xoá thành viên',
+    ONLY_OWNER_CAN_UPDATE_ROLE:
+      'Chỉ chủ cửa hàng mới có quyền cập nhật vai trò thành viên',
+    ONLY_OWNER_CAN_VIEW_MEMBERS:
+      'Chỉ chủ cửa hàng mới có quyền xem danh sách thành viên',
     ONLY_OWNER_CAN_VIEW_MEMBER_DETAIL:
-      'Only store owner can view member detail',
+      'Chỉ chủ cửa hàng mới có quyền xem chi tiết thành viên',
 
-    USER_NOT_EXIST: 'User does not exist',
-    USER_NOT_VERIFIED: 'User is not verified',
+    USER_NOT_EXIST: 'Người dùng không tồn tại',
+    USER_NOT_VERIFIED: 'Người dùng chưa xác thực tài khoản',
 
-    MEMBER_ALREADY_EXISTS: 'User already exists in this store',
-    MEMBER_NOT_FOUND: 'Member not found in this store',
+    MEMBER_ALREADY_EXISTS: 'Người dùng đã là thành viên của cửa hàng',
+    MEMBER_NOT_FOUND: 'Không tìm thấy thành viên trong cửa hàng',
 
-    OWNER_CANNOT_ADD_SELF: 'Owner cannot be added as a member',
-    OWNER_CANNOT_REMOVE_SELF: 'Owner cannot be removed from the store',
-    OWNER_ROLE_CANNOT_BE_UPDATED: 'Owner role cannot be updated',
-    OWNER_ROLE_CANNOT_BE_REMOVE: 'Owner role cannot be remove',
+    OWNER_CANNOT_ADD_SELF:
+      'Chủ cửa hàng không thể tự thêm chính mình làm thành viên',
+    OWNER_CANNOT_REMOVE_SELF: 'Không thể xoá chủ cửa hàng khỏi cửa hàng',
+    OWNER_ROLE_CANNOT_BE_UPDATED: 'Không thể thay đổi vai trò của chủ cửa hàng',
+    OWNER_ROLE_CANNOT_BE_REMOVE: 'Không thể xoá vai trò chủ cửa hàng',
 
-    CANNOT_ASSIGN_OWNER_ROLE: 'Cannot assign OWNER role',
+    CANNOT_ASSIGN_OWNER_ROLE: 'Không thể gán vai trò chủ cửa hàng',
 
-    EMAIL_ALREADY_EXISTS: 'Email already exists',
-    USERNAME_ALREADY_EXISTS: 'Username already exists',
-    PASSWORD_CONFIRM_NOT_MATCH: 'Password and confirm password do not match',
+    EMAIL_ALREADY_EXISTS: 'Email đã tồn tại trong hệ thống',
+    USERNAME_ALREADY_EXISTS: 'Tên đăng nhập đã tồn tại trong hệ thống',
+    PASSWORD_CONFIRM_NOT_MATCH: 'Mật khẩu và xác nhận mật khẩu không khớp',
   };
   async addExistingUserToStore(
     storeId: string,

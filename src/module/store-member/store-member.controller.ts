@@ -15,7 +15,7 @@ import { StoreMemberService } from './store-member.service';
 import { AddExistingMemberDto } from './dto/add-existing-member.dto';
 import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
-@Controller('stores')
+@Controller('store-member')
 export class StoreMemberController {
   constructor(private readonly storeMemberService: StoreMemberService) {}
 
