@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { CreateVariantDto } from './dto/create-variant.dto';
-import { UpdateVariantDto } from './dto/update-variant.dto';
-import { PrismaService } from 'app/prisma/prisma.service';
+import { Prisma, product_status, stock_movement_type } from '@prisma/client';
 import {
   BadRequestError,
   ConflictError,
   NotFoundError,
 } from 'app/common/response';
-import { GenerateVariantSkuUseCase } from './use-case/genereate-sku-variant.usecase';
+import { PrismaService } from 'app/prisma/prisma.service';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
-import { Prisma, product_status, stock_movement_type } from '@prisma/client';
+import { CreateVariantDto } from './dto/create-variant.dto';
+import { UpdateVariantDto } from './dto/update-variant.dto';
 import { UnitConversionService } from './unit-conversion/unit-conversion.service';
+import { GenerateVariantSkuUseCase } from './use-case/genereate-sku-variant.usecase';
 
 @Injectable()
 export class VariantService {
@@ -96,12 +96,7 @@ export class VariantService {
         orderBy: query.orderBy,
         include: {
           conversions: true,
-          product: {
-            select: {
-              baseUnit: true,
-              name: true,
-            },
-          },
+          product: true,
           variant_stocks: {
             select: {
               onHand: true,
