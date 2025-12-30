@@ -9,7 +9,7 @@ export interface SupplierDataExcel {
   tax_code?: string | null;
   email?: string | null;
   phone?: string | null;
-  bank_account?: any | null; // nếu bạn parse JSON thì có thể là object
+  bank_account?: string | null;
   notes?: string | null;
   status?: 'ACTIVE' | 'INACTIVE' | null;
   total_purchased?: string | number | null;
@@ -79,5 +79,5 @@ export const SUPPLIER_EXCEL_TEMPLATE: ExcelTemplateConfig = {
     { header: 'Tổng mua', key: 'total_purchased', width: 16 },
     { header: 'Ngày tạo', key: 'createdAt', width: 18 },
   ],
-  exampleData: SUPPLIER_EXAMPLE_DATA as any,
+  exampleData: SUPPLIER_EXAMPLE_DATA,
 };

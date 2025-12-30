@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import express from 'express'; /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
@@ -112,7 +113,7 @@ export class CustomerController {
   @Get('/excel/example')
   @ApiSuccess('Tải thành công danh sách mẫu danh mục!')
   async download(@Res() res: express.Response) {
-    const buffer = await this.excelCustomer.downloadExampleCustomer();
+    const buffer = await this.excelCustomer.downloadExample();
     res.setHeader(
       'Content-Disposition',
       'attachment; filename=customer_template.xlsx',
@@ -132,7 +133,7 @@ export class CustomerController {
     @Param('storeId') storeId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return await this.excelCustomer.importCustomerExcel(storeId, file);
+    return await this.excelCustomer.importExcel(storeId, file);
   }
 
   @Get('/excel/export')
@@ -141,7 +142,8 @@ export class CustomerController {
     @Res() res: express.Response,
     @Param('storeId') storeId: string,
   ) {
-    const buffer = await this.excelCustomer.getCustomerExcel(storeId);
+    const buffer = await this.excelCustomer.exportCustomerExcel(storeId);
+
     res.setHeader('Content-Disposition', 'attachment; filename=customer.xlsx');
     res.setHeader(
       'Content-Type',

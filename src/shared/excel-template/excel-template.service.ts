@@ -79,9 +79,9 @@ export class ExcelTemplateService {
       try {
         // Bỏ qua các dòng trống
         // Skip empty rows
-        const isEmptyRow = config?.columns.every((col, idx) => {
-          const cellValue = row.getCell(idx + 1).value;
-          return !cellValue || String(cellValue).trim() === '';
+        const isEmptyRow = config.columns.every((col, idx) => {
+          const cellText = (row.getCell(idx + 1).text ?? '').trim();
+          return cellText === '';
         });
 
         if (isEmptyRow) {
@@ -90,8 +90,14 @@ export class ExcelTemplateService {
 
         const rawData = config.columns.reduce(
           (acc, col, idx) => {
-            const cellValue = row.getCell(idx + 1).value;
-            acc[col.key] = cellValue ? String(cellValue).trim() : '';
+            let v = (row.getCell(idx + 1).text ?? '').trim(); // ⭐ dùng text
+
+            // ⭐ FIX: nếu bị dạng `"0"` / `"abc"` thì bỏ dấu ngoặc kép
+            if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) {
+              v = v.slice(1, -1).trim();
+            }
+
+            acc[col.key] = v;
             return acc;
           },
           {} as Record<string, any>,

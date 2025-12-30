@@ -113,7 +113,7 @@ export class SuppliersController {
   @Get('/excel/example')
   @ApiSuccess('Tải thành công danh sách mẫu danh mục!')
   async download(@Res() res: express.Response) {
-    const buffer = await this.excelSupplier.downloadExampleCategory();
+    const buffer = await this.excelSupplier.downloadExampleSupplier();
     res.setHeader(
       'Content-Disposition',
       'attachment; filename=category_template.xlsx',
@@ -142,7 +142,7 @@ export class SuppliersController {
     @Res() res: express.Response,
     @Param('storeId') storeId: string,
   ) {
-    const buffer = await this.excelSupplier.getSupplierExcel(storeId);
+    const buffer = await this.excelSupplier.exportSupplierExcel(storeId);
     res.setHeader('Content-Disposition', 'attachment; filename=supplier.xlsx');
     res.setHeader(
       'Content-Type',
