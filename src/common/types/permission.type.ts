@@ -10,9 +10,12 @@ export type PermissionResource =
   | 'category'
   | 'order'
   | 'customer'
-  | 'inventory'
   | 'tags'
   | 'stockMovement'
+  | 'inventory'
+  | 'report'
+  | 'purchase-order'
+  | 'variant'
   | 'all';
 export type Permission = `${PermissionResource}:${PermissionAction}`;
 
@@ -104,6 +107,10 @@ export const PERMISSIONS = {
   VARIANT_UPDATE: 'variant:update' as Permission,
   VARIANT_DELETE: 'variant:delete' as Permission,
   VARIANT_ALL: 'variant:all' as Permission,
+
+  // Report permissions
+  REPORT_READ: 'report:read' as Permission,
+  REPORT_ALL: 'report:all' as Permission,
 
   // ADMIN PERMISSIONS
   ALL: 'all:all' as Permission,

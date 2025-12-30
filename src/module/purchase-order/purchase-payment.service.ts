@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma, purchase_order_status } from '@prisma/client';
 import { BadRequestError, NotFoundError } from 'app/common/response';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { AcceptPaymentImportPurchaseDto } from './dto/accept-payment-puchase.dto';
-import { Prisma, purchase_order_status } from '@prisma/client';
 
 @Injectable()
 export class PurchasePaymentService {
@@ -70,6 +70,15 @@ export class PurchasePaymentService {
           paid_amount: newPaidAmount,
           payment_status: newPaymentStatus,
           payment_method: dto.payment_method,
+        },
+      });
+      // update supplier total paid amount
+      await tx.supplier.update({
+        where: { id: purchaseOrder.supplier_id },
+        data: {
+          total_purchased: {
+            increment: dto.unit_cost,
+          },
         },
       });
       return {
