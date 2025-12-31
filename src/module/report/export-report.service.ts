@@ -39,11 +39,11 @@ export class ExportReportService {
     const rows: ReportSupplierExcel[] = [];
 
     suppliers.forEach((supplier) => {
-      supplier.purchase_orders.forEach((order, index) => {
+      supplier.purchase_orders.forEach((order) => {
         rows.push({
-          supplier_code: index === 0 ? supplier.code || '' : '',
-          supplier_name: index === 0 ? supplier.name || '' : '',
-          supplier_tax: index === 0 ? supplier.tax_code || '' : '',
+          supplier_code: supplier.code || '',
+          supplier_name: supplier.name || '',
+          supplier_tax: supplier.tax_code || '',
 
           order_code: order.order_number,
           note: order.notes || '',

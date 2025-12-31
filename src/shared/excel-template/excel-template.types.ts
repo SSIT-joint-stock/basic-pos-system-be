@@ -5,6 +5,7 @@ export interface ExcelColumn {
   header: string;
   key: string;
   width?: number;
+  merge?: boolean; // true: merge theo key, false: khong merge
 }
 // hỗ trỡ cho việc file excel đó có các cột lớn trong các cột lớn đó có nhiều cột nhỏ vd: trong cột lớn Đơn hàng có các cột nhỏ khác như Tên | số đơn hàng | ngày tạo ...
 export interface ExcelHeaderGroup {

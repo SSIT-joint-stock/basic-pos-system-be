@@ -46,7 +46,23 @@ export class ExcelTemplateService {
     const worksheet = this.createWorksheet(workbook, config);
     worksheet.addRows(data);
 
-    this.mergeCellsByColumn(worksheet, [1, 2, 3]);
+    let mergeColumnIndexes: number[] = [];
+
+    if (config.headerGroups?.length) {
+      const allColumns = config.headerGroups.flatMap((g) => g.columns);
+      mergeColumnIndexes = allColumns
+        .map((col, index) => (col.merge ? index + 1 : null))
+        .filter((idx): idx is number => idx !== null);
+    } else {
+      mergeColumnIndexes = config.columns
+        .map((col, index) => (col.merge ? index + 1 : null))
+        .filter((idx): idx is number => idx !== null);
+    }
+
+    if (mergeColumnIndexes.length > 0) {
+      const startRow = config.headerGroups?.length ? 3 : 2;
+      this.mergeCellsByColumn(worksheet, mergeColumnIndexes, startRow);
+    }
 
     const arrayBuffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(arrayBuffer);
