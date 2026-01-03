@@ -1,3 +1,4 @@
+import express from 'express';
 import {
   Controller,
   Get,
@@ -6,6 +7,9 @@ import {
   Patch,
   Param,
   Delete,
+  Res,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
@@ -20,13 +24,15 @@ import { PaginatedResponse } from 'app/common/response';
 import { RequirePermission } from 'app/common/decorators/permission.decorator';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import { supplier_status } from '@prisma/client';
-import { ImportSupplierService } from './import-supplier.service';
+import { ImportSupplierService } from './suppliers-excel.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('supplier')
 export class SuppliersController {
   constructor(
     private readonly suppliersService: SuppliersService,
-    private readonly importSupplierService: ImportSupplierService,
+    // private readonly importSupplierService: ImportSupplierService,
+    private readonly excelSupplier: ImportSupplierService,
   ) {}
 
   @Post(':storeId')
@@ -102,5 +108,46 @@ export class SuppliersController {
   @ApiSuccess('Xóa nhà cung cấp thành công!')
   softDelete(@Param('id') id: string, @Param('storeId') storeId: string) {
     return this.suppliersService.deleteSoft(id, storeId);
+  }
+
+  @Get('/excel/example')
+  @ApiSuccess('Tải thành công danh sách mẫu danh mục!')
+  async download(@Res() res: express.Response) {
+    const buffer = await this.excelSupplier.downloadExampleSupplier();
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=category_template.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.end(buffer);
+  }
+
+  @Post('/excel/import/:storeId')
+  @UseInterceptors(FileInterceptor('excel_supplier'))
+  @ApiSuccess('Nhập danh sách danh mục thành công!')
+  async import(
+    @Param('storeId') storeId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return await this.excelSupplier.importSupplierExcel(storeId, file);
+  }
+
+  @Get('/excel/export/:storeId')
+  @ApiSuccess('Tải danh sách danh mục thành công!')
+  async export(
+    @Res() res: express.Response,
+    @Param('storeId') storeId: string,
+  ) {
+    const buffer = await this.excelSupplier.exportSupplierExcel(storeId);
+    res.setHeader('Content-Disposition', 'attachment; filename=supplier.xlsx');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
   }
 }

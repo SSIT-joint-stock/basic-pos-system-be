@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import express from 'express'; /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
@@ -8,6 +9,9 @@ import {
   Patch,
   Param,
   Delete,
+  Res,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -18,10 +22,15 @@ import z from 'zod';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { PaginatedResponse } from 'app/common/response';
+import { ImportCustomerService } from './customer-excel.service';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('stores/:storeId/customers')
 export class CustomerController {
-  constructor(private readonly customerService: CustomerService) {}
+  constructor(
+    private readonly customerService: CustomerService,
+    private readonly excelCustomer: ImportCustomerService,
+  ) {}
 
   @Post()
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE]) //FIX: fix this later
@@ -99,5 +108,47 @@ export class CustomerController {
   @ApiSuccess('Delete customer successfully')
   remove(@Param('storeId') storeId: string, @Param('id') id: string) {
     return this.customerService.remove(storeId, id);
+  }
+
+  @Get('/excel/example')
+  @ApiSuccess('Tải thành công danh sách mẫu danh mục!')
+  async download(@Res() res: express.Response) {
+    const buffer = await this.excelCustomer.downloadExample();
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=customer_template.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.end(buffer);
+  }
+
+  @Post('/excel/import')
+  @UseInterceptors(FileInterceptor('excel_customer'))
+  @ApiSuccess('Nhập danh sách danh mục thành công!')
+  async import(
+    @Param('storeId') storeId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return await this.excelCustomer.importExcel(storeId, file);
+  }
+
+  @Get('/excel/export')
+  @ApiSuccess('Tải danh sách danh mục thành công!')
+  async export(
+    @Res() res: express.Response,
+    @Param('storeId') storeId: string,
+  ) {
+    const buffer = await this.excelCustomer.exportCustomerExcel(storeId);
+
+    res.setHeader('Content-Disposition', 'attachment; filename=customer.xlsx');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
   }
 }

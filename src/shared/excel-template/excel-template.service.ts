@@ -2,14 +2,6 @@ import * as ExcelJS from 'exceljs';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ExcelTemplateConfig } from './excel-template.types';
 
-/**
- * Một vài lưu ý trước khi sử dụng service
- * ExcelJS tự map theo key nên khi export, import hãy đặt đúng tên key tránh trường hơp mà key khác nhau nên bị kh thấy hoắc kh import đc dữ liệu
- * Khi import luôn phải tạo file schema để bảo toàn vẹn dữ liêu
- * đoc lại code trước khi sử dụng, thứ tự đọc -> đồng bộ từ trên xuống dưới với 3 hàm download template, export data, import data và 2 hàm hỗ trợ worksheet và style
- * lưu ý thêm hiện import, export chưa đc kiểm thưr có thể import hay export được bao nhiêu dòng dữ liệu, sau này sẽ kiểm tra và đưa ra phuonwg án phù hợp
- */
-
 @Injectable()
 export class ExcelTemplateService {
   private errMsg = {
@@ -87,9 +79,9 @@ export class ExcelTemplateService {
       try {
         // Bỏ qua các dòng trống
         // Skip empty rows
-        const isEmptyRow = config?.columns.every((col, idx) => {
-          const cellValue = row.getCell(idx + 1).value;
-          return !cellValue || String(cellValue).trim() === '';
+        const isEmptyRow = config.columns.every((col, idx) => {
+          const cellText = (row.getCell(idx + 1).text ?? '').trim();
+          return cellText === '';
         });
 
         if (isEmptyRow) {
@@ -98,8 +90,14 @@ export class ExcelTemplateService {
 
         const rawData = config.columns.reduce(
           (acc, col, idx) => {
-            const cellValue = row.getCell(idx + 1).value;
-            acc[col.key] = cellValue ? String(cellValue).trim() : '';
+            let v = (row.getCell(idx + 1).text ?? '').trim(); // ⭐ dùng text
+
+            // ⭐ FIX: nếu bị dạng `"0"` / `"abc"` thì bỏ dấu ngoặc kép
+            if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) {
+              v = v.slice(1, -1).trim();
+            }
+
+            acc[col.key] = v;
             return acc;
           },
           {} as Record<string, any>,
