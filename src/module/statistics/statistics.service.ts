@@ -1,10 +1,10 @@
-import { NotificationType } from './../../common/types/notification.type';
 import { Injectable } from '@nestjs/common';
 import { order_status } from '@prisma/client';
 import { PrismaService } from 'app/prisma/prisma.service';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import { NotificationType } from './../../common/types/notification.type';
 @Injectable()
 export class StatisticsService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -269,6 +269,7 @@ export class StatisticsService {
         order_item: {
           include: {
             product: true,
+            variant: true,
           },
         },
       },
@@ -277,29 +278,32 @@ export class StatisticsService {
       .flatMap((order) => order.order_item)
       .reduce(
         (acc, item) => {
-          acc[item.product_id] = (acc[item.product_id] || 0) + item.quantity;
+          acc[item.variant_id] = (acc[item.variant_id] || 0) + item.quantity;
           return acc;
         },
         {} as Record<string, number>,
       );
     const soldProducts = Object.keys(topProducts);
-    const products = await this.prismaService.product.findMany({
+    const products = await this.prismaService.variant.findMany({
       where: {
-        store_id: storeId,
         id: { in: soldProducts },
+        product: {
+          store_id: storeId,
+        },
+      },
+      include: {
+        product: true,
       },
     });
     return products
       .map((product) => ({
-        product: {
-          id: product.id,
-          name: product.name,
-          image_url: product.image_url,
-
-          // price: product.price,
-        },
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        baseProductName: product.product.name,
+        baseUnit: product.product.baseUnit,
+        imageUrl: product.product.image_url,
         quantitySold: topProducts[product.id] || 0,
-        // total: topProducts[product.id] * product.price,
       }))
       .filter((product) => product.quantitySold > 0)
       .sort((a, b) => b.quantitySold - a.quantitySold)
