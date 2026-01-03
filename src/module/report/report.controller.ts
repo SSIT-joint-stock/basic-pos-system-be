@@ -98,4 +98,18 @@ export class ReportController {
     );
     res.end(buffer);
   }
+
+  @Get('/excel/customers')
+  async exportExcelCustomers(
+    @Res() res: express.Response,
+    @Param('storeId') storeId: string,
+  ) {
+    const buffer = await this.excel.exportReportCustomers(storeId);
+    res.setHeader('Content-Disposition', 'attachment; filename=orders.xlsx');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
 }

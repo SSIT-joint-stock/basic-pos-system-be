@@ -21,7 +21,7 @@ export const REPORT_SUPPLIERS_EXCEL_TEMPLATE: ExcelTemplateConfig = {
       columns: [
         { header: 'Mã NCC', key: 'supplier_code', width: 16, merge: true },
         { header: 'Tên NCC', key: 'supplier_name', merge: true },
-        { header: 'MST', key: 'supplier_tax', width: 16, merge: true },
+        { header: 'Mã số thuế', key: 'supplier_tax', width: 24, merge: true },
       ],
     },
     {
