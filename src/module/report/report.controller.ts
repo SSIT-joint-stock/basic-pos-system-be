@@ -34,7 +34,7 @@ export class ReportController {
       searchBy: ['name', 'code', 'email', 'phone', 'tax_code'],
       searchKey: 'q',
       schema: z.object({
-        q: z.string().optional(), // ⬅️ thêm q vào schema
+        q: z.string().optional(),
         createdAt: z
           .object({
             gte: z.string().optional(),
@@ -46,6 +46,38 @@ export class ReportController {
     query: FilterParseResult<any>,
   ) {
     const { data, total } = await this.reportService.getReportSuppliers(
+      user.storeId || '',
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('customers')
+  async getReportCustomer(
+    @User() user: IUser,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt'],
+      searchBy: ['name', 'email', 'phone'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportService.getReportCustomers(
       user.storeId || '',
       query.prismaQuery,
     );
