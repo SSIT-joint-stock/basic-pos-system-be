@@ -131,6 +131,54 @@ export class PurchaseOrderController {
     );
   }
 
+  @Get('supplier/:supplierId')
+  @RequirePermission([
+    PERMISSIONS.PURCHASE_ORDER_READ,
+    PERMISSIONS.PURCHASE_ORDER_ALL,
+  ])
+  async getPurchaseOrdersBySupplier(
+    @Param('supplierId') supplierId: string,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: [
+        'subtotal',
+        'discount_amount',
+        'tax_amount',
+        'total',
+        'shipping_fee',
+        'createdAt',
+      ],
+      rangeFields: ['total', 'subtotal'],
+      searchBy: ['order_number'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+        payment_status: z.enum(payment_status).optional(),
+        status: z.enum(purchase_order_status).optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+    @User() { storeId }: IUser,
+  ) {
+    const { data, total } =
+      await this.purchaseOrderService.getPurchaseOrdersBySupplier(
+        supplierId,
+        storeId || '',
+        query.prismaQuery,
+      );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
   @Get('payment-history/')
   @ApiSuccess('Lấy lịch sử dụng thanh toán!')
   @RequirePermission([PERMISSIONS.PURCHASE_ORDER_READ])

@@ -3,6 +3,7 @@ export interface OrderExcel {
   code: string;
   createdAt: string;
   status: string;
+  payment_method: string;
 
   customer_name: string;
   email: string;
@@ -10,11 +11,11 @@ export interface OrderExcel {
 
   product_name: string;
   quantity: number;
-  price: number;
+  price: string;
 
-  total: number;
-  paid: number;
-  remain: number;
+  total: string;
+  paid: string;
+  remain: string;
 }
 export const ORDER_EXAMPLE_DATA = [
   {
@@ -64,16 +65,25 @@ export const ORDER_EXCEL_TEMPLATE: ExcelTemplateConfig = {
           header: 'Mã đơn',
           key: 'code',
           width: 12,
+          merge: true,
         },
         {
           header: 'Ngày tạo đơn',
           key: 'createdAt',
           width: 28,
+          merge: true,
         },
         {
           header: 'Trạng thái',
           key: 'status',
           width: 18,
+          merge: true,
+        },
+        {
+          header: 'Phương thức thanh toán',
+          key: 'payment_method',
+          width: 20,
+          merge: true,
         },
       ],
     },
@@ -83,17 +93,19 @@ export const ORDER_EXCEL_TEMPLATE: ExcelTemplateConfig = {
         {
           header: 'Tên khách hàng',
           key: 'customer_name',
-          width: 16,
+          merge: true,
         },
         {
           header: 'Email',
           key: 'email',
           width: 16,
+          merge: true,
         },
         {
           header: 'Số điện thoại',
           key: 'phone',
           width: 16,
+          merge: true,
         },
       ],
     },
@@ -103,17 +115,19 @@ export const ORDER_EXCEL_TEMPLATE: ExcelTemplateConfig = {
         {
           header: 'Tên sản phẩm',
           key: 'product_name',
-          width: 54,
+          merge: false,
         },
         {
           header: 'Số lượng',
           key: 'quantity',
           width: 12,
+          merge: false,
         },
         {
           header: 'Đơn giá',
           key: 'price',
           width: 24,
+          merge: false,
         },
       ],
     },
@@ -125,16 +139,19 @@ export const ORDER_EXCEL_TEMPLATE: ExcelTemplateConfig = {
           header: 'Tổng tiền',
           key: 'total',
           width: 14,
+          merge: true,
         },
         {
           header: 'Thanh toán',
           key: 'paid',
           width: 14,
+          merge: true,
         },
         {
           header: 'Còn nợ',
           key: 'remain',
           width: 14,
+          merge: true,
         },
       ],
     },

@@ -1,5 +1,5 @@
-import * as ExcelJS from 'exceljs';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import * as ExcelJS from 'exceljs';
 import { ExcelTemplateConfig } from './excel-template.types';
 
 @Injectable()
@@ -37,6 +37,25 @@ export class ExcelTemplateService {
     const workbook = new ExcelJS.Workbook();
     const worksheet = this.createWorksheet(workbook, config);
     worksheet.addRows(data);
+
+    let mergeColumnIndexes: number[] = [];
+
+    if (config.headerGroups?.length) {
+      const allColumns = config.headerGroups.flatMap((g) => g.columns);
+      mergeColumnIndexes = allColumns
+        .map((col, index) => (col.merge ? index + 1 : null))
+        .filter((idx): idx is number => idx !== null);
+    } else {
+      mergeColumnIndexes = config.columns
+        .map((col, index) => (col.merge ? index + 1 : null))
+        .filter((idx): idx is number => idx !== null);
+    }
+
+    if (mergeColumnIndexes.length > 0) {
+      const startRow = config.headerGroups?.length ? 3 : 2;
+      this.mergeCellsByColumn(worksheet, mergeColumnIndexes, startRow);
+    }
+
     const arrayBuffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(arrayBuffer);
   }
@@ -210,6 +229,40 @@ export class ExcelTemplateService {
     worksheet.getRow(1).eachCell((cell) => this.styleGroupHeader(cell));
 
     return worksheet;
+  }
+
+  private mergeCellsByColumn(
+    worksheet: ExcelJS.Worksheet,
+    columnIndexes: number[],
+    startRow = 3,
+  ) {
+    let currentValue = worksheet.getCell(startRow, columnIndexes[0]).value;
+    let groupStartRow = startRow;
+
+    for (let row = startRow + 1; row <= worksheet.rowCount + 1; row++) {
+      const cellValue =
+        row <= worksheet.rowCount
+          ? worksheet.getCell(row, columnIndexes[0]).value
+          : null;
+
+      if (cellValue !== currentValue) {
+        const groupEndRow = row - 1;
+
+        if (groupEndRow > groupStartRow && currentValue) {
+          columnIndexes.forEach((colIndex) => {
+            worksheet.mergeCells(
+              groupStartRow,
+              colIndex,
+              groupEndRow,
+              colIndex,
+            );
+          });
+        }
+
+        groupStartRow = row;
+        currentValue = cellValue;
+      }
+    }
   }
 
   private styleGroupHeader(cell: ExcelJS.Cell) {

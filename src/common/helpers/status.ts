@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  order_status,
   payment_method,
   payment_status,
   purchase_order_status,
@@ -8,15 +9,17 @@ import {
 
 @Injectable()
 export class FormatStatus {
-  statusOrdersLabels: Record<string, string> = {
-    OVERAGE: 'Trả thừa',
-    RETURNED: 'Đã trả hàng',
-    PENDING: 'Chờ thanh toán',
-    CANCELLED: 'Đã hủy',
-    COMPLETED: 'Hoàn thành',
-    PAID: 'Đã thanh toán',
-    REFUNDED: 'Đã hoàn tiền',
-  };
+  orderStatus(status: order_status): string {
+    const map: Record<order_status, string> = {
+      OVERAGE: 'Trả thừa',
+      RETURNED: 'Đã trả hàng',
+      PENDING: 'Chờ thanh toán',
+      CANCELLED: 'Đã hủy',
+      COMPLETED: 'Hoàn thành',
+      PROCESSING: 'Đang xử lý',
+    };
+    return map[status];
+  }
 
   // ===== PURCHASE ORDER (NHẬP HÀNG) =====
   purchaseOrderStatus(status: purchase_order_status): string {

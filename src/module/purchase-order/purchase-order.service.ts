@@ -370,6 +370,50 @@ export class PurchaseOrderService {
     });
   }
 
+  async getPurchaseOrdersBySupplier(
+    supplierId: string,
+    storeId: string,
+    query: Prisma.PurchaseOrderFindManyArgs,
+  ) {
+    await Promise.all([
+      this.checkStore(storeId),
+      this.checkSupplier(supplierId),
+    ]);
+    const where: Prisma.PurchaseOrderWhereInput = {
+      AND: [
+        query.where ?? {},
+        {
+          store_id: storeId,
+          supplier_id: supplierId,
+        },
+      ],
+    };
+
+    const [purchaseOrders, total] = await Promise.all([
+      this.prisma.purchaseOrder.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+        include: {
+          items: {
+            select: {
+              product_id: true,
+              variant_id: true,
+            },
+          },
+        },
+      }),
+      this.prisma.purchaseOrder.count({
+        where,
+      }),
+    ]);
+    return {
+      data: purchaseOrders,
+      total,
+    };
+  }
+
   // helpers func
   private async checkStore(storeId: string) {
     const store = await this.prisma.store.findUnique({

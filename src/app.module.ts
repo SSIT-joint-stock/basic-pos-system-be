@@ -54,6 +54,7 @@ import { TagModule } from './module/tag/tag.module';
 import { VariantModule } from './module/variant/variant.module';
 import { OauthModule } from './module/oauth/oauth.module';
 import { StoreMemberModule } from './module/store-member/store-member.module';
+import { ReportModule } from './module/report/report.module';
 
 @Module({
   imports: [
@@ -133,6 +134,7 @@ import { StoreMemberModule } from './module/store-member/store-member.module';
     TagModule,
     VariantModule,
     StoreMemberModule,
+    ReportModule,
   ],
   providers: [
     TokenService,

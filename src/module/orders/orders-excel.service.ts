@@ -1,10 +1,29 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
-import { ORDER_EXCEL_TEMPLATE } from 'app/shared/excel-template/template/order';
+import {
+  ORDER_EXCEL_TEMPLATE,
+  OrderExcel,
+} from 'app/shared/excel-template/template/order';
 
+type OrderWithItems = Prisma.OrderGetPayload<{
+  include: {
+    order_item: {
+      select: {
+        quantity: true;
+        price: true;
+        tax_rate: true;
+        discount_rate: true;
+        variant: true;
+      };
+    };
+    customer: true;
+    cashier: true;
+  };
+}>;
 @Injectable()
 export class OrdersExcelService {
   constructor(
@@ -26,61 +45,49 @@ export class OrdersExcelService {
         order_item: {
           select: {
             quantity: true,
+            price: true,
             tax_rate: true,
             discount_rate: true,
-            price: true,
-            variant: {
-              select: {
-                name: true,
-              },
-            },
+            variant: true,
           },
         },
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        cashier: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
+        customer: true,
+        cashier: true,
       },
     });
-    const data = orders.map((order) => ({
-      code: order.code ?? '',
-      createdAt:
-        this.format.formatDate(order.createdAt, { showTime: true }) ?? '',
-      status: this.status.statusOrdersLabels[order.status] ?? '',
-
-      customer_name: order.customer?.name ?? '',
-      email: order.customer?.email ?? '',
-      phone: order.customer?.phone ?? '',
-
-      product_name:
-        order.order_item.map((item) => item.variant.name).join(', ') ?? '',
-      quantity: order.order_item.map((item) => item.quantity).join(', ') ?? '',
-      price:
-        order.order_item
-          .map((item) => this.format.formatCurrency(item.price))
-          .join(', ') ?? '',
-
-      total: this.format.formatCurrency(order.total_amount) ?? '',
-      paid: this.format.formatCurrency(order.customer_pay_amount) ?? '',
-      remain:
-        this.format.formatCurrency(
-          order.total_amount - order.customer_pay_amount,
-        ) || 0,
-    }));
-
-    return this.excelService.exportData(ORDER_EXCEL_TEMPLATE, data);
+    const rows = this.flattenOrderData(orders);
+    return this.excelService.exportData(ORDER_EXCEL_TEMPLATE, rows);
   }
 
   async importOrders() {}
+
+  private flattenOrderData(orders: OrderWithItems[]) {
+    const rows: OrderExcel[] = [];
+    orders.forEach((order) => {
+      order.order_item.forEach((item) => {
+        rows.push({
+          code: order.code || '',
+          createdAt: this.format.formatDate(order.createdAt) || '',
+          status: this.status.orderStatus(order.status) || '',
+          payment_method: this.status.paymentMethod(order.payment_method) || '',
+
+          customer_name: order.customer_name || '',
+          email: order.customer?.email || '',
+          phone: order.customer?.phone || '',
+
+          product_name: item.variant.name || '',
+          quantity: item.quantity,
+          price: this.format.formatCurrency(item.price),
+
+          total: this.format.formatCurrency(order.total_amount) || '',
+          paid: this.format.formatCurrency(order.customer_pay_amount) || '',
+          remain:
+            this.format.formatCurrency(
+              order.total_amount - order.customer_pay_amount,
+            ) || '',
+        });
+      });
+    });
+    return rows;
+  }
 }

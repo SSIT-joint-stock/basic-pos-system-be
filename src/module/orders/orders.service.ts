@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateOrderDto } from './dto/create-order';
-import { PrismaService } from 'app/prisma/prisma.service';
 import { order_status, Prisma, stock_movement_type } from '@prisma/client';
-import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
+import { NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
-import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
+import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
+import { PrismaService } from 'app/prisma/prisma.service';
 import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
+import { CreateOrderDto } from './dto/create-order';
 import { CreateOrderItemDto } from './dto/create-order-item';
+import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
 
 @Injectable()
 export class OrdersService {
@@ -51,8 +52,8 @@ export class OrdersService {
           tax_amount,
           total_amount,
           payment_method,
-
           status: orderStatus,
+          customer_id: dto.customer_id,
           order_item: {
             createMany: {
               data: order_items.map((item) => ({
@@ -109,7 +110,7 @@ export class OrdersService {
   }
 
   async findById(orderId: string, storeId: string) {
-    return await this.prisma.order.findUnique({
+    const order = await this.prisma.order.findUnique({
       where: { id: orderId, store_id: storeId },
       include: {
         order_item: {
@@ -117,8 +118,20 @@ export class OrdersService {
             variant: true,
           },
         },
+        cashier: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        },
       },
     });
+
+    if (!order) {
+      throw new NotFoundError('Không tìm thấy hóa đơn!');
+    }
+    return order;
   }
 
   async findAll(store_id: string, query?: Prisma.OrderFindManyArgs) {
@@ -173,7 +186,38 @@ export class OrdersService {
     };
   }
 
+  async getOrderByCustomer(
+    customerId: string,
+    storeId: string,
+    query?: Prisma.OrderFindManyArgs,
+  ) {
+    const where: Prisma.OrderWhereInput = {
+      AND: [query?.where ?? {}, { store_id: storeId, customer_id: customerId }],
+    };
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip: query?.skip,
+        take: query?.take,
+        orderBy: query?.orderBy,
+        include: {
+          order_item: {
+            include: {
+              variant: true,
+            },
+          },
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      data: orders,
+      total,
+    };
+  }
   /**
+   *
    * Xác định trạng thái đơn hàng dựa trên tổng tiền và số tiền khách trả.
    */
   private determineOrderStatus(total: number, paid: number): order_status {
