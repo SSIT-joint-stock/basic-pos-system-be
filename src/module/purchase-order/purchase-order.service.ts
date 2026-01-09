@@ -355,6 +355,42 @@ export class PurchaseOrderService {
           select: {
             name: true,
             tax_code: true,
+            email: true,
+            code: true,
+            phone: true,
+            address: true,
+          },
+        },
+        items: true,
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        },
+        payments: true,
+      },
+    });
+  }
+
+  async getPurchaseOrderByNumber(storeId: string, orderNumber: string) {
+    await this.checkStore(storeId);
+    return await this.prisma.purchaseOrder.findFirst({
+      where: {
+        order_number: orderNumber,
+        store_id: storeId,
+        status: purchase_order_status.RECEIVED,
+      },
+      include: {
+        supplier: {
+          select: {
+            name: true,
+            tax_code: true,
+            email: true,
+            code: true,
+            phone: true,
+            address: true,
           },
         },
         items: true,

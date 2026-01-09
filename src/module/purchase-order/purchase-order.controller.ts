@@ -77,6 +77,21 @@ export class PurchaseOrderController {
     );
   }
 
+  @Get('order-number/:orderNumber')
+  @RequirePermission([
+    PERMISSIONS.PURCHASE_ORDER_READ,
+    PERMISSIONS.PURCHASE_ORDER_ALL,
+  ])
+  async getPurchaseOrderByNumber(
+    @User() user: IUser,
+    @Param('orderNumber') orderNumber: string,
+  ) {
+    return await this.purchaseOrderService.getPurchaseOrderByNumber(
+      user.storeId || '',
+      orderNumber,
+    );
+  }
+
   @Get('')
   @ApiSuccess('Lấy toàn bộ đơn nhập hàng thành công!')
   @RequirePermission([

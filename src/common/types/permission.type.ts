@@ -15,6 +15,7 @@ export type PermissionResource =
   | 'inventory'
   | 'report'
   | 'purchase-order'
+  | 'purchase-return'
   | 'variant'
   | 'all';
 export type Permission = `${PermissionResource}:${PermissionAction}`;
@@ -107,6 +108,13 @@ export const PERMISSIONS = {
   VARIANT_UPDATE: 'variant:update' as Permission,
   VARIANT_DELETE: 'variant:delete' as Permission,
   VARIANT_ALL: 'variant:all' as Permission,
+
+  // Purchase return permissions
+  PURCHASE_RETURN_CREATE: 'purchase-return:create' as Permission,
+  PURCHASE_RETURN_READ: 'purchase-return:read' as Permission,
+  PURCHASE_RETURN_UPDATE: 'purchase-return:update' as Permission,
+  PURCHASE_RETURN_DELETE: 'purchase-return:delete' as Permission,
+  PURCHASE_RETURN_ALL: 'purchase-return:all' as Permission,
 
   // Report permissions
   REPORT_READ: 'report:read' as Permission,
