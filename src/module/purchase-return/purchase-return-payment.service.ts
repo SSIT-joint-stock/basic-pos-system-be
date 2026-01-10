@@ -6,7 +6,7 @@ import {
   PurchaseReturn,
 } from '@prisma/client';
 import { BadRequestError, NotFoundError } from 'app/common/response';
-import { AcceptPaymentPurchaseReturnDto } from 'app/module/purchase-return/usecase/accept-paymen-purchase-return.dto';
+import { AcceptPaymentPurchaseReturnDto } from 'app/module/purchase-return/dto/accept-paymen-purchase-return.dto';
 import { PrismaService } from 'app/prisma/prisma.service';
 
 @Injectable()

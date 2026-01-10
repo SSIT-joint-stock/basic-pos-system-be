@@ -32,9 +32,6 @@ export class PurchaseReturnItemDto {
   })
   quantity: number;
 
-  @IsNotEmpty({
-    message: 'Vui lòng nhập giá tiền',
-  })
   @IsOptional()
   reason?: string;
 }

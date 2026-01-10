@@ -115,6 +115,8 @@ export const PERMISSIONS = {
   PURCHASE_RETURN_UPDATE: 'purchase-return:update' as Permission,
   PURCHASE_RETURN_DELETE: 'purchase-return:delete' as Permission,
   PURCHASE_RETURN_ALL: 'purchase-return:all' as Permission,
+  PURCHASE_RETURN_ACCEPT_PAYMENT:
+    'purchase-return:accept-payment' as Permission,
 
   // Report permissions
   REPORT_READ: 'report:read' as Permission,

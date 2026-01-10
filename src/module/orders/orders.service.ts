@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { order_status, Prisma, stock_movement_type } from '@prisma/client';
 import { NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
-import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
 import { CreateOrderDto } from './dto/create-order';
@@ -13,7 +12,6 @@ import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
-    private stockMovement: StockMovementService,
     private generateOrderCode: GenerateOrderCodeUseCase,
     private applyStock: ApplyStockUseCase,
   ) {}
@@ -71,7 +69,7 @@ export class OrdersService {
       });
 
       for (const item of order_items) {
-        await this.handleStockChange(storeId, item);
+        await this.handleStockChange(storeId, item, tx);
       }
 
       return { order, orderId: order.id };
@@ -96,6 +94,7 @@ export class OrdersService {
           item.variant_id,
           item.product_id,
           item.quantity,
+          tx,
         );
 
         await tx.orderItem.deleteMany({
@@ -232,6 +231,7 @@ export class OrdersService {
   private async handleStockChange(
     storeId: string,
     item: { product_id: string; quantity: number; variant_id: string },
+    tx: Prisma.TransactionClient,
   ) {
     const qty = -Math.abs(item.quantity);
 
@@ -241,6 +241,7 @@ export class OrdersService {
       item.variant_id,
       item.product_id,
       qty,
+      tx,
     );
   }
   private calculateOrderTotals(order_items: CreateOrderItemDto[]) {

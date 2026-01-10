@@ -114,7 +114,7 @@ export class PurchaseOrderController {
         'createdAt',
       ],
       rangeFields: ['total', 'subtotal'],
-      searchBy: ['order_number', 'supplier_code'],
+      searchBy: ['order_number', 'supplier_code', 'supplier_name'],
       searchKey: 'q',
       schema: z.object({
         q: z.string().optional(), // ⬅️ thêm q vào schema

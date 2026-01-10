@@ -151,13 +151,14 @@ model User {
   orders_cashier   Order[] // user is cashier of the order
   created_purchases PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
   approved_purchases       PurchaseOrder[]       @relation("PurchaseOrderApprovedBy") 
+  created_purchases_return PurchaseReturn[]
   // indexes
   @@index([role, status])
   @@map("user")
 }
 
 /**
- * Store model
+ * Store model  
  * Store is a model that represents the store of the system
  * It is used to track the store of the system
  * Store has many products
@@ -605,8 +606,10 @@ model PurchaseOrder {
   // Thông tin cơ bản
   store_id        String                @db.Uuid // ID cửa hàng (multi-tenant isolation)
   order_number    String                // mã phiếu nhập (auto-generated)
+
   supplier_id     String                @db.Uuid // ID nhà cung cấp
   supplier_code   String?
+  supplier_name   String @default("")
   // Thời gian
   order_date      DateTime              @default(now()) // Ngày đặt hàng
   expected_date   DateTime?             // Ngày dự kiến nhận hàng
@@ -731,8 +734,11 @@ model PurchaseReturn {
   id String @id @default(uuid()) @db.Uuid
   store_id String @db.Uuid
   return_number String
-  supplier_id  String @db.Uuid
 
+  // supplier info
+  supplier_id  String @db.Uuid
+  supplier_name String 
+  supplier_code String?
 
   // nullable -> cho phép trả kh theo đơn nhập 
   purchase_order_id String? @db.Uuid
@@ -751,6 +757,7 @@ model PurchaseReturn {
   // relations
   store Store @relation(fields: [store_id], references: [id])
   supplier Supplier @relation(fields: [supplier_id], references: [id])
+  creator User @relation(fields: [created_by], references: [id])
   purchase_order PurchaseOrder? @relation(fields: [purchase_order_id], references: [id])
   items PurchaseReturnItem[]
   payments PurchaseReturnPayment[]

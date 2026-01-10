@@ -155,11 +155,12 @@ export class PurchaseOrderService {
             (await this.generateCode.generateOrderNumber(storeId)),
           order_date: dto.order_date || new Date(),
           supplier_code: supplier.code,
+          supplier_name: supplier.name,
+          supplier_id: supplier.id,
           expected_date: dto.expected_date,
           notes: dto.notes,
           created_by: user.id,
           status: purchase_order_status.PENDING,
-          supplier_id: supplier.id,
           discount_amount: totalDiscount,
           tax_amount: totalTax,
           subtotal,
@@ -216,59 +217,62 @@ export class PurchaseOrderService {
   async acceptPurchaseImport(id: string, storeId: string, user: IUser) {
     await this.checkStore(storeId);
 
-    const purchaseOrder = await this.checkPurchaseOrder(id, storeId);
+    return await this.prisma.$transaction(async (tx) => {
+      const purchaseOrder = await this.checkPurchaseOrder(id, storeId);
 
-    if (purchaseOrder.status === purchase_order_status.RECEIVED) {
-      throw new BadRequestError(this.errMsg.PURCHASE_ORDER_ALREADY_ACCEPTED);
-    }
+      if (purchaseOrder.status === purchase_order_status.RECEIVED) {
+        throw new BadRequestError(this.errMsg.PURCHASE_ORDER_ALREADY_ACCEPTED);
+      }
 
-    const items = await this.prisma.purchaseOrderItem.findMany({
-      where: { purchase_order_id: id },
-    });
+      const items = await tx.purchaseOrderItem.findMany({
+        where: { purchase_order_id: id },
+      });
 
-    if (purchaseOrder.status !== purchase_order_status.PENDING) {
-      throw new BadRequestError(this.errMsg.PURCHASE_ORDER_NOT_ACCEPTED);
-    }
+      if (purchaseOrder.status !== purchase_order_status.PENDING) {
+        throw new BadRequestError(this.errMsg.PURCHASE_ORDER_NOT_ACCEPTED);
+      }
 
-    for (const item of items) {
-      await this.applyStock.execute(
-        stock_movement_type.PURCHASE,
-        storeId,
-        item.variant_id,
-        item.product_id,
-        Number(item.total_base_qty) || 0,
-      );
-      await this.prisma.variantStock.update({
-        where: {
-          variant_id_store_id: {
-            variant_id: item.variant_id,
-            store_id: storeId,
+      for (const item of items) {
+        await this.applyStock.execute(
+          stock_movement_type.PURCHASE,
+          storeId,
+          item.variant_id,
+          item.product_id,
+          Number(item.total_base_qty) || 0,
+          tx,
+        );
+        await tx.variantStock.update({
+          where: {
+            variant_id_store_id: {
+              variant_id: item.variant_id,
+              store_id: storeId,
+            },
           },
-        },
+          data: {
+            reserved: {
+              decrement: Number(item.total_base_qty),
+            },
+          },
+        });
+      }
+
+      const updatedPurchaseOrder = await tx.purchaseOrder.update({
+        where: { id: id },
         data: {
-          reserved: {
-            decrement: Number(item.total_base_qty),
-          },
+          status: purchase_order_status.RECEIVED,
+          received_date: new Date(),
+          approved_at: new Date(),
+          approved_by: user.id,
         },
       });
-    }
 
-    const updatedPurchaseOrder = await this.prisma.purchaseOrder.update({
-      where: { id: id },
-      data: {
-        status: purchase_order_status.RECEIVED,
-        received_date: new Date(),
-        approved_at: new Date(),
-        approved_by: user.id,
-      },
+      return {
+        purchase_order_id: id,
+        order_number: updatedPurchaseOrder.order_number,
+        status: updatedPurchaseOrder.status,
+        created_at: updatedPurchaseOrder.createdAt,
+      };
     });
-
-    return {
-      purchase_order_id: id,
-      order_number: updatedPurchaseOrder.order_number,
-      status: updatedPurchaseOrder.status,
-      created_at: updatedPurchaseOrder.createdAt,
-    };
   }
 
   async getPurchaseOrders(
@@ -471,6 +475,7 @@ export class PurchaseOrderService {
       throw new NotFoundError(this.errMsg.PURCHASE_ORDER_NOT_FOUND);
     return purchaseOrder;
   }
+
   private async checkSupplier(supplierId: string) {
     const supplier = await this.prisma.supplier.findUnique({
       where: {

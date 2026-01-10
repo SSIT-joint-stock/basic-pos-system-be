@@ -87,6 +87,7 @@ export class PurchaseReturnService {
           purchaseOrderItem.variant_id,
           purchaseOrderItem.product_id,
           Number(inputQty) || 0,
+          tx,
         );
 
         await tx.purchaseOrderItem.update({
@@ -111,6 +112,8 @@ export class PurchaseReturnService {
           return_number:
             await this.generateReturnNumber.generateNumberReturn(storeId),
           supplier_id: supplier.id,
+          supplier_name: supplier.name,
+          supplier_code: supplier.code || '',
           created_by: user.id,
           status: purchase_return_status.COMPLETED,
           reason: dto.reason,
@@ -176,6 +179,7 @@ export class PurchaseReturnService {
           variant_id,
           product_id,
           Number(inputQty) || 0,
+          tx,
         );
       }
       const total = purchaseReturnItems.reduce(
@@ -189,6 +193,8 @@ export class PurchaseReturnService {
           return_number:
             await this.generateReturnNumber.generateNumberReturn(storeId),
           supplier_id: supplier.id,
+          supplier_name: supplier.name,
+          supplier_code: supplier.code || '',
           created_by: user.id,
           status: purchase_return_status.COMPLETED,
           reason: dto.reason,
@@ -204,6 +210,55 @@ export class PurchaseReturnService {
 
       return purchaseReturn;
     });
+  }
+
+  async getPurchaseReturn(storeId: string, purchaseReturnId: string) {
+    await this.checkAccessStore(storeId);
+    const purchaseReturn = await this.prisma.purchaseReturn.findUnique({
+      where: {
+        store_id: storeId,
+        id: purchaseReturnId,
+      },
+    });
+    if (!purchaseReturn)
+      throw new NotFoundError(this.errMsg.PURCHASE_ORDER_NOT_FOUND);
+    return purchaseReturn;
+  }
+
+  async getAllPurchaseReturn(
+    storeId: string,
+    query: Prisma.PurchaseReturnFindManyArgs,
+  ) {
+    await this.checkAccessStore(storeId);
+    const where: Prisma.PurchaseReturnWhereInput = {
+      AND: [
+        query.where ?? {},
+        {
+          store_id: storeId,
+        },
+      ],
+    };
+    const [purchaseReturn, count] = await Promise.all([
+      this.prisma.purchaseReturn.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+        include: {
+          supplier: true,
+          items: true,
+          creator: true,
+        },
+      }),
+      this.prisma.purchaseReturn.count({
+        where,
+      }),
+    ]);
+
+    return {
+      data: purchaseReturn,
+      total: count,
+    };
   }
 
   // ================== PRIVATE FUNCTION ==================
@@ -267,8 +322,6 @@ export class PurchaseReturnService {
     purchase_order_item_id?: string,
   ) {
     const inputQty = new Prisma.Decimal(quantity);
-    if (inputQty.lte(0))
-      throw new BadRequestError(this.errMsg.QUANTITY_NOT_VALID);
 
     const purchaseOrderItem = purchaseOrder.items.find(
       (i) => i.id === purchase_order_item_id,
