@@ -745,12 +745,15 @@ model PurchaseReturn {
   status purchase_return_status @default(DRAFT)
   payment_status payment_status @default(UNPAID)
  
+
   total    Decimal @default(0) @db.Decimal(15, 2)
 
   reason String?
   notes String?
 
   created_by String @db.Uuid
+  return_date DateTime @default(now())
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -778,6 +781,7 @@ model PurchaseReturnItem {
   item_name String
   quantity   Int
   unit_cost Decimal @db.Decimal(15,2)
+  base_unit_cost Decimal @db.Decimal(15,2)
 
 
   total Decimal @db.Decimal(15,2)

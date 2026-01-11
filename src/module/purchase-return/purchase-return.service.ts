@@ -9,7 +9,10 @@ import {
 } from '@prisma/client';
 import { BadRequestError, NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
-import { PurchaseReturnDto } from 'app/module/purchase-return/dto/purchase-return.dto';
+import {
+  PurchaseReturnWithoutPODto,
+  PurchaseReturnWithPODto,
+} from 'app/module/purchase-return/dto/purchase-return.dto';
 import { GeneratePurchaseReturnNumberUseCase } from 'app/module/purchase-return/usecase/generate-return-number.use.case';
 import { ApplyStockUseCase } from 'app/module/variant/use-case/apply-stock.usecase';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -39,6 +42,8 @@ export class PurchaseReturnService {
     PURCHASE_ORDER_NOT_ACCEPTED: 'Đơn hàng nhập hiện chưa được duyệt',
     VARIANT_NOT_FOUND: 'Sản phẩm/biến thể không tìm thấy hoặc không tồn tai!',
     VARIANT_STOCK_NOT_FOUND: 'Tồn kho không tồn tại. Vui lòng thử lại!',
+    QUANTITY_NOT_VALID_IN_ITEM:
+      'Vui lòng nhập số lượng cho ít nhất một sản phẩm',
   };
   constructor(
     private readonly prisma: PrismaService,
@@ -48,35 +53,40 @@ export class PurchaseReturnService {
 
   async createWithPurchaseOrder(
     purchaseOrderId: string,
-    dto: PurchaseReturnDto,
+    dto: PurchaseReturnWithPODto,
     storeId: string,
     user: IUser,
   ) {
     return this.prisma.$transaction(async (tx) => {
       await this.checkAccessStore(storeId);
-      const items = this.checkHasItem(dto);
+      const items = this.normalizeItems(this.checkHasItem(dto));
       const purchaseOrder = await this.checkPurchaseOrder(purchaseOrderId, tx);
       const supplier = await this.checkSupplier(purchaseOrder.supplier_id, tx);
 
       const purchaseReturnItems: PurchaseReturnItemInput[] = [];
-      for (const item of items) {
-        const { item_name, purchase_order_item_id, quantity, reason } = item;
 
-        const { inputQty, purchaseOrderItem } =
+      if (!items.length)
+        throw new NotFoundError(this.errMsg.QUANTITY_NOT_VALID_IN_ITEM);
+
+      for (const item of items) {
+        const { purchase_order_item_id, quantity, reason } = item;
+
+        const { inputQty, purchaseOrderItem, realUnitCost } =
           this.checkValidQuantityInPurchaseOrder(
             quantity,
             purchaseOrder,
             purchase_order_item_id,
           );
-        const itemTotal = inputQty.mul(purchaseOrderItem.unit_cost);
+        const itemTotal = inputQty.mul(realUnitCost);
 
         purchaseReturnItems.push({
           variant_id: purchaseOrderItem.variant_id,
           product_id: purchaseOrderItem.product_id,
           purchase_order_item_id: purchaseOrderItem.id,
-          item_name: purchaseOrderItem.item_name || item_name,
+          item_name: purchaseOrderItem.item_name,
           quantity: Number(inputQty),
-          unit_cost: purchaseOrderItem.unit_cost,
+          unit_cost: realUnitCost,
+          base_unit_cost: purchaseOrderItem.unit_cost,
           total: itemTotal,
           reason,
         });
@@ -114,6 +124,8 @@ export class PurchaseReturnService {
           supplier_id: supplier.id,
           supplier_name: supplier.name,
           supplier_code: supplier.code || '',
+
+          return_date: dto.return_date || new Date(),
           created_by: user.id,
           status: purchase_return_status.COMPLETED,
           reason: dto.reason,
@@ -131,26 +143,23 @@ export class PurchaseReturnService {
       return purchaseReturn;
     });
   }
+
   async createWithoutPurchaseOrder(
     storeId: string,
-    dto: PurchaseReturnDto,
+    dto: PurchaseReturnWithoutPODto,
     user: IUser,
   ) {
     await this.checkAccessStore(storeId);
     return this.prisma.$transaction(async (tx) => {
-      const items = this.checkHasItem(dto);
+      const items = this.normalizeItems(this.checkHasItem(dto));
+
+      if (!items.length)
+        throw new NotFoundError(this.errMsg.QUANTITY_NOT_VALID_IN_ITEM);
 
       const purchaseReturnItems: PurchaseReturnItemInput[] = [];
 
       for (const item of items) {
-        const {
-          item_name,
-          quantity,
-          unit_cost,
-          reason,
-          variant_id,
-          product_id,
-        } = item;
+        const { quantity, unit_cost, reason, variant_id, product_id } = item;
         const { inputQty, variant } =
           await this.checkValidQuantityInVariantStock(
             tx,
@@ -167,10 +176,11 @@ export class PurchaseReturnService {
         purchaseReturnItems.push({
           variant_id: variant_id,
           product_id: product_id,
-          item_name: variant.name || item_name,
+          item_name: variant.name,
           quantity: Number(inputQty),
           total: totalPerItem,
           unit_cost: unit_cost || Number(variant.cost),
+          base_unit_cost: Number(variant.cost),
           reason,
         });
         await this.applyStock.execute(
@@ -262,6 +272,9 @@ export class PurchaseReturnService {
   }
 
   // ================== PRIVATE FUNCTION ==================
+  private normalizeItems<T extends { quantity?: number }>(items: T[]): T[] {
+    return items.filter((i) => i.quantity && i.quantity > 0);
+  }
   private async checkAccessStore(storeId: string) {
     const store = await this.prisma.store.findUnique({
       where: {
@@ -272,7 +285,9 @@ export class PurchaseReturnService {
     return store;
   }
 
-  private checkHasItem(dto: PurchaseReturnDto) {
+  private checkHasItem(
+    dto: PurchaseReturnWithPODto | PurchaseReturnWithoutPODto,
+  ) {
     const { items } = dto;
     if (!items.length) throw new NotFoundError(this.errMsg.INVALID_ITEM_DATA);
     return items;
@@ -339,8 +354,19 @@ export class PurchaseReturnService {
         this.errMsg.QUANTITY_INPT_NOT_VALID + ' ' + purchaseOrderItem.item_name,
       );
     }
+    const realUnitCost = new Prisma.Decimal(purchaseOrderItem.unit_cost)
+      .add(
+        new Prisma.Decimal(purchaseOrderItem.tax_amount || 0).div(
+          purchaseOrderItem.quantity,
+        ),
+      )
+      .sub(
+        new Prisma.Decimal(purchaseOrderItem.discount_amount || 0).div(
+          purchaseOrderItem.quantity,
+        ),
+      );
 
-    return { inputQty, purchaseOrderItem, maxReturnableQty };
+    return { inputQty, purchaseOrderItem, maxReturnableQty, realUnitCost };
   }
 
   private async checkValidQuantityInVariantStock(

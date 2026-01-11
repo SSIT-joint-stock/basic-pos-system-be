@@ -313,6 +313,7 @@ export class PurchaseOrderService {
               tax_rate: true,
               discount_amount: true,
               tax_amount: true,
+              quantity_returned: true,
             },
           },
           creator: {

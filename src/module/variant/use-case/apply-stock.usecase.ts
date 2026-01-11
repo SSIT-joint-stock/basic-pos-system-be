@@ -12,7 +12,7 @@ enum StockErrorMessage {
   PRODUCT_NOT_FOUND = 'Sản phẩm không tồn tại hoặc không hoạt động!',
   VARIANT_NOT_FOUND = 'Biến thể sản phẩm không tồn tại!',
   VARIANT_STOCK_NOT_FOUND = 'Tồn kho biến thể không tồn tại!',
-  DELTA_INVALID = 'Số lượng thay đổi phải là số hợp lệ và khác 0!',
+  DELTA_INVALID = 'Số lượng thay đổi phải là số hợp lệ!',
   INSUFFICIENT_STOCK = 'Tồn kho không đủ để thực hiện giao dịch này!',
   INVALID_STOCK_MOVEMENT_TYPE = 'Loại chuyển động kho không hợp lệ!',
 }
@@ -128,7 +128,7 @@ export class ApplyStockUseCase {
    * Validate delta is a finite non-zero number
    */
   private validateDelta(delta: number): void {
-    if (!Number.isFinite(delta) || delta === 0) {
+    if (!Number.isFinite(delta)) {
       throw new BadRequestError(StockErrorMessage.DELTA_INVALID);
     }
   }

@@ -1,14 +1,34 @@
 import { PurchaseReturnItemDto } from 'app/module/purchase-return/dto/purchase-return-item.dto';
-import { IsArray, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
-export class PurchaseReturnDto {
-  @IsUUID()
+export class PurchaseReturnWithPODto {
   @IsOptional()
-  purchase_order_id?: string;
+  @IsString()
+  notes?: string;
 
-  @IsUUID()
   @IsOptional()
-  supplier_id?: string;
+  @IsString()
+  reason?: string;
+
+  @IsOptional()
+  return_date?: Date;
+
+  @IsArray()
+  items: PurchaseReturnItemDto[];
+}
+
+export class PurchaseReturnWithoutPODto {
+  @IsUUID()
+  @IsNotEmpty({
+    message: 'Vui lòng chọn nhà cung cấp',
+  })
+  supplier_id: string;
 
   @IsOptional()
   @IsString()

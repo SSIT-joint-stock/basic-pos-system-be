@@ -11,7 +11,10 @@ import { PaginatedResponse } from 'app/common/response';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import { type IUser } from 'app/common/types/user.type';
 import { AcceptPaymentPurchaseReturnDto } from 'app/module/purchase-return/dto/accept-paymen-purchase-return.dto';
-import { PurchaseReturnDto } from 'app/module/purchase-return/dto/purchase-return.dto';
+import {
+  PurchaseReturnWithPODto,
+  PurchaseReturnWithoutPODto,
+} from 'app/module/purchase-return/dto/purchase-return.dto';
 import { PurchaseReturnPaymentService } from 'app/module/purchase-return/purchase-return-payment.service';
 import z from 'zod';
 import { PurchaseReturnService } from './purchase-return.service';
@@ -32,7 +35,7 @@ export class PurchaseReturnController {
   createWithPurchaseOrder(
     @User() user: IUser,
     @Param('purchaseOrderId') purchaseOrderId: string,
-    @Body() dto: PurchaseReturnDto,
+    @Body() dto: PurchaseReturnWithPODto,
   ) {
     return this.purchaseReturnService.createWithPurchaseOrder(
       purchaseOrderId,
@@ -50,7 +53,7 @@ export class PurchaseReturnController {
   @Post('/free')
   createWithoutPurchaseOrder(
     @User() user: IUser,
-    @Body() dto: PurchaseReturnDto,
+    @Body() dto: PurchaseReturnWithoutPODto,
   ) {
     return this.purchaseReturnService.createWithoutPurchaseOrder(
       user.storeId || '',
