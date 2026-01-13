@@ -19,6 +19,9 @@ export { ForbiddenError } from './forbidden';
 // kh tim thay resource
 export { NotFoundError } from './not-found';
 
+// resource da het han
+export { GoneError } from './gone';
+
 // resource bi trung
 export { ConflictError } from './conflict';
 

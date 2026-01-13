@@ -109,6 +109,18 @@ enum purchase_order_status {
   PENDING // Đang chờ duyệt (chờ quản lý phê duyệt)
   RECEIVED // Đã nhận hàng đầy đủ (đã nhận toàn bộ hàng đặt)
 }
+
+enum AssetVisibility {
+  PUBLIC
+  PRIVATE
+  TEMP
+}
+
+enum AssetAction {
+  READ
+  WRITE
+  DELETE
+}
 /**
  * User model
  * User is a model that represents the user of the system
@@ -746,4 +758,54 @@ model StatisticsDaily {
   @@index([store_id])
   @@index([stat_date])
   @@map("statistics_daily")
+}
+
+model Asset {
+  id           String          @id @default(cuid())
+  visibility   AssetVisibility @default(PUBLIC)
+  storageKey   String          @unique // e.g public/2026/01/<uuid>.png
+  originalName String
+  mimeType     String
+  size         Int
+  checksum     String?
+  createdBy    String
+  expiresAt    DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  permissions  AssetPermission[]
+  links        AssetLink[]
+
+  @@index([visibility])
+  @@index([createdBy])
+  @@index([deletedAt])
+  @@index([expiresAt])
+  @@map("asset")
+}
+
+model AssetPermission {
+  id        String      @id @default(cuid())
+  assetId   String
+  userId    String
+  action    AssetAction
+  createdAt DateTime    @default(now())
+  asset     Asset       @relation(fields: [assetId], references: [id])
+
+  @@unique([assetId, userId, action])
+  @@index([userId])
+  @@index([assetId])
+  @@map("asset_permission")
+}
+
+model AssetLink {
+  id         String   @id @default(cuid())
+  assetId    String
+  entityType String // PRODUCT, INVOICE, USER...
+  entityId   String
+  field      String?
+  createdAt  DateTime @default(now())
+  asset      Asset   @relation(fields: [assetId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("asset_link")
 }

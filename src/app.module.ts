@@ -55,6 +55,7 @@ import { VariantModule } from './module/variant/variant.module';
 import { OauthModule } from './module/oauth/oauth.module';
 import { StoreMemberModule } from './module/store-member/store-member.module';
 import { ReportModule } from './module/report/report.module';
+import { AssetsModule } from './assets/assets.module';
 
 @Module({
   imports: [
@@ -135,6 +136,7 @@ import { ReportModule } from './module/report/report.module';
     VariantModule,
     StoreMemberModule,
     ReportModule,
+    AssetsModule,
   ],
   providers: [
     TokenService,
