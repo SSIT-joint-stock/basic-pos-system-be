@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
 import { payment_status, purchase_return_status } from '@prisma/client';
 import { ApiSuccess } from 'app/common/decorators';
 import {
@@ -49,7 +49,7 @@ export class PurchaseReturnController {
     PERMISSIONS.PURCHASE_RETURN_CREATE,
     PERMISSIONS.PURCHASE_RETURN_ALL,
   ])
-  @ApiSuccess('Tạo đơn trả hàng nhập thành công!')
+  @ApiSuccess('Tạo đơn trả hàng thành công!')
   @Post('/free')
   createWithoutPurchaseOrder(
     @User() user: IUser,
@@ -67,7 +67,7 @@ export class PurchaseReturnController {
     PERMISSIONS.PURCHASE_RETURN_ALL,
   ])
   @ApiSuccess('Xác nhận hoàn tiền đơn trả hàng thành công!')
-  @Post('accept-payment/:id')
+  @Put('accept-payment/:id')
   acceptPayment(
     @User() user: IUser,
     @Param('id') id: string,
@@ -84,7 +84,7 @@ export class PurchaseReturnController {
     PERMISSIONS.PURCHASE_RETURN_READ,
     PERMISSIONS.PURCHASE_RETURN_ALL,
   ])
-  @Get()
+  @Get('')
   async getAll(
     @FilterParse({
       allowPagination: true,
@@ -123,7 +123,7 @@ export class PurchaseReturnController {
     PERMISSIONS.PURCHASE_RETURN_READ,
     PERMISSIONS.PURCHASE_RETURN_ALL,
   ])
-  @Get('/detail/:purchaseReturnId')
+  @Get(':purchaseReturnId')
   getDetail(
     @Param('purchaseReturnId') purchaseReturnId: string,
     @User() user: IUser,

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   payment_method,
   payment_status,
+  Prisma,
   purchase_return_status,
   PurchaseReturn,
 } from '@prisma/client';
@@ -69,11 +70,13 @@ export class PurchaseReturnPaymentService {
     purchaseReturn: PurchaseReturn | null,
     dto: AcceptPaymentPurchaseReturnDto,
   ) {
+    const inputAmount = new Prisma.Decimal(dto.amount);
+
     if (!purchaseReturn)
       throw new NotFoundError(this.errMsg.PURCHASE_RETURN_NOT_FOUND);
     if (purchaseReturn.status !== purchase_return_status.COMPLETED)
       throw new BadRequestError(this.errMsg.PURCHASE_RETURN_NOT_COMPLETED);
-    if (dto.amount !== purchaseReturn.total) {
+    if (!inputAmount.equals(purchaseReturn.total)) {
       throw new BadRequestError(
         `${this.errMsg.PAYMENT_AMOUNT_NOT_VALID}: ${purchaseReturn.total.toString()}`,
       );

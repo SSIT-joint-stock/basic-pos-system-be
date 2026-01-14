@@ -679,8 +679,8 @@ model PurchaseOrderItem {
   applied_factor     Int?  // VD: 24 (Base Unit thì = 1)
   total_base_qty      Int? // = inputQuanity * appliedFactor (VD : 48)
   unit_cost         Decimal  @db.Decimal(15, 2) // giá nhập 
-  discount_rate     Decimal  @default(0) @db.Decimal(5, 4)  // Chiết khấu % (0.1 = 0.1%)
-  tax_rate          Decimal  @default(0) @db.Decimal(5, 4)  // Thuế % (0.1 = 0.1%)
+  discount_rate     Decimal  @default(0) @db.Decimal(15, 2)  // Chiết khấu % (0.1 = 0.1%)
+  tax_rate          Decimal  @default(0) @db.Decimal(15, 2)  // Thuế % (0.1 = 0.1%)
 
   // tiền sau tính toán
   subtotal          Decimal  @default(0) @db.Decimal(15, 2) // tông tiền trước thuế và chiết khấu unit_cost * quantity
@@ -780,6 +780,11 @@ model PurchaseReturnItem {
 
   item_name String
   quantity   Int
+  
+  unit              String?  // VD: "Thùng"      
+  applied_factor     Int?  // VD: 24 (Base Unit thì = 1)
+  total_base_qty      Int? // = inputQuanity * appliedFactor (VD : 48)
+
   unit_cost Decimal @db.Decimal(15,2)
   base_unit_cost Decimal @db.Decimal(15,2)
 

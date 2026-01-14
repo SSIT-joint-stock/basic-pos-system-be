@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   Prisma,
+  Product,
   purchase_order_status,
   purchase_return_status,
   stock_movement_type,
@@ -71,7 +72,9 @@ export class PurchaseReturnService {
       for (const item of items) {
         const { purchase_order_item_id, quantity, reason } = item;
 
-        const { inputQty, purchaseOrderItem, realUnitCost } =
+        if (!purchase_order_item_id) return null;
+
+        const { inputQty, baseQty, purchaseOrderItem, realUnitCost } =
           this.checkValidQuantityInPurchaseOrder(
             quantity,
             purchaseOrder,
@@ -84,7 +87,12 @@ export class PurchaseReturnService {
           product_id: purchaseOrderItem.product_id,
           purchase_order_item_id: purchaseOrderItem.id,
           item_name: purchaseOrderItem.item_name,
+
           quantity: Number(inputQty),
+          unit: purchaseOrderItem.unit,
+          applied_factor: purchaseOrderItem.applied_factor,
+          total_base_qty: Number(baseQty),
+
           unit_cost: realUnitCost,
           base_unit_cost: purchaseOrderItem.unit_cost,
           total: itemTotal,
@@ -96,7 +104,7 @@ export class PurchaseReturnService {
           storeId,
           purchaseOrderItem.variant_id,
           purchaseOrderItem.product_id,
-          Number(inputQty) || 0,
+          Number(baseQty) || 0,
           tx,
         );
 
@@ -105,8 +113,8 @@ export class PurchaseReturnService {
           data: {
             quantity_returned:
               purchaseOrderItem.quantity_returned === null
-                ? inputQty
-                : { increment: inputQty },
+                ? baseQty
+                : { increment: baseQty },
           },
         });
       }
@@ -178,6 +186,7 @@ export class PurchaseReturnService {
           product_id: product_id,
           item_name: variant.name,
           quantity: Number(inputQty),
+          unit: variant?.product.baseUnit,
           total: totalPerItem,
           unit_cost: unit_cost || Number(variant.cost),
           base_unit_cost: Number(variant.cost),
@@ -229,6 +238,30 @@ export class PurchaseReturnService {
         store_id: storeId,
         id: purchaseReturnId,
       },
+      include: {
+        items: {
+          include: {
+            variant: true,
+            product: true,
+          },
+        },
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            email: true,
+            tax_code: true,
+          },
+        },
+        payments: true,
+        creator: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
     });
     if (!purchaseReturn)
       throw new NotFoundError(this.errMsg.PURCHASE_ORDER_NOT_FOUND);
@@ -255,9 +288,29 @@ export class PurchaseReturnService {
         take: query.take,
         orderBy: query.orderBy,
         include: {
-          supplier: true,
+          purchase_order: {
+            select: {
+              id: true,
+              order_number: true,
+            },
+          },
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              email: true,
+              tax_code: true,
+            },
+          },
           items: true,
-          creator: true,
+          creator: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
         },
       }),
       this.prisma.purchaseReturn.count({
@@ -334,10 +387,9 @@ export class PurchaseReturnService {
   private checkValidQuantityInPurchaseOrder(
     quantity: number,
     purchaseOrder: PurchaseOrderWithItems,
-    purchase_order_item_id?: string,
+    purchase_order_item_id: string,
   ) {
     const inputQty = new Prisma.Decimal(quantity);
-
     const purchaseOrderItem = purchaseOrder.items.find(
       (i) => i.id === purchase_order_item_id,
     );
@@ -345,28 +397,42 @@ export class PurchaseReturnService {
     if (!purchaseOrderItem)
       throw new NotFoundError(this.errMsg.PURCHASE_ITEM_NOT_FOUND);
 
+    const appliedFactor = new Prisma.Decimal(
+      purchaseOrderItem.applied_factor || 1,
+    );
+
+    const baseQty = inputQty.mul(appliedFactor);
+
     const returnedQty =
       purchaseOrderItem.quantity_returned ?? new Prisma.Decimal(0);
-    const maxReturnableQty = purchaseOrderItem.quantity.sub(returnedQty);
+    const totalBaseQty = new Prisma.Decimal(
+      purchaseOrderItem.total_base_qty || 0,
+    );
+    const maxReturnableQty = totalBaseQty.sub(returnedQty);
 
-    if (inputQty.gt(maxReturnableQty)) {
+    if (baseQty.gt(maxReturnableQty)) {
       throw new BadRequestError(
-        this.errMsg.QUANTITY_INPT_NOT_VALID + ' ' + purchaseOrderItem.item_name,
+        `${this.errMsg.QUANTITY_INPT_NOT_VALID}: ${purchaseOrderItem.item_name}`,
       );
     }
-    const realUnitCost = new Prisma.Decimal(purchaseOrderItem.unit_cost)
+
+    const baseQtyTotal = totalBaseQty.gt(0)
+      ? totalBaseQty
+      : purchaseOrderItem.quantity.mul(appliedFactor);
+
+    const costPerBase = new Prisma.Decimal(purchaseOrderItem.unit_cost)
       .add(
-        new Prisma.Decimal(purchaseOrderItem.tax_amount || 0).div(
-          purchaseOrderItem.quantity,
-        ),
+        new Prisma.Decimal(purchaseOrderItem.tax_amount || 0).div(baseQtyTotal),
       )
       .sub(
         new Prisma.Decimal(purchaseOrderItem.discount_amount || 0).div(
-          purchaseOrderItem.quantity,
+          baseQtyTotal,
         ),
       );
 
-    return { inputQty, purchaseOrderItem, maxReturnableQty, realUnitCost };
+    const realUnitCost = costPerBase.mul(appliedFactor);
+
+    return { inputQty, baseQty, purchaseOrderItem, realUnitCost };
   }
 
   private async checkValidQuantityInVariantStock(
@@ -376,7 +442,7 @@ export class PurchaseReturnService {
     storeId: string,
   ): Promise<{
     inputQty: Prisma.Decimal;
-    variant: Variant;
+    variant: Variant & { product: Product };
     variantStock: VariantStock;
     onHand: Prisma.Decimal;
   }> {
@@ -384,6 +450,10 @@ export class PurchaseReturnService {
 
     const variant = await tx.variant.findUnique({
       where: { id: variantId },
+      include: {
+        product: true,
+        conversions: true,
+      },
     });
     if (!variant) throw new BadRequestError(this.errMsg.VARIANT_NOT_FOUND);
 
@@ -403,7 +473,7 @@ export class PurchaseReturnService {
 
     if (onHand.lt(inputQty))
       throw new BadRequestError(
-        `${this.errMsg.QUANTITY_INPT_NOT_VALID}: ${onHand} ${variant.name}`,
+        `${this.errMsg.QUANTITY_INPT_NOT_VALID}: ${Number(onHand)} ${variant.name}`,
       );
 
     return { inputQty, variant, variantStock, onHand };
