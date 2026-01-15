@@ -345,6 +345,7 @@ export class PurchaseOrderService {
       },
     };
   }
+
   async getPurchaseOrder(id: string, storeId: string) {
     await Promise.all([
       this.checkStore(storeId),
@@ -367,6 +368,12 @@ export class PurchaseOrderService {
           },
         },
         items: true,
+        purchase_returns: {
+          include: {
+            items: true,
+            creator: true,
+          },
+        },
         creator: {
           select: {
             id: true,
