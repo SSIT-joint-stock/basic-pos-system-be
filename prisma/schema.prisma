@@ -762,8 +762,9 @@ model StatisticsDaily {
 
 model Asset {
   id           String          @id @default(cuid())
+  storeId      String
   visibility   AssetVisibility @default(PUBLIC)
-  storageKey   String          @unique // e.g public/2026/01/<uuid>.png
+  storageKey   String          // e.g stores/<storeId>/public/2026/01/<uuid>.png
   originalName String
   mimeType     String
   size         Int
@@ -776,29 +777,33 @@ model Asset {
   permissions  AssetPermission[]
   links        AssetLink[]
 
-  @@index([visibility])
-  @@index([createdBy])
-  @@index([deletedAt])
-  @@index([expiresAt])
+  @@unique([storeId, storageKey])
+  @@index([storeId])
+  @@index([storeId, visibility])
+  @@index([storeId, createdBy])
+  @@index([storeId, deletedAt])
+  @@index([storeId, expiresAt])
   @@map("asset")
 }
 
 model AssetPermission {
   id        String      @id @default(cuid())
+  storeId   String
   assetId   String
   userId    String
   action    AssetAction
   createdAt DateTime    @default(now())
   asset     Asset       @relation(fields: [assetId], references: [id])
 
-  @@unique([assetId, userId, action])
-  @@index([userId])
-  @@index([assetId])
+  @@unique([storeId, assetId, userId, action])
+  @@index([storeId, userId])
+  @@index([storeId, assetId])
   @@map("asset_permission")
 }
 
 model AssetLink {
   id         String   @id @default(cuid())
+  storeId    String
   assetId    String
   entityType String // PRODUCT, INVOICE, USER...
   entityId   String
@@ -806,6 +811,7 @@ model AssetLink {
   createdAt  DateTime @default(now())
   asset      Asset   @relation(fields: [assetId], references: [id])
 
-  @@index([entityType, entityId])
+  @@index([storeId, entityType, entityId])
+  @@index([storeId, assetId])
   @@map("asset_link")
 }

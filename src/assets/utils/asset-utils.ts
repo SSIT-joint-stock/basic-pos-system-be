@@ -45,6 +45,7 @@ export function getSafeExtension(
 }
 
 export function generateStorageKey(
+  storeId: string,
   visibility: AssetVisibility,
   originalName: string,
   mimeType: string,
@@ -56,7 +57,7 @@ export function generateStorageKey(
   const extension = getSafeExtension(originalName, mimeType);
   const fileId = randomUUID();
 
-  return `${folder}/${year}/${month}/${fileId}.${extension}`;
+  return `stores/${storeId}/${folder}/${year}/${month}/${fileId}.${extension}`;
 }
 
 export function buildAssetUrl(cdnUrl: string, storageKey: string): string {

@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { BadRequestError } from 'app/common/response';
 import { AssetsService } from '../assets.service';
 
@@ -18,8 +14,17 @@ export class AssetAccessGuard implements CanActivate {
       throw new BadRequestError('Asset id is required');
     }
 
+    const storeId = request.params?.storeId as string | undefined;
+    if (!storeId) {
+      throw new BadRequestError('StoreIdRequired', 'STORE_ID_REQUIRED');
+    }
+
     const userId = request.user?.id as string | undefined;
-    const asset = await this.assetsService.getAssetForRead(assetId, userId);
+    const asset = await this.assetsService.getAssetForRead(
+      assetId,
+      storeId,
+      userId,
+    );
 
     request.asset = asset;
 

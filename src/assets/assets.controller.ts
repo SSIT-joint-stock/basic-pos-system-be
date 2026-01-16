@@ -7,6 +7,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -31,6 +32,7 @@ import { Asset, AssetVisibility } from '@prisma/client';
 import { CreateLinkDto } from './dto/create-link.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UploadAssetDto } from './dto/upload-asset.dto';
+import { UpdateVisibilityDto } from './dto/update-visibility.dto';
 import { AssetAccessGuard } from './guards/asset-access.guard';
 import { sanitizeFilename } from './utils/asset-utils';
 import { AssetsService } from './assets.service';
@@ -46,7 +48,7 @@ const uploadOptions = {
 
 type RequestWithAsset = Request & { asset?: Asset };
 
-@Controller('assets')
+@Controller('stores/:storeId/assets')
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 
@@ -54,6 +56,7 @@ export class AssetsController {
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   @ApiSuccess('Upload asset thành công')
   async upload(
+    @Param('storeId') storeId: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadAssetDto,
     @User() user: IUser,
@@ -62,7 +65,7 @@ export class AssetsController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    return this.assetsService.uploadAsset(file, dto, user.id);
+    return this.assetsService.uploadAsset(file, dto, user.id, storeId);
   }
 
   @Get('my')
@@ -80,6 +83,7 @@ export class AssetsController {
       }),
     })
     query,
+    @Param('storeId') storeId: string,
     @User() user: IUser,
   ) {
     if (!user?.id) {
@@ -88,6 +92,7 @@ export class AssetsController {
 
     const { data, total } = await this.assetsService.listCreatedAssets(
       user.id,
+      storeId,
       query.prismaQuery,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
@@ -96,8 +101,12 @@ export class AssetsController {
   @Public()
   @Get('public/:id')
   @RawResponse()
-  async downloadPublic(@Param('id') id: string, @Res() res: Response) {
-    const asset = await this.assetsService.getPublicAsset(id);
+  async downloadPublic(
+    @Param('storeId') storeId: string,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const asset = await this.assetsService.getPublicAsset(id, storeId);
     const stream = await this.assetsService.getDownloadStream(asset);
 
     this.setDownloadHeaders(res, asset);
@@ -120,10 +129,12 @@ export class AssetsController {
       }),
     })
     query,
+    @Param('storeId') storeId: string,
     @User() user?: IUser,
   ) {
     const { entityType, entityId } = query.filters;
     const { data, total } = await this.assetsService.listByEntity(
+      storeId,
       entityType,
       entityId,
       query.prismaQuery,
@@ -135,8 +146,32 @@ export class AssetsController {
   @Public()
   @Get(':id')
   @ApiSuccess('Lấy thông tin asset')
-  async getAsset(@Param('id') id: string, @User() user?: IUser) {
-    return this.assetsService.getAssetInfo(id, user?.id);
+  async getAsset(
+    @Param('storeId') storeId: string,
+    @Param('id') id: string,
+    @User() user?: IUser,
+  ) {
+    return this.assetsService.getAssetInfo(id, storeId, user?.id);
+  }
+
+  @Patch(':id/visibility')
+  @ApiSuccess('Cập nhật visibility asset thành công')
+  async updateVisibility(
+    @Param('id') id: string,
+    @Param('storeId') storeId: string,
+    @Body() dto: UpdateVisibilityDto,
+    @User() user: IUser,
+  ) {
+    if (!user?.id) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    return this.assetsService.updateVisibility(
+      id,
+      storeId,
+      dto.visibility,
+      user.id,
+    );
   }
 
   @Get(':id/download')
@@ -157,6 +192,7 @@ export class AssetsController {
   @ApiSuccess('Cấp quyền asset thành công')
   async grantPermissions(
     @Param('id') id: string,
+    @Param('storeId') storeId: string,
     @Body() dto: CreatePermissionDto,
     @User() user: IUser,
   ) {
@@ -164,13 +200,28 @@ export class AssetsController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    return this.assetsService.grantPermissions(id, dto, user.id);
+    return this.assetsService.grantPermissions(id, storeId, dto, user.id);
+  }
+
+  @Delete(':id')
+  @ApiSuccess('Xóa asset thành công')
+  async deleteAsset(
+    @Param('id') id: string,
+    @Param('storeId') storeId: string,
+    @User() user: IUser,
+  ) {
+    if (!user?.id) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    return this.assetsService.deleteAsset(id, storeId, user.id);
   }
 
   @Delete(':id/permissions')
   @ApiSuccess('Thu hồi quyền asset thành công')
   async revokePermissions(
     @Param('id') id: string,
+    @Param('storeId') storeId: string,
     @Body() dto: CreatePermissionDto,
     @User() user: IUser,
   ) {
@@ -178,13 +229,14 @@ export class AssetsController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    return this.assetsService.revokePermissions(id, dto, user.id);
+    return this.assetsService.revokePermissions(id, storeId, dto, user.id);
   }
 
   @Post(':id/links')
   @ApiSuccess('Gắn asset vào entity thành công')
   async attachLink(
     @Param('id') id: string,
+    @Param('storeId') storeId: string,
     @Body() dto: CreateLinkDto,
     @User() user: IUser,
   ) {
@@ -192,7 +244,7 @@ export class AssetsController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    return this.assetsService.attachLink(id, dto, user.id);
+    return this.assetsService.attachLink(id, storeId, dto, user.id);
   }
 
   private setDownloadHeaders(res: Response, asset: Asset): void {

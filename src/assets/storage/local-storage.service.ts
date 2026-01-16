@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { access, mkdir, unlink } from 'node:fs/promises';
+import { access, mkdir, rename, unlink } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -62,6 +62,27 @@ export class LocalStorageService extends StorageService {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  async move(sourceKey: string, destinationKey: string): Promise<void> {
+    const sourcePath = this.resolvePath(sourceKey);
+    const destinationPath = this.resolvePath(destinationKey);
+    await mkdir(dirname(destinationPath), { recursive: true });
+
+    try {
+      await rename(sourcePath, destinationPath);
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== 'EXDEV') {
+        throw err;
+      }
+
+      await pipeline(
+        createReadStream(sourcePath),
+        createWriteStream(destinationPath),
+      );
+      await unlink(sourcePath);
     }
   }
 

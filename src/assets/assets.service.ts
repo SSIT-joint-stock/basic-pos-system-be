@@ -59,6 +59,7 @@ export class AssetsService {
     file: Express.Multer.File | undefined,
     dto: UploadAssetDto,
     userId: string,
+    storeId: string,
   ): Promise<AssetResponse> {
     if (!file) {
       throw new BadRequestException('File is required');
@@ -69,11 +70,13 @@ export class AssetsService {
     const visibility = dto.visibility ?? AssetVisibility.PUBLIC;
     const expiresAt = this.resolveExpiresAt(visibility, dto);
     const storageKey = generateStorageKey(
+      storeId,
       visibility,
       file.originalname,
       file.mimetype,
     );
 
+    // Lưu file trước để lấy checksum/size; nếu tạo DB lỗi thì xóa file.
     const { checksum, size } = await this.storage.save(
       storageKey,
       Readable.from(file.buffer),
@@ -82,6 +85,7 @@ export class AssetsService {
     try {
       const asset = await this.prisma.asset.create({
         data: {
+          storeId,
           visibility,
           storageKey,
           originalName: file.originalname,
@@ -100,13 +104,21 @@ export class AssetsService {
     }
   }
 
-  async getAssetInfo(id: string, userId?: string): Promise<AssetResponse> {
-    const asset = await this.getAssetForRead(id, userId);
+  async getAssetInfo(
+    id: string,
+    storeId: string,
+    userId?: string,
+  ): Promise<AssetResponse> {
+    const asset = await this.getAssetForRead(id, storeId, userId);
     return this.toAssetResponse(asset);
   }
 
-  async getAssetForRead(id: string, userId?: string): Promise<Asset> {
-    const asset = await this.findAssetOrThrow(id);
+  async getAssetForRead(
+    id: string,
+    storeId: string,
+    userId?: string,
+  ): Promise<Asset> {
+    const asset = await this.findAssetOrThrow(id, storeId);
     this.ensureNotExpired(asset);
 
     if (asset.visibility === AssetVisibility.PUBLIC) {
@@ -123,7 +135,8 @@ export class AssetsService {
 
     const permission = await this.prisma.assetPermission.findUnique({
       where: {
-        assetId_userId_action: {
+        storeId_assetId_userId_action: {
+          storeId,
           assetId: asset.id,
           userId,
           action: AssetAction.READ,
@@ -138,8 +151,8 @@ export class AssetsService {
     return asset;
   }
 
-  async getPublicAsset(id: string): Promise<Asset> {
-    const asset = await this.findAssetOrThrow(id);
+  async getPublicAsset(id: string, storeId: string): Promise<Asset> {
+    const asset = await this.findAssetOrThrow(id, storeId);
     this.ensureNotExpired(asset);
 
     if (asset.visibility !== AssetVisibility.PUBLIC) {
@@ -158,17 +171,93 @@ export class AssetsService {
     return this.storage.createReadStream(asset.storageKey);
   }
 
+  async updateVisibility(
+    assetId: string,
+    storeId: string,
+    visibility: AssetVisibility,
+    userId: string,
+  ): Promise<AssetResponse> {
+    const asset = await this.findAssetOrThrow(assetId, storeId);
+    await this.ensureWriteAccess(asset, storeId, userId);
+
+    // TEMP không được đổi visibility (cả hiện tại lẫn target).
+    if (
+      asset.visibility === AssetVisibility.TEMP ||
+      visibility === AssetVisibility.TEMP
+    ) {
+      throw new BadRequestException('TEMP assets cannot change visibility');
+    }
+
+    if (asset.visibility === visibility) {
+      return this.toAssetResponse(asset);
+    }
+
+    const exists = await this.storage.exists(asset.storageKey);
+    if (!exists) {
+      throw new NotFoundException('Asset file');
+    }
+
+    const newStorageKey = generateStorageKey(
+      storeId,
+      visibility,
+      asset.originalName,
+      asset.mimeType,
+    );
+
+    // Di chuyển file trước, nếu update DB lỗi thì rollback về key cũ.
+    await this.storage.move(asset.storageKey, newStorageKey);
+
+    try {
+      const updated = await this.prisma.asset.update({
+        where: { id: asset.id },
+        data: {
+          visibility,
+          storageKey: newStorageKey,
+        },
+      });
+
+      return this.toAssetResponse(updated);
+    } catch (error) {
+      await this.storage
+        .move(newStorageKey, asset.storageKey)
+        .catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async deleteAsset(
+    assetId: string,
+    storeId: string,
+    userId: string,
+  ): Promise<AssetResponse> {
+    const asset = await this.findAssetOrThrow(assetId, storeId);
+    await this.ensureDeleteAccess(asset, storeId, userId);
+
+    // Soft delete DB trước, sau đó xóa file vật lý.
+    const deletedAt = new Date();
+    const updated = await this.prisma.asset.update({
+      where: { id: asset.id },
+      data: { deletedAt },
+    });
+
+    await this.storage.delete(asset.storageKey);
+
+    return this.toAssetResponse(updated);
+  }
+
   async grantPermissions(
     assetId: string,
+    storeId: string,
     dto: CreatePermissionDto,
     userId: string,
   ) {
-    const asset = await this.findAssetOrThrow(assetId);
+    const asset = await this.findAssetOrThrow(assetId, storeId);
     this.ensureUploader(asset, userId);
 
     const actions = this.uniqueActions(dto.actions);
     await this.prisma.assetPermission.createMany({
       data: actions.map((action) => ({
+        storeId,
         assetId: asset.id,
         userId: dto.userId,
         action,
@@ -178,6 +267,7 @@ export class AssetsService {
 
     return this.prisma.assetPermission.findMany({
       where: {
+        storeId,
         assetId: asset.id,
         userId: dto.userId,
       },
@@ -186,15 +276,17 @@ export class AssetsService {
 
   async revokePermissions(
     assetId: string,
+    storeId: string,
     dto: CreatePermissionDto,
     userId: string,
   ) {
-    const asset = await this.findAssetOrThrow(assetId);
+    const asset = await this.findAssetOrThrow(assetId, storeId);
     this.ensureUploader(asset, userId);
 
     const actions = this.uniqueActions(dto.actions);
     await this.prisma.assetPermission.deleteMany({
       where: {
+        storeId,
         assetId: asset.id,
         userId: dto.userId,
         action: {
@@ -205,18 +297,25 @@ export class AssetsService {
 
     return this.prisma.assetPermission.findMany({
       where: {
+        storeId,
         assetId: asset.id,
         userId: dto.userId,
       },
     });
   }
 
-  async attachLink(assetId: string, dto: CreateLinkDto, userId: string) {
-    const asset = await this.findAssetOrThrow(assetId);
-    await this.ensureWriteAccess(asset, userId);
+  async attachLink(
+    assetId: string,
+    storeId: string,
+    dto: CreateLinkDto,
+    userId: string,
+  ) {
+    const asset = await this.findAssetOrThrow(assetId, storeId);
+    await this.ensureWriteAccess(asset, storeId, userId);
 
     return this.prisma.assetLink.create({
       data: {
+        storeId,
         assetId: asset.id,
         entityType: dto.entityType,
         entityId: dto.entityId,
@@ -226,6 +325,7 @@ export class AssetsService {
   }
 
   async listByEntity(
+    storeId: string,
     entityType: string,
     entityId: string,
     query: Prisma.AssetFindManyArgs,
@@ -233,15 +333,18 @@ export class AssetsService {
   ): Promise<{ data: AssetResponse[]; total: number }> {
     const now = new Date();
     const where: Prisma.AssetWhereInput = {
+      storeId,
       deletedAt: null,
       links: {
         some: {
+          storeId,
           entityType,
           entityId,
         },
       },
     };
 
+    // Không có user thì chỉ lấy PUBLIC.
     if (!userId) {
       where.visibility = AssetVisibility.PUBLIC;
     } else {
@@ -251,6 +354,7 @@ export class AssetsService {
           {
             permissions: {
               some: {
+                storeId,
                 userId,
                 action: AssetAction.READ,
               },
@@ -292,10 +396,16 @@ export class AssetsService {
 
   async listCreatedAssets(
     userId: string,
+    storeId: string,
     query: Prisma.AssetFindManyArgs,
   ): Promise<{ data: AssetResponse[]; total: number }> {
     const where: Prisma.AssetWhereInput = {
-      AND: [{ createdBy: userId }, { deletedAt: null }, query.where ?? {}],
+      AND: [
+        { createdBy: userId },
+        { storeId },
+        { deletedAt: null },
+        query.where ?? {},
+      ],
     };
 
     const [assets, total] = await Promise.all([
@@ -311,9 +421,12 @@ export class AssetsService {
     return { data: assets.map((asset) => this.toAssetResponse(asset)), total };
   }
 
-  private async findAssetOrThrow(assetId: string): Promise<Asset> {
-    const asset = await this.prisma.asset.findUnique({
-      where: { id: assetId },
+  private async findAssetOrThrow(
+    assetId: string,
+    storeId: string,
+  ): Promise<Asset> {
+    const asset = await this.prisma.asset.findFirst({
+      where: { id: assetId, storeId },
     });
 
     if (!asset || asset.deletedAt) {
@@ -339,17 +452,47 @@ export class AssetsService {
     }
   }
 
-  private async ensureWriteAccess(asset: Asset, userId: string): Promise<void> {
+  private async ensureWriteAccess(
+    asset: Asset,
+    storeId: string,
+    userId: string,
+  ): Promise<void> {
     if (asset.createdBy === userId) {
       return;
     }
 
     const permission = await this.prisma.assetPermission.findUnique({
       where: {
-        assetId_userId_action: {
+        storeId_assetId_userId_action: {
+          storeId,
           assetId: asset.id,
           userId,
           action: AssetAction.WRITE,
+        },
+      },
+    });
+
+    if (!permission) {
+      throw new ForbiddenException('Access denied');
+    }
+  }
+
+  private async ensureDeleteAccess(
+    asset: Asset,
+    storeId: string,
+    userId: string,
+  ): Promise<void> {
+    if (asset.createdBy === userId) {
+      return;
+    }
+
+    const permission = await this.prisma.assetPermission.findUnique({
+      where: {
+        storeId_assetId_userId_action: {
+          storeId,
+          assetId: asset.id,
+          userId,
+          action: AssetAction.DELETE,
         },
       },
     });

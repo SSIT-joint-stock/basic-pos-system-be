@@ -13,4 +13,5 @@ export abstract class StorageService {
   abstract createReadStream(storageKey: string): Promise<Readable>;
   abstract delete(storageKey: string): Promise<void>;
   abstract exists(storageKey: string): Promise<boolean>;
+  abstract move(sourceKey: string, destinationKey: string): Promise<void>;
 }

@@ -1,5 +1,11 @@
 import { AssetAction } from '@prisma/client';
-import { ArrayNotEmpty, IsArray, IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsEnum,
+  IsNotEmpty,
+  IsString,
+} from 'class-validator';
 
 export class CreatePermissionDto {
   @IsString()

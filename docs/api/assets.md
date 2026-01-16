@@ -1,38 +1,41 @@
-# Asset API Routes
+# Asset API
 
 > Phiên bản: **v1**
 > Base URL: `http://localhost:3000`
 >
-> **Xac thuc:**
-> - API public: khong can token
-> - API private: dung `Authorization: Bearer <access_token>`
+> **Xác thực:**
+> - Public: không cần token
+> - Private/TEMP: dùng `Authorization: Bearer <access_token>`
+>
+> **Multi-tenant (Store):**
+> - Mọi endpoint đều cần `storeId` trong URL.
 >
 > **Visibility:**
-> - `PUBLIC`: ai cung truy cap
-> - `PRIVATE`: chi uploader hoac user duoc cap quyen
-> - `TEMP`: nhu PRIVATE + het han thi 410 Gone
+> - `PUBLIC`: ai cũng truy cập được
+> - `PRIVATE`: chỉ uploader hoặc user được cấp quyền
+> - `TEMP`: như PRIVATE + hết hạn trả 410 Gone
 
 ---
 
-# 1. Upload Asset
+## 1. Upload Asset
 
-## 1.1 Mo ta
+### 1.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets` |
-| Request Method | **POST** |
-| Request Header | `Authorization: Bearer <token>` |
-| Body data | multipart/form-data |
-| Quyen yeu cau | Bat buoc dang nhap |
+| Request URL | `/stores/:storeId/assets` |
+| Method | **POST** |
+| Header | `Authorization: Bearer <token>` |
+| Body | multipart/form-data |
+| Quyền | bắt buộc đăng nhập |
 
 **Form Data:**
-- `file` (file) **bat buoc**
-- `visibility` (PUBLIC | PRIVATE | TEMP) optional, mac dinh PUBLIC
-- `expiresInSeconds` (number) optional, dung cho TEMP
-- `expiresAt` (ISO string) optional, dung cho TEMP
+- `file` (file) **bắt buộc**
+- `visibility` (PUBLIC | PRIVATE | TEMP) optional, mặc định PUBLIC
+- `expiresInSeconds` (number) optional, dùng cho TEMP
+- `expiresAt` (ISO string) optional, dùng cho TEMP
 
-## 1.2 Response thanh cong
+### 1.2 Response thành công
 
 ```json
 {
@@ -44,32 +47,32 @@
   "data": {
     "id": "ckxyz...",
     "visibility": "PUBLIC",
-    "storageKey": "public/2026/01/uuid.png",
-    "url": "https://cdn.example.com/public/2026/01/uuid.png",
+    "storageKey": "stores/<storeId>/public/2026/01/uuid.png",
+    "url": "https://cdn.example.com/stores/<storeId>/public/2026/01/uuid.png",
     "originalName": "logo.png",
     "mimeType": "image/png",
     "size": 12345,
     "checksum": "sha256...",
     "expiresAt": null
   },
-  "message": "Upload asset thanh cong"
+  "message": "Upload asset thành công"
 }
 ```
 
 ---
 
-# 2. Get Asset Info
+## 2. Get Asset Info
 
-## 2.1 Mo ta
+### 2.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/:id` |
-| Request Method | **GET** |
-| Request Header | `Authorization: Bearer <token>` (optional) |
-| Quyen yeu cau | PUBLIC: khong can token, PRIVATE/TEMP: can token |
+| Request URL | `/stores/:storeId/assets/:id` |
+| Method | **GET** |
+| Header | `Authorization: Bearer <token>` (optional) |
+| Quyền | PUBLIC: không cần token, PRIVATE/TEMP: cần token |
 
-## 2.2 Response thanh cong
+### 2.2 Response thành công
 
 ```json
 {
@@ -81,61 +84,101 @@
   "data": {
     "id": "ckxyz...",
     "visibility": "PRIVATE",
-    "storageKey": "private/2026/01/uuid.png",
-    "url": "https://cdn.example.com/private/2026/01/uuid.png",
+    "storageKey": "stores/<storeId>/private/2026/01/uuid.png",
+    "url": "https://cdn.example.com/stores/<storeId>/private/2026/01/uuid.png",
     "originalName": "logo.png",
     "mimeType": "image/png",
     "size": 12345,
     "checksum": "sha256...",
     "expiresAt": null
   },
-  "message": "Lay thong tin asset"
+  "message": "Lấy thông tin asset"
 }
 ```
 
 ---
 
-# 3. Public Download
+## 3. Public Download
 
-## 3.1 Mo ta
+### 3.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/public/:id` |
-| Request Method | **GET** |
-| Request Header | none |
-| Quyen yeu cau | Chi PUBLIC |
+| Request URL | `/stores/:storeId/assets/public/:id` |
+| Method | **GET** |
+| Header | none |
+| Quyền | chỉ PUBLIC |
 
 **Response:** stream file (inline)
 
 ---
 
-# 4. Private/TEMP Download
+## 4. Private/TEMP Download
 
-## 4.1 Mo ta
+### 4.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/:id/download` |
-| Request Method | **GET** |
-| Request Header | `Authorization: Bearer <token>` |
-| Quyen yeu cau | uploader hoac permission READ |
+| Request URL | `/stores/:storeId/assets/:id/download` |
+| Method | **GET** |
+| Header | `Authorization: Bearer <token>` |
+| Quyền | uploader hoặc permission READ |
 
 **Response:** stream file (inline)
 
 ---
 
-# 5. Grant Permissions (Uploader Only)
+## 5. Update Visibility
 
-## 5.1 Mo ta
+### 5.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/:id/permissions` |
-| Request Method | **POST** |
-| Request Header | `Authorization: Bearer <token>` |
-| Body data | JSON |
-| Quyen yeu cau | chi uploader |
+| Request URL | `/stores/:storeId/assets/:id/visibility` |
+| Method | **PATCH** |
+| Header | `Authorization: Bearer <token>` |
+| Body | JSON |
+| Quyền | uploader hoặc permission WRITE |
+
+**Ghi chú:**
+- Asset đang `TEMP` hoặc đổi sang `TEMP` sẽ bị từ chối.
+- File local được **move** sang thư mục visibility mới và cập nhật `storageKey`.
+
+**JSON Schema:**
+```json
+{
+  "visibility": "PUBLIC"
+}
+```
+
+---
+
+## 6. Delete Asset
+
+### 6.1 Mô tả
+
+| Thuộc tính | Giá trị |
+| --- | --- |
+| Request URL | `/stores/:storeId/assets/:id` |
+| Method | **DELETE** |
+| Header | `Authorization: Bearer <token>` |
+| Quyền | uploader hoặc permission DELETE |
+
+**Ghi chú:** asset được soft delete (`deletedAt`) và file local bị xóa.
+
+---
+
+## 7. Grant Permissions (Uploader Only)
+
+### 7.1 Mô tả
+
+| Thuộc tính | Giá trị |
+| --- | --- |
+| Request URL | `/stores/:storeId/assets/:id/permissions` |
+| Method | **POST** |
+| Header | `Authorization: Bearer <token>` |
+| Body | JSON |
+| Quyền | chỉ uploader |
 
 **JSON Schema:**
 ```json
@@ -145,7 +188,7 @@
 }
 ```
 
-## 5.2 Response thanh cong
+### 7.2 Response thành công
 
 ```json
 {
@@ -163,23 +206,23 @@
       "createdAt": "2026-01-13T10:00:00.000Z"
     }
   ],
-  "message": "Cap quyen asset thanh cong"
+  "message": "Cấp quyền asset thành công"
 }
 ```
 
 ---
 
-# 6. Revoke Permissions (Uploader Only)
+## 8. Revoke Permissions (Uploader Only)
 
-## 6.1 Mo ta
+### 8.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/:id/permissions` |
-| Request Method | **DELETE** |
-| Request Header | `Authorization: Bearer <token>` |
-| Body data | JSON |
-| Quyen yeu cau | chi uploader |
+| Request URL | `/stores/:storeId/assets/:id/permissions` |
+| Method | **DELETE** |
+| Header | `Authorization: Bearer <token>` |
+| Body | JSON |
+| Quyền | chỉ uploader |
 
 **JSON Schema:**
 ```json
@@ -191,17 +234,17 @@
 
 ---
 
-# 7. Attach Link (Uploader or WRITE)
+## 9. Attach Link (Uploader hoặc WRITE)
 
-## 7.1 Mo ta
+### 9.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/:id/links` |
-| Request Method | **POST** |
-| Request Header | `Authorization: Bearer <token>` |
-| Body data | JSON |
-| Quyen yeu cau | uploader hoac WRITE |
+| Request URL | `/stores/:storeId/assets/:id/links` |
+| Method | **POST** |
+| Header | `Authorization: Bearer <token>` |
+| Body | JSON |
+| Quyền | uploader hoặc permission WRITE |
 
 **JSON Schema:**
 ```json
@@ -214,21 +257,21 @@
 
 ---
 
-# 8. Get Assets By Entity
+## 10. Get Assets By Entity
 
-## 8.1 Mo ta
+### 10.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/by-entity?entityType=...&entityId=...` |
-| Request Method | **GET** |
-| Request Header | `Authorization: Bearer <token>` (optional) |
-| Quyen yeu cau | PUBLIC: khong can token, PRIVATE/TEMP: can token |
+| Request URL | `/stores/:storeId/assets/by-entity?entityType=...&entityId=...` |
+| Method | **GET** |
+| Header | `Authorization: Bearer <token>` (optional) |
+| Quyền | PUBLIC: không cần token, PRIVATE/TEMP: cần token |
 
 **Query params (pagination):**
 - `page`, `limit`, `sortBy`, `sort`
 
-## 8.2 Response thanh cong
+### 10.2 Response thành công
 
 ```json
 {
@@ -241,8 +284,8 @@
     {
       "id": "ckxyz...",
       "visibility": "PUBLIC",
-      "storageKey": "public/2026/01/uuid.png",
-      "url": "https://cdn.example.com/public/2026/01/uuid.png",
+      "storageKey": "stores/<storeId>/public/2026/01/uuid.png",
+      "url": "https://cdn.example.com/stores/<storeId>/public/2026/01/uuid.png",
       "originalName": "logo.png",
       "mimeType": "image/png",
       "size": 12345,
@@ -258,29 +301,29 @@
     "hasNext": false,
     "hasPrev": false
   },
-  "message": "Lay danh sach asset theo entity"
+  "message": "Lấy danh sách asset theo entity"
 }
 ```
 
 ---
 
-# 9. Get My Assets
+## 11. Get My Assets
 
-## 9.1 Mo ta
+### 11.1 Mô tả
 
-| Thuoc tinh | Gia tri |
+| Thuộc tính | Giá trị |
 | --- | --- |
-| Request URL | `/assets/my` |
-| Request Method | **GET** |
-| Request Header | `Authorization: Bearer <token>` |
-| Quyen yeu cau | bat buoc dang nhap |
+| Request URL | `/stores/:storeId/assets/my` |
+| Method | **GET** |
+| Header | `Authorization: Bearer <token>` |
+| Quyền | bắt buộc đăng nhập |
 
 **Query params:**
 - `page`, `limit`, `sortBy`, `sort`
 - `visibility` (PUBLIC | PRIVATE | TEMP)
-- `startDate`, `endDate` (loc theo createdAt)
+- `startDate`, `endDate` (lọc theo createdAt)
 
-## 9.2 Response thanh cong
+### 11.2 Response thành công
 
 ```json
 {
@@ -293,8 +336,8 @@
     {
       "id": "ckxyz...",
       "visibility": "PRIVATE",
-      "storageKey": "private/2026/01/uuid.png",
-      "url": "https://cdn.example.com/private/2026/01/uuid.png",
+      "storageKey": "stores/<storeId>/private/2026/01/uuid.png",
+      "url": "https://cdn.example.com/stores/<storeId>/private/2026/01/uuid.png",
       "originalName": "logo.png",
       "mimeType": "image/png",
       "size": 12345,
@@ -310,13 +353,13 @@
     "hasNext": false,
     "hasPrev": false
   },
-  "message": "Lay danh sach asset da tao"
+  "message": "Lấy danh sách asset đã tạo"
 }
 ```
 
 ---
 
-# 10. Error Responses (tham khao)
+## 12. Error Responses (tham khảo)
 
 **401 Unauthorized**
 ```json
@@ -350,7 +393,7 @@
 }
 ```
 
-**410 Gone (TEMP het han)**
+**410 Gone (TEMP hết hạn)**
 ```json
 {
   "success": false,
