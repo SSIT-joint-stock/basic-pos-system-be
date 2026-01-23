@@ -9,6 +9,7 @@ export type PermissionResource =
   | 'product'
   | 'category'
   | 'order'
+  | 'order-return'
   | 'customer'
   | 'tags'
   | 'stockMovement'
@@ -117,6 +118,13 @@ export const PERMISSIONS = {
   PURCHASE_RETURN_ALL: 'purchase-return:all' as Permission,
   PURCHASE_RETURN_ACCEPT_PAYMENT:
     'purchase-return:accept-payment' as Permission,
+
+  // Order return permissions
+  ORDER_RETURN_CREATE: 'order-return:create' as Permission,
+  ORDER_RETURN_READ: 'order-return:read' as Permission,
+  ORDER_RETURN_UPDATE: 'order-return:update' as Permission,
+  ORDER_RETURN_DELETE: 'order-return:delete' as Permission,
+  ORDER_RETURN_ALL: 'order-return:all' as Permission,
 
   // Report permissions
   REPORT_READ: 'report:read' as Permission,

@@ -4,8 +4,8 @@ import { NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
+import { PricingService } from './../../shared/usecase/order-price.usecase';
 import { CreateOrderDto } from './dto/create-order';
-import { CreateOrderItemDto } from './dto/create-order-item';
 import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
 
 @Injectable()
@@ -14,6 +14,7 @@ export class OrdersService {
     private prisma: PrismaService,
     private generateOrderCode: GenerateOrderCodeUseCase,
     private applyStock: ApplyStockUseCase,
+    private readonly pricingService: PricingService,
   ) {}
 
   async create(storeId: string, dto: CreateOrderDto, user: IUser) {
@@ -24,16 +25,23 @@ export class OrdersService {
       payment_method,
       order_items = [],
     } = dto;
+    console.log(order_items);
 
-    const { subtotal_amount, discount_amount, tax_amount } =
-      this.calculateOrderTotals(order_items);
-    const total_amount = subtotal_amount - discount_amount + tax_amount;
+    const pricing = this.pricingService.calcOrderTotals(
+      order_items.map((i) => ({
+        price: i.price,
+        quantity: i.quantity,
+        discountRate: i.discount_rate,
+        taxRate: i.tax_rate,
+      })),
+    );
+
     const orderStatus = this.determineOrderStatus(
-      total_amount,
+      pricing.total_amount,
       customer_pay_amount,
     );
 
-    const changeAmount = customer_pay_amount - total_amount;
+    const changeAmount = customer_pay_amount - pricing.total_amount;
 
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -43,18 +51,18 @@ export class OrdersService {
             code || (await this.generateOrderCode.generateOrderCode(storeId)),
           cashier_id: user.id,
           customer_name,
-          subtotal_amount,
-          discount_amount,
+          subtotal_amount: pricing.subtotal_amount,
+          discount_amount: pricing.discount_amount,
           customer_pay_amount,
           change_amount: changeAmount,
-          tax_amount,
-          total_amount,
+          tax_amount: pricing.tax_amount,
+          total_amount: pricing.total_amount,
           payment_method,
           status: orderStatus,
           customer_id: dto.customer_id,
           order_item: {
             createMany: {
-              data: order_items.map((item) => ({
+              data: order_items.map((item, index) => ({
                 product_id: item.product_id,
                 variant_id: item.variant_id,
                 quantity: item.quantity,
@@ -62,6 +70,7 @@ export class OrdersService {
                 meta: item.meta ?? {},
                 discount_rate: item.discount_rate,
                 tax_rate: item.tax_rate,
+                total: pricing.lineItems[index].total_amount,
               })),
             },
           },
@@ -112,9 +121,12 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId, store_id: storeId },
       include: {
+        customer: true,
+        order_return: true,
         order_item: {
           include: {
             variant: true,
+            product: true,
           },
         },
         cashier: {
@@ -122,6 +134,27 @@ export class OrdersService {
             id: true,
             username: true,
             email: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundError('Không tìm thấy hóa đơn!');
+    }
+    return order;
+  }
+  async findByCode(code: string, storeId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        code,
+        store_id: storeId,
+      },
+      include: {
+        order_item: {
+          include: {
+            variant: true,
+            product: true,
           },
         },
       },
@@ -243,36 +276,5 @@ export class OrdersService {
       qty,
       tx,
     );
-  }
-  private calculateOrderTotals(order_items: CreateOrderItemDto[]) {
-    const calculatedItems = order_items.map((item) => {
-      const itemSubtotal = item.quantity * item.price;
-      const itemDiscount = itemSubtotal * (item.discount_rate || 0);
-      const subtotalAfterDiscount = itemSubtotal - itemDiscount;
-      const itemTax = subtotalAfterDiscount * ((item.tax_rate || 0) / 100);
-
-      return {
-        subtotal: itemSubtotal,
-        discount_amount: Math.round(itemDiscount),
-        tax_amount: Math.round(itemTax),
-        line_total: Math.round(subtotalAfterDiscount + itemTax),
-      };
-    });
-
-    return {
-      subtotal_amount: calculatedItems.reduce(
-        (sum, item) => sum + item.subtotal,
-        0,
-      ),
-      discount_amount: calculatedItems.reduce(
-        (sum, item) => sum + item.discount_amount,
-        0,
-      ),
-      tax_amount: calculatedItems.reduce(
-        (sum, item) => sum + item.tax_amount,
-        0,
-      ),
-      line_items: calculatedItems,
-    };
   }
 }
