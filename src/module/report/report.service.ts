@@ -31,6 +31,12 @@ export class ReportService {
               payments: true,
             },
           },
+          purchase_return: {
+            include: {
+              items: true,
+              payments: true,
+            },
+          },
         },
       }),
       this.prisma.supplier.count({
