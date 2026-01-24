@@ -657,7 +657,7 @@ model OrderReturn {
   reason String? // Lý do trả hàng tổng quát
   return_type order_return_type @default(NONE)
   return_status order_return_status @default(REQUESTED)
-  total   Decimal @db.Decimal(15, 2)
+  total   Decimal @db.Decimal(15, 2) // Tổng tiền hàng trả
   suggest_total Decimal @db.Decimal(15, 2) // Tổng tiền đề xuất hoàn trả (dựa trên item trả)
   items_length Int
   

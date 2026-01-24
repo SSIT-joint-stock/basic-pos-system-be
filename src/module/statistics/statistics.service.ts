@@ -8,7 +8,11 @@ import { NotificationType } from './../../common/types/notification.type';
 @Injectable()
 export class StatisticsService {
   constructor(private readonly prismaService: PrismaService) {}
-  async getNotifications(storeId: string, type: 'all' | 'order' | 'stock') {
+  async getNotifications(
+    storeId: string,
+    type: 'all' | 'order' | 'stock',
+    limit: number,
+  ) {
     dayjs.extend(relativeTime);
     dayjs.locale('vi');
 
@@ -61,17 +65,25 @@ export class StatisticsService {
     const notifications = [
       ...orders.map((order) => ({
         type: NotificationType.order,
-        title: `Đơn hàng ${order.code ?? order.id} vừa tạo (${order.total_amount}đ)`,
-        time: dayjs(order.createdAt).fromNow(),
+        data: {
+          code: order.code ?? order.id,
+          amount: order.total_amount,
+          payment_method: order.payment_method,
+        },
+        createdAt: order.createdAt,
       })),
       ...getStatusInStock.map((item) => ({
         type: NotificationType.stock,
-        title: `Số lượng ${item.quantity} sản phẩm ${item.variants.name} đã được ${item.type}`,
-        time: dayjs(item.createdAt).fromNow(),
+        data: {
+          quantity: item.quantity,
+          variantName: item.variants.name,
+          stockType: item.type,
+        },
+        createdAt: item.createdAt,
       })),
     ]
-      .sort((a, b) => +new Date(b.time) - +new Date(a.time))
-      .slice(0, 60);
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
     return type === 'all'
       ? notifications
       : notifications.filter((item) => item.type === type);
@@ -336,6 +348,7 @@ export class StatisticsService {
         order_item: {
           include: {
             product: true,
+            variant: true,
           },
         },
       },
