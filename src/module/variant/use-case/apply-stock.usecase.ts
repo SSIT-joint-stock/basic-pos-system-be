@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'app/prisma/prisma.service';
-import { stock_movement_type, Prisma } from '@prisma/client';
+import { Prisma, stock_movement_type } from '@prisma/client';
 import {
+  BadRequestError,
   ConflictError,
   NotFoundError,
-  BadRequestError,
 } from 'app/common/response';
 import { StockMovementService } from 'app/module/stock-movement/stock-movement.service';
+import { PrismaService } from 'app/prisma/prisma.service';
 
 enum StockErrorMessage {
   PRODUCT_NOT_FOUND = 'Sản phẩm không tồn tại hoặc không hoạt động!',
   VARIANT_NOT_FOUND = 'Biến thể sản phẩm không tồn tại!',
   VARIANT_STOCK_NOT_FOUND = 'Tồn kho biến thể không tồn tại!',
-  DELTA_INVALID = 'Số lượng thay đổi phải là số hợp lệ và khác 0!',
+  DELTA_INVALID = 'Số lượng thay đổi phải là số hợp lệ!',
   INSUFFICIENT_STOCK = 'Tồn kho không đủ để thực hiện giao dịch này!',
   INVALID_STOCK_MOVEMENT_TYPE = 'Loại chuyển động kho không hợp lệ!',
 }
@@ -74,61 +74,52 @@ export class ApplyStockUseCase {
     variantId: string,
     productId: string,
     delta: number,
+    tx: Prisma.TransactionClient,
   ) {
-    return this.prisma.$transaction(
-      async (tx) => {
-        // Validate input
-        await Promise.all([
-          this.validateDelta(delta),
-          this.validateMovementType(type),
-        ]);
-        // Check variant exists and is active
-        await this.validateVariant(variantId, productId, storeId, tx);
+    await Promise.all([
+      this.validateDelta(delta),
+      this.validateMovementType(type),
+    ]);
+    // Check variant exists and is active
+    await this.validateVariant(variantId, productId, storeId, tx);
 
-        // Get or create variant stock
-        let variantStock = await this.getVariantStock(variantId, storeId, tx);
+    // Get or create variant stock
+    let variantStock = await this.getVariantStock(variantId, storeId, tx);
 
-        if (!variantStock) {
-          variantStock = await this.createVariantStock(variantId, storeId, tx);
-        }
+    if (!variantStock) {
+      variantStock = await this.createVariantStock(variantId, storeId, tx);
+    }
 
-        // Calculate new stock quantity
-        const config = this.stockMovementConfig[type];
-        const quantityDelta = config.usesAbsoluteValue
-          ? Math.abs(delta)
-          : delta;
+    // Calculate new stock quantity
+    const config = this.stockMovementConfig[type];
+    const quantityDelta = config.usesAbsoluteValue ? Math.abs(delta) : delta;
 
-        const newOnHand = config.isIncoming
-          ? variantStock.onHand + quantityDelta
-          : variantStock.onHand - quantityDelta;
+    const newOnHand = config.isIncoming
+      ? variantStock.onHand + quantityDelta
+      : variantStock.onHand - quantityDelta;
 
-        // Validate result quantity
-        if (newOnHand < 0) {
-          throw new ConflictError(StockErrorMessage.INSUFFICIENT_STOCK);
-        }
+    // Validate result quantity
+    if (newOnHand < 0) {
+      throw new ConflictError(StockErrorMessage.INSUFFICIENT_STOCK);
+    }
 
-        // Update variant stock
-        const updatedStock = await tx.variantStock.update({
-          where: { id: variantStock.id },
-          data: { onHand: newOnHand },
-        });
+    // Update variant stock
+    const updatedStock = await tx.variantStock.update({
+      where: { id: variantStock.id },
+      data: { onHand: newOnHand },
+    });
 
-        // Record stock movement
-        const movementQuantity = config.usesAbsoluteValue
-          ? Math.abs(delta)
-          : delta;
+    // Record stock movement
+    const movementQuantity = config.usesAbsoluteValue ? Math.abs(delta) : delta;
 
-        await this.stockMovementService.create(
-          variantId,
-          type,
-          movementQuantity,
-          tx,
-        );
-
-        return updatedStock;
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    await this.stockMovementService.create(
+      variantId,
+      type,
+      movementQuantity,
+      tx,
     );
+
+    return updatedStock;
   }
 
   // ==================== Private Helper Methods ====================
@@ -137,7 +128,7 @@ export class ApplyStockUseCase {
    * Validate delta is a finite non-zero number
    */
   private validateDelta(delta: number): void {
-    if (!Number.isFinite(delta) || delta === 0) {
+    if (!Number.isFinite(delta)) {
       throw new BadRequestError(StockErrorMessage.DELTA_INVALID);
     }
   }

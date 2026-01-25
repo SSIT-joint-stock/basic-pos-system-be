@@ -36,9 +36,14 @@ export class OrdersController {
   delete(@User() user: IUser, @Body() body: { orderId: string }) {
     return this.order.delete(body.orderId, user.storeId || '');
   }
+
   @Get(':orderId')
   findById(@User() user: IUser, @Param('orderId') orderId: string) {
     return this.order.findById(orderId, user.storeId || '');
+  }
+  @Get('code/:code')
+  findByCode(@User() user: IUser, @Param('code') code: string) {
+    return this.order.findByCode(code, user.storeId || '');
   }
 
   @Get()

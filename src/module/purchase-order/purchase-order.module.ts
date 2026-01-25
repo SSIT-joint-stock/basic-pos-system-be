@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
-import { PurchaseOrderService } from './purchase-order.service';
-import { PurchaseOrderController } from './purchase-order.controller';
-import { GeneratePurchaseCodeUseCase } from './use-case/genereate-order-number.usecase';
-import { PurchasePaymentService } from './purchase-payment.service';
-import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
-import { StockMovementModule } from '../stock-movement/stock-movement.module';
-import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
-import { PurchaseOrderExcelService } from './purchase-order-excel.service';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
+import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
+import { StockMovementModule } from '../stock-movement/stock-movement.module';
+import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
+import { PurchaseOrderExcelService } from './purchase-order-excel.service';
+import { PurchaseOrderController } from './purchase-order.controller';
+import { PurchaseOrderService } from './purchase-order.service';
+import { PurchasePaymentService } from './purchase-payment.service';
+import { GeneratePurchaseCodeUseCase } from './use-case/genereate-order-number.usecase';
 
 @Module({
   controllers: [PurchaseOrderController],
@@ -23,5 +23,6 @@ import { FormatStatus } from 'app/common/helpers/status';
     FormatStatus,
   ],
   imports: [StockMovementModule],
+  exports: [PurchaseOrderService],
 })
 export class PurchaseOrderModule {}

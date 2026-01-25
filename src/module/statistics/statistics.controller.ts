@@ -22,8 +22,13 @@ export class StatisticsController {
   async getNotifications(
     @User() user: IUser,
     @Query('type') type: 'all' | 'order' | 'stock',
+    @Query('limit') limit: number = 5,
   ) {
-    return this.statisticsService.getNotifications(user.storeId || '', type);
+    return this.statisticsService.getNotifications(
+      user.storeId || '',
+      type,
+      limit,
+    );
   }
   @Get('revenue-by-category')
   @ApiSuccess('Notifications retrieved successfully')

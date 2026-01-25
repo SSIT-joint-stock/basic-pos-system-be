@@ -1,28 +1,28 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
 } from '@nestjs/common';
-import { VariantService } from './variant.service';
-import { CreateVariantDto } from './dto/create-variant.dto';
-import { UpdateVariantDto } from './dto/update-variant.dto';
-import { ApiSuccess } from 'app/common/decorators';
-import { RequirePermission } from 'app/common/decorators/permission.decorator';
-import { PERMISSIONS } from 'app/common/types/permission.type';
-import { User } from 'app/common/decorators/user.decorator';
-import type { IUser } from 'app/common/types/user.type';
 import { stock_movement_type } from '@prisma/client';
-import { ApplyStockUseCase } from './use-case/apply-stock.usecase';
+import { ApiSuccess } from 'app/common/decorators';
 import {
   FilterParse,
   type FilterParseResult,
 } from 'app/common/decorators/filter-parse.decorator';
-import z from 'zod';
+import { RequirePermission } from 'app/common/decorators/permission.decorator';
+import { User } from 'app/common/decorators/user.decorator';
 import { PaginatedResponse } from 'app/common/response';
+import { PERMISSIONS } from 'app/common/types/permission.type';
+import type { IUser } from 'app/common/types/user.type';
+import z from 'zod';
+import { CreateVariantDto } from './dto/create-variant.dto';
+import { UpdateVariantDto } from './dto/update-variant.dto';
+import { ApplyStockUseCase } from './use-case/apply-stock.usecase';
+import { VariantService } from './variant.service';
 
 @Controller('variant')
 export class VariantController {
@@ -140,9 +140,9 @@ export class VariantController {
     @Body() { delta, type }: { delta: number; type: stock_movement_type },
     @User() user: IUser,
   ) {
-    return this.applyStock.execute(
+    return this.variantService.applyStockForVariant(
       type,
-      user?.storeId || '',
+      user,
       id,
       productId,
       delta,

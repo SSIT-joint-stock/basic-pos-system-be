@@ -5,6 +5,8 @@ import {
   ConflictError,
   NotFoundError,
 } from 'app/common/response';
+import { IUser } from 'app/common/types/user.type';
+import { ApplyStockUseCase } from 'app/module/variant/use-case/apply-stock.usecase';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
 import { CreateVariantDto } from './dto/create-variant.dto';
@@ -27,6 +29,7 @@ export class VariantService {
     private readonly generateSkuVariant: GenerateVariantSkuUseCase,
     private readonly stockMovement: StockMovementService,
     private readonly unitConversion: UnitConversionService,
+    private readonly applyStock: ApplyStockUseCase,
   ) {}
   async create(dto: CreateVariantDto, productId: string, storeId: string) {
     const generateSku =
@@ -168,6 +171,24 @@ export class VariantService {
     return deleted;
   }
 
+  async applyStockForVariant(
+    type: stock_movement_type,
+    user: IUser,
+    id: string,
+    productId: string,
+    delta: number,
+  ) {
+    return await this.prisma.$transaction(async (tx) => {
+      return await this.applyStock.execute(
+        type,
+        user?.storeId || '',
+        id,
+        productId,
+        delta,
+        tx,
+      );
+    });
+  }
   // Private helpers method
 
   private async checkProduct(id: string, storeId?: string) {
