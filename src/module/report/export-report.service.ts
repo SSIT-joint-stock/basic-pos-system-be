@@ -9,6 +9,10 @@ import {
   ReportCustomerExcel,
 } from 'app/shared/excel-template/template/report-customer';
 import {
+  REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
+  ReportOrderItemExcel,
+} from 'app/shared/excel-template/template/report-order-item';
+import {
   REPORT_SUPPLIERS_EXCEL_TEMPLATE,
   ReportSupplierExcel,
 } from 'app/shared/excel-template/template/report-supplier';
@@ -18,6 +22,13 @@ type SupplierWithOrders = Prisma.SupplierGetPayload<{
 }>;
 type CustomerWithOrders = Prisma.CustomerGetPayload<{
   include: { orders: true };
+}>;
+type OrderItemWithOrder = Prisma.OrderItemGetPayload<{
+  include: {
+    order: { include: { customer: true } };
+    variant: true;
+    product: true;
+  };
 }>;
 
 @Injectable()
@@ -55,6 +66,33 @@ export class ExportReportService {
     const rows = this.flattenCustomerData(customer);
 
     return this.excelService.exportData(REPORT_CUSTOMERS_EXCEL_TEMPLATE, rows);
+  }
+
+  async exportReportOrderItems(storeId: string) {
+    const orderItems = await this.prisma.orderItem.findMany({
+      where: {
+        order: {
+          store_id: storeId,
+        },
+      },
+      include: {
+        order: {
+          include: {
+            customer: true,
+          },
+        },
+        variant: true,
+        product: true,
+      },
+      orderBy: {
+        order: {
+          createdAt: 'desc',
+        },
+      },
+    });
+
+    const rows = this.flattenOrderItemData(orderItems);
+    return this.excelService.exportData(REPORT_ORDER_ITEMS_EXCEL_TEMPLATE, rows);
   }
   private flattenSupplierData(suppliers: SupplierWithOrders[]) {
     const rows: ReportSupplierExcel[] = [];
@@ -104,6 +142,28 @@ export class ExportReportService {
           order_date: this.format.formatDate(order.createdAt),
           total_amount: this.format.formatCurrency(order.total_amount),
         });
+      });
+    });
+
+    return rows;
+  }
+
+  private flattenOrderItemData(orderItems: OrderItemWithOrder[]) {
+    const rows: ReportOrderItemExcel[] = [];
+
+    orderItems.forEach((item, index) => {
+      rows.push({
+        stt: index + 1,
+        order_date: this.format.formatDate(item.order.createdAt),
+        order_code: item.order.code || '',
+        customer_name: item.order.customer_name || item.order.customer?.name || '',
+        order_total_amount: this.format.formatCurrency(item.order.total_amount),
+        variant_name: item.variant?.name || '',
+        product_name: item.product?.name || '',
+        base_unit: item.product?.baseUnit || '',
+        quantity: item.quantity,
+        price: this.format.formatCurrency(item.price),
+        line_total: this.format.formatCurrency(item.total),
       });
     });
 

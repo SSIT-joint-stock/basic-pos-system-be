@@ -17,7 +17,18 @@
 
 */
 -- CreateEnum
-CREATE TYPE "public"."product_type" AS ENUM ('PURCHASE', 'QUICK_CREATE');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'product_type'
+      AND n.nspname = 'public'
+  ) THEN
+    CREATE TYPE "public"."product_type" AS ENUM ('PURCHASE', 'QUICK_CREATE');
+  END IF;
+END$$;
 
 -- CreateEnum
 CREATE TYPE "public"."supplier_status" AS ENUM ('ACTIVE', 'INACTIVE', 'DELETE');
@@ -29,7 +40,6 @@ CREATE TYPE "public"."payment_status" AS ENUM ('UNPAID', 'PARTIAL', 'PAID', 'OVE
 CREATE TYPE "public"."purchase_order_status" AS ENUM ('PENDING', 'RECEIVED');
 
 -- AlterEnum
-ALTER TYPE "public"."order_status" ADD VALUE 'OVERAGE';
 
 -- AlterEnum
 -- This migration adds more than one value to an enum.
@@ -38,9 +48,9 @@ ALTER TYPE "public"."order_status" ADD VALUE 'OVERAGE';
 -- multiple migrations, each migration adding only one value to
 -- the enum.
 
-
-ALTER TYPE "public"."payment_method" ADD VALUE 'BANK_TRANSFER';
-ALTER TYPE "public"."payment_method" ADD VALUE 'DIGITAL_WALLET';
+ALTER TYPE "public"."order_status" ADD VALUE IF NOT EXISTS 'OVERAGE';
+ALTER TYPE "public"."payment_method" ADD VALUE IF NOT EXISTS 'BANK_TRANSFER';
+ALTER TYPE "public"."payment_method" ADD VALUE IF NOT EXISTS 'DIGITAL_WALLET';
 
 -- AlterEnum
 BEGIN;
