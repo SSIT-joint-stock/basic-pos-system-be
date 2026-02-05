@@ -92,7 +92,10 @@ export class ExportReportService {
     });
 
     const rows = this.flattenOrderItemData(orderItems);
-    return this.excelService.exportData(REPORT_ORDER_ITEMS_EXCEL_TEMPLATE, rows);
+    return this.excelService.exportData(
+      REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
+      rows,
+    );
   }
   private flattenSupplierData(suppliers: SupplierWithOrders[]) {
     const rows: ReportSupplierExcel[] = [];
@@ -156,7 +159,8 @@ export class ExportReportService {
         stt: index + 1,
         order_date: this.format.formatDate(item.order.createdAt),
         order_code: item.order.code || '',
-        customer_name: item.order.customer_name || item.order.customer?.name || '',
+        customer_name:
+          item.order.customer_name || item.order.customer?.name || '',
         order_total_amount: this.format.formatCurrency(item.order.total_amount),
         variant_name: item.variant?.name || '',
         product_name: item.product?.name || '',

@@ -44,7 +44,7 @@ export class ReportOrderItemService {
   async getReportOrderItems(storeId: string, query: Prisma.OrderFindManyArgs) {
     await this.checkStore(storeId);
 
-    const baseWhere = (query.where ?? {}) as Prisma.OrderWhereInput;
+    const baseWhere = query.where ?? {};
     const whereWithCustomerSearch = this.attachCustomerSearch(baseWhere);
 
     const orderWhere: Prisma.OrderWhereInput = {
