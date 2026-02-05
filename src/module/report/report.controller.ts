@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res } from '@nestjs/common';
 import {
   FilterParse,
   type FilterParseResult,
@@ -8,15 +8,17 @@ import { User } from 'app/common/decorators/user.decorator';
 import { PaginatedResponse } from 'app/common/response';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUser } from 'app/common/types/user.type';
+import { ReportCustomerService } from 'app/module/report/customer/report-customer.service';
 import { ExportReportService } from 'app/module/report/export-report.service';
+import { ReportSupplierService } from 'app/module/report/supplier/report-supplier.service';
 import express from 'express';
 import z from 'zod';
-import { ReportService } from './report.service';
 
 @Controller('report')
 export class ReportController {
   constructor(
-    private readonly reportService: ReportService,
+    private readonly reportCustomer: ReportCustomerService,
+    private readonly reportSupplier: ReportSupplierService,
     private readonly excel: ExportReportService,
   ) {}
 
@@ -45,11 +47,26 @@ export class ReportController {
     })
     query: FilterParseResult<any>,
   ) {
-    const { data, total } = await this.reportService.getReportSuppliers(
+    const { data, total } = await this.reportSupplier.getReportSuppliers(
       user.storeId || '',
       query.prismaQuery,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('supplier/:supplierId')
+  async getReportSupplier(
+    @Param('supplierId') supplierId: string,
+    @Query('limit') limit: number,
+    @Query('page') page: number,
+    @User() user: IUser,
+  ) {
+    if (!user.storeId) return [];
+    return this.reportSupplier.getReportSupplierDetail(
+      user.storeId,
+      supplierId,
+    );
   }
 
   @RequirePermission([PERMISSIONS.REPORT_READ])
@@ -77,7 +94,7 @@ export class ReportController {
     })
     query: FilterParseResult<any>,
   ) {
-    const { data, total } = await this.reportService.getReportCustomers(
+    const { data, total } = await this.reportCustomer.getReportCustomers(
       user.storeId || '',
       query.prismaQuery,
     );

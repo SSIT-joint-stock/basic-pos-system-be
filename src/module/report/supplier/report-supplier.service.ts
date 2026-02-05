@@ -3,13 +3,17 @@ import { payment_status, Prisma } from '@prisma/client';
 import { NotFoundError } from 'app/common/response';
 import { PrismaService } from 'app/prisma/prisma.service';
 
+export enum PurchaseType {
+  PURCHASE_ORDER = 'purchase_order',
+  PURCHASE_RETURN = 'purchase_return',
+}
 @Injectable()
-export class ReportService {
-  constructor(private readonly prisma: PrismaService) {}
+export class ReportSupplierService {
   private errMsg = {
     STORE_NOT_FOUND: 'Không tìm thấy cửa hàng!',
   };
 
+  constructor(private readonly prisma: PrismaService) {}
   async getReportSuppliers(
     storeId: string,
     query: Prisma.SupplierFindFirstArgs,
@@ -31,6 +35,12 @@ export class ReportService {
               payments: true,
             },
           },
+          purchase_return: {
+            include: {
+              items: true,
+              payments: true,
+            },
+          },
         },
       }),
       this.prisma.supplier.count({
@@ -40,6 +50,7 @@ export class ReportService {
     const reportSuppliers = suppliers.map((supplier) => {
       const purchaseOrders = supplier.purchase_orders;
       const totalPurchaseOrders = purchaseOrders.length;
+      const totalPurchaseReturns = supplier.purchase_return.length;
       const totalProductsInPurchase = purchaseOrders.reduce((acc, item) => {
         return (
           acc +
@@ -70,9 +81,14 @@ export class ReportService {
         supplier_name: supplier.name,
         supplier_tax_code: supplier.tax_code,
         supplier_status: supplier.status,
+
         purchase_orders_code_numbers: purchaseOrders.map(
           (item) => item.order_number,
         ),
+        purchase_return_code_numbers: supplier.purchase_return.map(
+          (item) => item.return_number,
+        ),
+        total_purchase_returns: totalPurchaseReturns,
         total_products_in_purchase: totalProductsInPurchase,
         total_purchase_orders: totalPurchaseOrders,
         total_purchase_paid: totalPurchasePaid || supplier.total_purchased,
@@ -85,73 +101,67 @@ export class ReportService {
       total,
     };
   }
-  async getReportCustomers(
+
+  async getReportSupplierDetail(
     storeId: string,
-    query: Prisma.CustomerFindFirstArgs,
+    supplierId: string,
+    // page = 1,
+    // limit = 10,
   ) {
     await this.checkStore(storeId);
-    const where: Prisma.CustomerWhereInput = {
-      AND: [query.where ?? {}, { store_id: storeId }],
-    };
-    const [customers, total] = await Promise.all([
-      this.prisma.customer.findMany({
-        where,
-        skip: query.skip,
-        take: query.take,
-        orderBy: query.orderBy,
-        include: {
-          orders: {
-            include: {
-              order_item: true,
-            },
-          },
+
+    const [purchaseOrders, purchaseReturns] = await Promise.all([
+      this.prisma.purchaseOrder.findMany({
+        where: {
+          supplier_id: supplierId,
         },
       }),
-      this.prisma.customer.count({
-        where,
+
+      this.prisma.purchaseReturn.findMany({
+        where: {
+          supplier_id: supplierId,
+        },
       }),
     ]);
-    const reportCustomers = customers.map((customer) => {
-      const orders = customer.orders;
-      const totalOrders = orders.length;
-      const totalProductsInOrders = orders.reduce((acc, item) => {
-        return (
-          acc +
-          Number(
-            item.order_item.reduce(
-              (accItem, item) => accItem + Number(item.quantity),
-              0,
-            ),
-          )
-        );
-      }, 0);
+    const totalPurchaseOrders = purchaseOrders.length;
+    const totalPurchaseReturns = purchaseReturns.length;
 
-      const totalCustomerPaid = orders.reduce(
-        (acc, item) => acc + Number(item.customer_pay_amount),
-        0,
-      );
+    const merged = [
+      ...purchaseOrders.map((item) => ({
+        id: item.id,
+        code: item.order_number,
+        amount: item.total,
+        status: item.status,
+        payment_status: item.payment_status,
+        createdAt: item.createdAt,
+        purchase_type: PurchaseType.PURCHASE_ORDER, // đơn nhập
+      })),
 
-      const totalPaid = orders.reduce(
-        (acc, item) => acc + Number(item.total_amount),
-        0,
-      );
+      ...purchaseReturns.map((item) => ({
+        id: item.id,
+        code: item.return_number,
+        amount: item.total,
+        status: item.status,
+        payment_status: item.payment_status,
+        createdAt: item.createdAt,
+        purchase_type: PurchaseType.PURCHASE_RETURN, // đơn xuất / trả
+      })),
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-      const totalUnpaidAmount = totalCustomerPaid - totalPaid;
-      return {
-        customer_id: customer.id,
-        customer_email: customer.email,
-        customer_name: customer.name,
-        customer_phone: customer.phone,
-        total_products_in_orders: totalProductsInOrders,
-        total_orders: totalOrders,
-        total_customer_paid: totalCustomerPaid,
-        total_paid: totalPaid,
-        total_unpaid_amount: totalUnpaidAmount,
-      };
-    });
+    // const total = merged.length;
+    // const start = (page - 1) * limit;
+    // const data = merged.slice(start, start + limit);
+
     return {
-      data: reportCustomers,
-      total,
+      data: merged,
+      totalPurchaseOrders,
+      totalPurchaseReturns,
+      // pagination: {
+      //   page,
+      //   limit,
+      //   total,
+      //   totalPages: Math.ceil(total / limit),
+      // },
     };
   }
 

@@ -40,6 +40,46 @@ enum order_status {
   OVERAGE // quá trình
 }
 
+
+enum order_return_status {
+  REQUESTED // Khách yêu cầu trả hàng
+  REFUNDED // Đã hoàn tiền
+  CANCELLED // Huỷ yêu cầu trả
+}
+
+
+
+enum order_return_type {
+  NONE // Chưa hoàn trả
+  FULL // Trả toàn bộ đơn hàng
+  PARTIAL // Trả một phần đơn hàng
+
+}
+
+enum order_item_return_reason {
+  // Nhóm lỗi Shop/Sản phẩm
+  PRODUCT_DEFECT          // Hàng lỗi/hỏng
+  WRONG_PRODUCT           // Giao sai hàng
+  NOT_AS_DESCRIBED        // Khác mô tả
+  EXPIRED                 // Hết hạn
+  INCOMPLETE              // Thiếu phụ kiện
+  POOR_QUALITY            // Chất lượng kém
+  
+  // Nhóm vận chuyển
+  SHIPPING_DAMAGE         // Hư hỏng do vận chuyển
+  LATE_DELIVERY           // Giao trễ
+
+  // Nhóm khách hàng
+  CHANGE_OF_MIND          // Đổi ý/Không thích nữa
+  SIZE_UNFIT              // Không vừa (Size)
+  ACCIDENTAL_ORDER        // Đặt nhầm
+  BETTER_PRICE            // Tìm thấy giá rẻ hơn
+
+  // Khác
+  OTHER                   // Lý do khác
+  UNKNOWN                 // Không xác định
+}
+
 enum inventory_status {
   ACTIVE
   INACTIVE
@@ -121,6 +161,13 @@ enum AssetAction {
   WRITE
   DELETE
 }
+
+enum purchase_return_status {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
 /**
  * User model
  * User is a model that represents the user of the system
@@ -153,15 +200,17 @@ model User {
   memberships      StoreMember[] // user is member of the store
   products_created Product[] // user is creator of the product
   orders_cashier   Order[] // user is cashier of the order
+  order_return_creator OrderReturn[]
   created_purchases PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
   approved_purchases       PurchaseOrder[]       @relation("PurchaseOrderApprovedBy") 
+  created_purchases_return PurchaseReturn[]
   // indexes
   @@index([role, status])
   @@map("user")
 }
 
 /**
- * Store model
+ * Store model  
  * Store is a model that represents the store of the system
  * It is used to track the store of the system
  * Store has many products
@@ -189,11 +238,14 @@ model Store {
   customer         Customer[]
   statistics_daily StatisticsDaily[]
   orders           Order[]
+  order_returns OrderReturn[]
   store_payment        StorePayment[]                                       // Thông tin thanh toán
   store_reward_point   StoreRewardPoint[]    
   supplier Supplier[]
   purchase_orders PurchaseOrder[]
+  purchase_return PurchaseReturn[]
   variant_stock VariantStock[]
+
 
   // indexes
   @@index([owner_id])
@@ -303,6 +355,7 @@ model Customer {
   // relations
   store     Store    @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   orders    Order[]
+  order_returns OrderReturn[]
 
   // indexes
   @@id([store_id, id])
@@ -336,6 +389,7 @@ model Supplier {
   // Relations
   store           Store           @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Cửa hàng
   purchase_orders PurchaseOrder[] // Danh sách đơn hàng mua từ nhà cung cấp này
+  purchase_return PurchaseReturn[] // Danh sách đơn hàng trả đến nhà cung cấp này
   // Unique Constraints
   @@unique([store_id, code]) // Mã nhà cung cấp không được trùng trong 1 cửa hàng
   // Indexes
@@ -376,7 +430,9 @@ model Product {
   variant       Variant[]
   tags            Tag[]
   order_item      OrderItem[]
+  order_return_item OrderReturnItem[]
   purchase_order_items PurchaseOrderItem[]
+  purchase_return_items PurchaseReturnItem[]
 
   @@unique([store_id, sku])
   // indexes
@@ -384,6 +440,7 @@ model Product {
   @@index([created_by, product_status, name])
   @@map("product")
 }
+
 model Variant {
   id      String @id @default(uuid()) @db.Uuid
   product_id    String  @db.Uuid
@@ -395,7 +452,9 @@ model Variant {
   product      Product      @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   conversions  UnitConversion[]
   order_item      OrderItem[]
+  order_return_item OrderReturnItem[]
   purchase_order_items PurchaseOrderItem[]
+  purchase_return_items PurchaseReturnItem[]
   variant_stocks VariantStock[]
   stock_movements StockMovement[]
 
@@ -426,7 +485,6 @@ model VariantStock {
   @@map("variant_stocks")
 }
 
-
 model UnitConversion {
   id   String  @id @default(uuid()) @db.Uuid 
   name  String
@@ -436,7 +494,6 @@ model UnitConversion {
   @@unique([variantId, name])
   @@map("unit_conversions")
 }
-
 model ProductTemplate {
   id              String           @id @default(uuid()) @db.Uuid 
   name            String
@@ -553,6 +610,7 @@ model Order {
   store           Store          @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   cashier         User           @relation(fields: [cashier_id], references: [id], onDelete: Cascade)
   customer        Customer?      @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  order_return    OrderReturn[]
   order_item      OrderItem[]
 
   // indexes
@@ -569,17 +627,20 @@ model Order {
  */
 model OrderItem {
   id         String   @id @default(uuid()) @db.Uuid
-  order_id   String   @db.Uuid
-  variant_id String   @db.Uuid
+  order_id   String  @db.Uuid
+  variant_id String    @db.Uuid
   product_id  String  @db.Uuid
   quantity   Int      @default(0)
+  quantity_return Int? @default(0) // snap shot các lần trả
   discount_rate  Decimal? @default(0) 
   tax_rate       Decimal? @default(0) 
   price      Int      @default(0)
+  total      Int      @default(0)
   meta       Json     @default("{}")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   // relations
+  order_item_return OrderReturnItem[]
   order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
   variant    Variant  @relation(fields: [variant_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   product   Product   @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -590,6 +651,102 @@ model OrderItem {
   @@index([product_id])
   @@map("order_item")
 }
+
+model OrderReturn {
+  id String @id @default(uuid()) @db.Uuid
+  order_id String @db.Uuid
+  store_id String @db.Uuid
+  created_id String @db.Uuid // ID người tạo đơn hàng
+  customer_id String? @db.Uuid
+
+  order_number String  
+  order_return_number String
+
+  customer_name String?
+  customer_phone String?
+  
+  reason String? // Lý do trả hàng tổng quát
+  return_type order_return_type @default(NONE)
+  return_status order_return_status @default(REQUESTED)
+  total   Decimal @db.Decimal(15, 2) // Tổng tiền hàng trả
+  suggest_total Decimal @db.Decimal(15, 2) // Tổng tiền đề xuất hoàn trả (dựa trên item trả)
+  items_length Int
+  
+  items OrderReturnItem[]
+  store Store @relation(fields: [store_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  creator User @relation(fields: [created_id], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  payment OrderReturnPayment[]
+  
+  createdAt       DateTime              @default(now()) // Ngày tạo
+  updatedAt DateTime @updatedAt
+  
+  @@unique([store_id, order_return_number])
+  @@index([order_id])
+  @@index([order_number])
+  @@index([order_return_number])
+  @@index([customer_name])
+
+  @@map("order_return")
+
+}
+
+model OrderReturnItem {
+  id String @id @default(uuid()) @db.Uuid
+  order_item_id String @db.Uuid
+  order_return_id String @db.Uuid
+  product_id String @db.Uuid
+  variant_id String @db.Uuid
+  
+  item_name String
+  quantity Int
+  quantity_refunded Int @default(0) // snap shot các lần trả
+  total Decimal @db.Decimal(15, 2) 
+
+  reason_status order_item_return_reason @default(UNKNOWN)        
+  condition String? // Tình trạng hàng (ví dụ: còn nguyên seal, đã bóc hộp)      
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order_return OrderReturn @relation(fields: [order_return_id], references: [id], onDelete: Cascade)
+  order_item OrderItem @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+  variant Variant @relation(fields: [variant_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: Cascade) 
+  
+  @@index([order_return_id])
+  @@index([variant_id])
+  @@index([product_id])
+  
+  @@map("order_return_item")
+
+} 
+
+model OrderReturnPayment {
+  // ID
+  id                String         @id @default(uuid()) @db.Uuid // ID duy nhất (UUID)
+  
+  // Thông tin thanh toán
+  order_return_id String         @db.Uuid // ID đơn
+  amount         Decimal        @db.Decimal(15, 2) // Số tiền thanh toán
+
+  payment_method    payment_method // Phương thức thanh toán (CASH, CARD, BANK_TRANSFER, etc.)
+  payment_date      DateTime       @default(now()) // Ngày thanh toán
+  reference         String?        // Mã tham chiếu (transaction ID, check number, etc.)
+  notes             String?        // Ghi chú thêm
+  
+  // Thời gian
+  createdAt         DateTime       @default(now()) // Ngày tạo
+  updatedAt         DateTime?
+  // Relations
+  order_return OrderReturn @relation(fields: [order_return_id], references: [id], onDelete: Cascade, onUpdate: Cascade) 
+
+  // Indexes
+  @@index([order_return_id]) // Index theo đơn hàng
+  @@map("order_return_payment") 
+}
+
 
 
 // ===============================
@@ -604,8 +761,10 @@ model PurchaseOrder {
   // Thông tin cơ bản
   store_id        String                @db.Uuid // ID cửa hàng (multi-tenant isolation)
   order_number    String                // mã phiếu nhập (auto-generated)
+
   supplier_id     String                @db.Uuid // ID nhà cung cấp
   supplier_code   String?
+  supplier_name   String @default("")
   // Thời gian
   order_date      DateTime              @default(now()) // Ngày đặt hàng
   expected_date   DateTime?             // Ngày dự kiến nhận hàng
@@ -645,6 +804,7 @@ model PurchaseOrder {
   approver  User?               @relation("PurchaseOrderApprovedBy", fields: [approved_by], references: [id], onDelete: Restrict, onUpdate: Cascade) // Người duyệt
   items     PurchaseOrderItem[] // Chi tiết các sản phẩm trong đơn hàng
   payments  PurchasePayment[]   // Lịch sử thanh toán
+  purchase_returns PurchaseReturn[]
 
   // Unique Constraints
   @@unique([store_id, order_number]) // Số hóa đơn không được trùng trong 1 cửa hàng
@@ -669,12 +829,13 @@ model PurchaseOrderItem {
   // Thông tin mua
   item_name          String @default("")
   quantity          Decimal @db.Decimal(10, 2) // Số lượng mua
+  quantity_returned Decimal? @db.Decimal(10, 2) // snap shot các lần trả
   unit              String?  // VD: "Thùng"      
   applied_factor     Int?  // VD: 24 (Base Unit thì = 1)
   total_base_qty      Int? // = inputQuanity * appliedFactor (VD : 48)
   unit_cost         Decimal  @db.Decimal(15, 2) // giá nhập 
-  discount_rate     Decimal  @default(0) @db.Decimal(5, 4)  // Chiết khấu % (0.1 = 0.1%)
-  tax_rate          Decimal  @default(0) @db.Decimal(5, 4)  // Thuế % (0.1 = 0.1%)
+  discount_rate     Decimal  @default(0) @db.Decimal(15, 2)  // Chiết khấu % (0.1 = 0.1%)
+  tax_rate          Decimal  @default(0) @db.Decimal(15, 2)  // Thuế % (0.1 = 0.1%)
 
   // tiền sau tính toán
   subtotal          Decimal  @default(0) @db.Decimal(15, 2) // tông tiền trước thuế và chiết khấu unit_cost * quantity
@@ -689,6 +850,7 @@ model PurchaseOrderItem {
   purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade, onUpdate: Cascade) // Đơn hàng
   product        Product       @relation(fields: [product_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Sản phẩm
   variant        Variant          @relation(fields: [variant_id], references: [id], onDelete: Restrict, onUpdate: Cascade) // Biến thể
+  purchase_return_item PurchaseReturnItem[]
 
   // Indexes
   @@index([purchase_order_id]) // Index theo đơn hàng
@@ -721,6 +883,103 @@ model PurchasePayment {
   @@map("purchase_payment") // Tên bảng trong database
 }
 
+
+model PurchaseReturn {
+
+  id String @id @default(uuid()) @db.Uuid
+  store_id String @db.Uuid
+  return_number String
+
+  // supplier info
+  supplier_id  String @db.Uuid
+  supplier_name String 
+  supplier_code String?
+
+  // nullable -> cho phép trả kh theo đơn nhập 
+  purchase_order_id String? @db.Uuid
+  status purchase_return_status @default(DRAFT)
+  payment_status payment_status @default(UNPAID)
+ 
+
+  total    Decimal @default(0) @db.Decimal(15, 2)
+
+  reason String?
+  notes String?
+
+  created_by String @db.Uuid
+  return_date DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  store Store @relation(fields: [store_id], references: [id])
+  supplier Supplier @relation(fields: [supplier_id], references: [id])
+  creator User @relation(fields: [created_by], references: [id])
+  purchase_order PurchaseOrder? @relation(fields: [purchase_order_id], references: [id])
+  items PurchaseReturnItem[]
+  payments PurchaseReturnPayment[]
+  @@unique([store_id, return_number])
+  @@index([supplier_id, status])
+  @@index([id, return_number])
+  @@map("purchase_return")
+}
+
+model PurchaseReturnItem {
+  id        String @id @default(uuid()) @db.Uuid
+  purchase_return_id String @db.Uuid
+
+  product_id String @db.Uuid
+  variant_id String @db.Uuid
+  // nullable -> nếu trả không theo đơn nhập
+  purchase_order_item_id String? @db.Uuid
+
+  item_name String
+  quantity   Int
+  
+  unit              String?  // VD: "Thùng"      
+  applied_factor     Int?  // VD: 24 (Base Unit thì = 1)
+  total_base_qty      Int? // = inputQuanity * appliedFactor (VD : 48)
+
+  unit_cost Decimal @db.Decimal(15,2)
+  base_unit_cost Decimal @db.Decimal(15,2)
+
+  total Decimal @db.Decimal(15,2)
+
+  reason String?
+
+  // relations
+  purchase_return PurchaseReturn @relation(fields: [purchase_return_id], references: [id])
+  product Product @relation(fields: [product_id], references: [id])
+  variant Variant @relation(fields: [variant_id], references: [id])
+  purchase_order_item PurchaseOrderItem? @relation(fields: [purchase_order_item_id], references: [id])
+
+
+  @@index([purchase_return_id])
+  @@map("purchase_return_item")
+}
+
+model PurchaseReturnPayment {
+  id String @id @default(uuid()) @db.Uuid
+
+  purchase_return_id String @db.Uuid
+
+  amount              Decimal  @db.Decimal(15,2)
+  payment_method      payment_method
+  payment_date        DateTime @default(now())
+
+
+  reference           String?
+  notes               String?
+
+  createdAt           DateTime @default(now())
+
+
+  purchase_return PurchaseReturn @relation(fields: [purchase_return_id], references: [id])
+
+  @@index([purchase_return_id])
+  @@map("purchase_return_payment")
+}
 
 model StatisticsDaily {
   id        String   @id @default(uuid()) @db.Uuid

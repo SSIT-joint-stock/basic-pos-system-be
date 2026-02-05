@@ -1,14 +1,15 @@
 import { Module } from '@nestjs/common';
-import { OrdersService } from './orders.service';
-import { PrismaService } from 'app/prisma/prisma.service';
-import { OrdersController } from './oders.controller';
-import { StockMovementModule } from 'app/module/stock-movement/stock-movement.module';
-import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
-import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
-import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
-import { OrdersExcelService } from './orders-excel.service';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
+import { StockMovementModule } from 'app/module/stock-movement/stock-movement.module';
+import { PrismaService } from 'app/prisma/prisma.service';
+import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
+import { PricingService } from 'app/shared/usecase/order-price.usecase';
+import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
+import { OrdersController } from './oders.controller';
+import { OrdersExcelService } from './orders-excel.service';
+import { OrdersService } from './orders.service';
+import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
 
 @Module({
   imports: [StockMovementModule],
@@ -21,6 +22,7 @@ import { FormatStatus } from 'app/common/helpers/status';
     OrdersExcelService,
     Format,
     FormatStatus,
+    PricingService,
   ],
   controllers: [OrdersController],
   exports: [OrdersService],

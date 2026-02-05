@@ -56,6 +56,8 @@ import { OauthModule } from './module/oauth/oauth.module';
 import { StoreMemberModule } from './module/store-member/store-member.module';
 import { ReportModule } from './module/report/report.module';
 import { AssetsModule } from './assets/assets.module';
+import { PurchaseReturnModule } from './module/purchase-return/purchase-return.module';
+import { OrderReturnModule } from './module/order-return/order-return.module';
 
 @Module({
   imports: [
@@ -137,6 +139,8 @@ import { AssetsModule } from './assets/assets.module';
     StoreMemberModule,
     ReportModule,
     AssetsModule,
+    PurchaseReturnModule,
+    OrderReturnModule,
   ],
   providers: [
     TokenService,
