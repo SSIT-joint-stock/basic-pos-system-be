@@ -150,6 +150,17 @@ enum purchase_order_status {
   RECEIVED // Đã nhận hàng đầy đủ (đã nhận toàn bộ hàng đặt)
 }
 
+enum AssetVisibility {
+  PUBLIC
+  PRIVATE
+  TEMP
+}
+
+enum AssetAction {
+  READ
+  WRITE
+  DELETE
+}
 
 enum purchase_return_status {
   DRAFT
@@ -1006,4 +1017,60 @@ model StatisticsDaily {
   @@index([store_id])
   @@index([stat_date])
   @@map("statistics_daily")
+}
+
+model Asset {
+  id           String          @id @default(cuid())
+  storeId      String
+  visibility   AssetVisibility @default(PUBLIC)
+  storageKey   String          // e.g stores/<storeId>/public/2026/01/<uuid>.png
+  originalName String
+  mimeType     String
+  size         Int
+  checksum     String?
+  createdBy    String
+  expiresAt    DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  permissions  AssetPermission[]
+  links        AssetLink[]
+
+  @@unique([storeId, storageKey])
+  @@index([storeId])
+  @@index([storeId, visibility])
+  @@index([storeId, createdBy])
+  @@index([storeId, deletedAt])
+  @@index([storeId, expiresAt])
+  @@map("asset")
+}
+
+model AssetPermission {
+  id        String      @id @default(cuid())
+  storeId   String
+  assetId   String
+  userId    String
+  action    AssetAction
+  createdAt DateTime    @default(now())
+  asset     Asset       @relation(fields: [assetId], references: [id])
+
+  @@unique([storeId, assetId, userId, action])
+  @@index([storeId, userId])
+  @@index([storeId, assetId])
+  @@map("asset_permission")
+}
+
+model AssetLink {
+  id         String   @id @default(cuid())
+  storeId    String
+  assetId    String
+  entityType String // PRODUCT, INVOICE, USER...
+  entityId   String
+  field      String?
+  createdAt  DateTime @default(now())
+  asset      Asset   @relation(fields: [assetId], references: [id])
+
+  @@index([storeId, entityType, entityId])
+  @@index([storeId, assetId])
+  @@map("asset_link")
 }
