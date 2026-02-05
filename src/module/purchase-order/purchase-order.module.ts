@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
+import { PurchasePriceUseCase } from 'app/shared/usecase/purchase-price.usecase';
 import { StockMovementModule } from '../stock-movement/stock-movement.module';
 import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
 import { PurchaseOrderExcelService } from './purchase-order-excel.service';
@@ -19,6 +20,7 @@ import { GeneratePurchaseCodeUseCase } from './use-case/genereate-order-number.u
     ApplyStockUseCase,
     ExcelTemplateService,
     PurchaseOrderExcelService,
+    PurchasePriceUseCase,
     Format,
     FormatStatus,
   ],

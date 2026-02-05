@@ -99,15 +99,13 @@ export class ExcelTemplateService {
     config: ExcelTemplateConfig,
     file: Express.Multer.File,
   ): Promise<T[]> {
-    // Kiểm tra xem có file upload hay không
     if (!file) {
       throw new BadRequestException(this.errMsg.DONT_HAVE_FILE);
     }
 
-    // Kiểm tra xem có schema hay không
-    if (!config.schema) {
-      throw new BadRequestException('Schema không được định nghĩa');
-    }
+    // if (!config.schema) {
+    //   throw new BadRequestException('Schema không được định nghĩa');
+    // }
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(file.buffer as any);
@@ -120,27 +118,49 @@ export class ExcelTemplateService {
     const validRows: T[] = [];
     const errors: Array<{ row: number; errors: Record<string, string[]> }> = [];
 
+    // --- BƯỚC 1: XÁC ĐỊNH HÀNG HEADER VÀ HÀNG BẮT ĐẦU DỮ LIỆU ---
+    let headerRowNumber = 0;
+    const firstColumnHeader = config.columns[0].header;
+
+    // Duyệt tìm hàng có chứa text của tiêu đề cột đầu tiên
     worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return; // bỏ qua header
-      if (rowNumber === 1) return; // skip header
+      if (headerRowNumber > 0) return; // Đã tìm thấy thì bỏ qua các hàng sau
+
+      const firstCellText = (row.getCell(1).text ?? '').trim();
+      if (firstCellText === firstColumnHeader) {
+        headerRowNumber = rowNumber;
+      }
+    });
+
+    // Nếu không tìm thấy header, có thể file sai mẫu
+    if (headerRowNumber === 0) {
+      throw new BadRequestException(
+        'Cấu trúc file không đúng mẫu hoặc thiếu tiêu đề cột.',
+      );
+    }
+
+    // Dữ liệu thực tế bắt đầu từ hàng sau Header
+    const dataStartRow = headerRowNumber + 1;
+
+    // --- BƯỚC 2: CHỈ ĐỌC DỮ LIỆU TỪ HÀNG dataStartRow ---
+    worksheet.eachRow((row, rowNumber) => {
+      // Bỏ qua mọi hàng trước và bao gồm cả hàng Header
+      if (rowNumber < dataStartRow) return;
 
       try {
-        // Bỏ qua các dòng trống
-        // Skip empty rows
-        const isEmptyRow = config.columns.every((col, idx) => {
+        // Kiểm tra dòng trống
+        const isEmptyRow = config.columns.every((_, idx) => {
           const cellText = (row.getCell(idx + 1).text ?? '').trim();
           return cellText === '';
         });
 
-        if (isEmptyRow) {
-          return;
-        }
+        if (isEmptyRow) return;
 
         const rawData = config.columns.reduce(
           (acc, col, idx) => {
-            let v = (row.getCell(idx + 1).text ?? '').trim(); // ⭐ dùng text
+            let v = (row.getCell(idx + 1).text ?? '').trim();
 
-            // ⭐ FIX: nếu bị dạng `"0"` / `"abc"` thì bỏ dấu ngoặc kép
+            // Xử lý dấu ngoặc kép dư thừa nếu có
             if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) {
               v = v.slice(1, -1).trim();
             }
@@ -185,7 +205,6 @@ export class ExcelTemplateService {
 
     return validRows;
   }
-
   /**
    * Tạo worksheet từ cấu hình ExcelTemplateConfig
    * @param workbook Workbook ExcelJS

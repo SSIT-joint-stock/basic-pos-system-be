@@ -8,6 +8,7 @@ import {
 import { BadRequestError, NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
 import { PrismaService } from 'app/prisma/prisma.service';
+import { PurchasePriceUseCase } from 'app/shared/usecase/purchase-price.usecase';
 import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
 import { CreatePurchaseOrderDto } from './dto/purchase-order.dto';
 import { GeneratePurchaseCodeUseCase } from './use-case/genereate-order-number.usecase';
@@ -22,6 +23,7 @@ export class PurchaseOrderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly generateCode: GeneratePurchaseCodeUseCase,
+    private readonly calculator: PurchasePriceUseCase,
     private readonly applyStock: ApplyStockUseCase,
   ) {}
   private readonly errMsg = {
@@ -69,79 +71,54 @@ export class PurchaseOrderService {
       let totalDiscount = new Prisma.Decimal(0);
       let totalTax = new Prisma.Decimal(0);
       for (const item of items) {
-        const {
-          variant_id,
-          product_id,
-          quantity,
-          tax_rate,
-          discount_rate,
-          notes,
-          unit_cost,
-          unit,
-        } = item;
-
-        if (!variantMap.has(variant_id)) {
+        if (!variantMap.has(item.variant_id)) {
           throw new NotFoundError(this.errMsg.PRODUCT_NOT_FOUND);
         }
 
-        const variant = variantMap.get(variant_id);
-        const product = variant?.product;
-        let appliedFactor = 1;
-        if (unit && unit !== product?.baseUnit) {
-          const conversion = variant?.conversions?.find(
-            (c) => c.name.toLowerCase() === unit.toLowerCase(),
-          );
-          if (!conversion) {
-            throw new NotFoundError(`${this.errMsg.UNIT_NOT_FOUND}: ${unit}`);
-          }
-          appliedFactor = conversion.factor;
-        }
-        const inputQty = new Prisma.Decimal(quantity);
-        const appliedFactorDecimal = new Prisma.Decimal(appliedFactor);
-        const baseQty = inputQty.mul(appliedFactorDecimal);
+        const variant = variantMap.get(item.variant_id);
 
-        const cost = new Prisma.Decimal(unit_cost);
-        const discount = new Prisma.Decimal(discount_rate || 0);
-        const tax = new Prisma.Decimal(tax_rate || 0);
+        if (!variant) continue;
+        if (!item.quantity) continue;
 
-        // cacu total
-        const itemSubtotal = baseQty.mul(cost);
-        const itemDiscount = itemSubtotal.mul(discount.div(100));
-        const itemTax = itemSubtotal.sub(itemDiscount).mul(tax.div(100));
-        const itemTotal = itemSubtotal.sub(itemDiscount).add(itemTax);
+        // Use Calculator Service
+        const calculatedItem = this.calculator.calculateItem(
+          { ...item, unit: item.unit ?? undefined },
+          variant,
+        );
 
-        // cacu total base quty
-        subtotal = subtotal.add(itemSubtotal);
-        totalDiscount = totalDiscount.add(itemDiscount);
-        totalTax = totalTax.add(itemTax);
+        // Update Accessor Totals
+        subtotal = subtotal.add(calculatedItem.subtotal);
+        totalDiscount = totalDiscount.add(calculatedItem.discount_amount);
+        totalTax = totalTax.add(calculatedItem.tax_amount);
 
         purchaseOrderItems.push({
-          product_id,
-          variant_id,
-          item_name: variant?.name,
-          quantity: inputQty,
-          unit_cost: cost,
-          unit: unit ?? product?.baseUnit,
-          applied_factor: appliedFactor,
-          total_base_qty: Number(baseQty),
-          discount_rate: discount,
-          tax_rate: tax,
-          subtotal: itemSubtotal,
-          discount_amount: itemDiscount,
-          tax_amount: itemTax,
-          total: itemTotal,
-          notes: notes ? notes : null,
+          product_id: calculatedItem.product_id,
+          variant_id: calculatedItem.variant_id,
+          item_name: calculatedItem.item_name,
+          quantity: calculatedItem.quantity,
+          unit_cost: calculatedItem.unit_cost,
+          unit: calculatedItem.unit,
+          applied_factor: calculatedItem.applied_factor,
+          total_base_qty: calculatedItem.total_base_qty,
+          discount_rate: calculatedItem.discount_rate,
+          tax_rate: calculatedItem.tax_rate,
+          subtotal: calculatedItem.subtotal,
+          discount_amount: calculatedItem.discount_amount,
+          tax_amount: calculatedItem.tax_amount,
+          total: calculatedItem.total,
+          notes: calculatedItem.notes,
         });
+
         await tx.variantStock.update({
           where: {
             variant_id_store_id: {
-              variant_id,
+              variant_id: item.variant_id,
               store_id: storeId,
             },
           },
           data: {
             reserved: {
-              increment: Number(baseQty),
+              increment: calculatedItem.total_base_qty,
             },
           },
         });
