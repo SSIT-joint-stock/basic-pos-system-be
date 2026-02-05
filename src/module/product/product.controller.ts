@@ -8,11 +8,8 @@ import {
   Param,
   Patch,
   Post,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { product_status } from '@prisma/client';
 import { ApiSuccess } from 'app/common/decorators';
 import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
@@ -25,15 +22,11 @@ import { PermissionGuard } from 'app/permissions/guard/permission.guard';
 import z from 'zod';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { ImportProductService } from './import-product.service';
 import { ProductService } from './product.service';
 @Controller('stores/:storeId/products')
 @UseGuards(PermissionGuard)
 export class ProductController {
-  constructor(
-    private readonly productService: ProductService,
-    private readonly importProductService: ImportProductService,
-  ) {}
+  constructor(private readonly productService: ProductService) {}
 
   @Get('filter-product')
   @ApiSuccess('Lấy toàn bộ dự liệu sản phẩm!')
@@ -112,24 +105,4 @@ export class ProductController {
   remove(@Param('storeId') storeId: string, @Param('id') id: string) {
     return this.productService.remove(storeId, id);
   }
-
-  @Post('import-excel')
-  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiSuccess('Nhập sản phẩm từ file excel thành công!')
-  importExcel(
-    @Param('storeId') storeId: string,
-    @UserWithPermissions() user: IUserWithPermissions,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    return this.importProductService.importExcelFile(file);
-  }
-
-  // @Post('example-product-excel')
-  // @RawResponse()
-  // @ApiSuccess('Lấy file mẫu sản phẩm thành công!')
-  // getExampleProductExcel(): StreamableFile {
-  //   // return this.productService.downloadExampleExcel();
-  //   return this.excel.downloadExampleExcel('product');
-  // }
 }
