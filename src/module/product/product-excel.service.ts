@@ -8,6 +8,7 @@ import {
 } from 'app/shared/excel-template/template/product-variant';
 
 import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
+import { ImportExcelProductDto } from './dto/import-product-by-excel.dto';
 import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
 
 @Injectable()
@@ -197,12 +198,11 @@ export class ProductExcelService {
   }
 
   async importProduct(
-    file: Express.Multer.File,
+    dto: ImportExcelProductDto,
     storeId: string,
     userId: string,
   ) {
-    const { result } = await this.checkValidationImportProduct(file, storeId);
-    const validItems = result.filter((item) => item.isStatus);
+    const validItems = dto.items.filter((item) => item.isStatus);
 
     if (validItems.length === 0) {
       return {

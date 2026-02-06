@@ -30,6 +30,7 @@ import { type IUser } from 'app/common/types/user.type';
 import { ProductExcelService } from 'app/module/product/product-excel.service';
 import z from 'zod';
 import { CreateProductDto } from './dto/create-product.dto';
+import { ImportExcelProductDto } from './dto/import-product-by-excel.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductService } from './product.service';
 @Controller('products')
@@ -169,5 +170,11 @@ export class ProductController {
     if (!storeId)
       throw new BadRequestError('Lỗi khi tìm cửa hàng. Vui lòng đăng nhập lại');
     return await this.excel.checkValidationImportProduct(file, storeId);
+  }
+
+  @Post('excel/import/save')
+  @ApiSuccess('Tạo sản phẩm bằng file excel thành công!')
+  async importProduct(@User() user: IUser, @Body() dto: ImportExcelProductDto) {
+    return await this.excel.importProduct(dto, user.storeId || '', user.id);
   }
 }
