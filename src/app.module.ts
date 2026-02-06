@@ -57,6 +57,7 @@ import { StoreMemberModule } from './module/store-member/store-member.module';
 import { ReportModule } from './module/report/report.module';
 import { PurchaseReturnModule } from './module/purchase-return/purchase-return.module';
 import { OrderReturnModule } from './module/order-return/order-return.module';
+import { FinanceModule } from './module/finance/finance.module';
 
 @Module({
   imports: [
@@ -139,6 +140,7 @@ import { OrderReturnModule } from './module/order-return/order-return.module';
     ReportModule,
     PurchaseReturnModule,
     OrderReturnModule,
+    FinanceModule,
   ],
   providers: [
     TokenService,

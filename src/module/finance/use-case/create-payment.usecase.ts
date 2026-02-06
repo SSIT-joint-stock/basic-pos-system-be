@@ -89,7 +89,6 @@ export class CreatePaymentUseCase {
       .syncForDate(dto.store_id, transaction.transaction_date)
       .catch((error) => {
         console.error('Failed to sync cash book:', error);
-        // TODO: Implement proper logging
       });
 
     return transaction;
