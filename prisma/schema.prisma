@@ -398,9 +398,8 @@ model Product {
   id              String           @id @default(uuid()) @db.Uuid 
   store_id        String           @db.Uuid
   name            String           
-  sku             String 
+  sku             String          
   baseUnit        String           // Đơn vị gốc (VD: "cái", "ml"). Immutable.
-  barcode         String?
   image_url       String?
   description     String?
   product_status  product_status   @default(ACTIVE)
@@ -449,7 +448,8 @@ model Variant {
 
   @@index([product_id, name])
   @@unique([product_id, name]) 
-  @@unique([product_id, sku])
+  // @@unique([store_id, sku])
+  // @@unique([store_id, barcode])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt 
 

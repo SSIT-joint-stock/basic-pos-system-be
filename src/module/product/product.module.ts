@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
+import { Format } from 'app/common/helpers/format';
+import { ProductExcelService } from 'app/module/product/product-excel.service';
 import { PermissionService } from 'app/permissions/permission.service';
+import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
 import { StockMovementModule } from '../stock-movement/stock-movement.module';
 import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
 import { ProductController } from './product.controller';
@@ -14,6 +17,9 @@ import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
     PermissionService,
     GenerateProductSkuUseCase,
     GenerateVariantSkuUseCase,
+    ProductExcelService,
+    ExcelTemplateService,
+    Format,
   ],
 })
 export class ProductModule {}

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'app/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { PrismaService } from 'app/prisma/prisma.service';
 
 export interface IGenerateSkuUseCase {
   generateSkuBatch(storeId: string, count: number): Promise<string[]>;
@@ -24,15 +24,21 @@ export class GenerateProductSkuUseCase implements IGenerateSkuUseCase {
    * EX: SP00001, SP00002
    */
   async generateSkuBatch(storeId: string, count: number): Promise<string[]> {
-    const lastSku = await this.prisma.product.findFirst({
+    // Tìm tất cả SKU của store này để tính toán số lớn nhất chính xác (tránh lỗi alphabetical sort)
+    const products = await this.prisma.product.findMany({
       where: { store_id: storeId, sku: { startsWith: this.prefix } },
-      orderBy: { sku: 'desc' },
+      select: { sku: true },
     });
 
-    const startNumber =
-      lastSku && lastSku.sku
-        ? parseInt(lastSku.sku.slice(this.prefix.length)) + 1
-        : 1;
+    let maxNumber = 0;
+    for (const p of products) {
+      const numPart = parseInt(p.sku.slice(this.prefix.length));
+      if (!isNaN(numPart) && numPart > maxNumber) {
+        maxNumber = numPart;
+      }
+    }
+
+    const startNumber = maxNumber + 1;
 
     const skus: string[] = [];
     for (let i = 0; i < count; i++) {
@@ -61,15 +67,20 @@ export class GenerateProductSkuUseCase implements IGenerateSkuUseCase {
     storeId: string,
     count: number,
   ): Promise<string[]> {
-    const lastSku = await tx.product.findFirst({
+    const products = await tx.product.findMany({
       where: { store_id: storeId, sku: { startsWith: this.prefix } },
-      orderBy: { sku: 'desc' },
+      select: { sku: true },
     });
 
-    const startNumber =
-      lastSku && lastSku.sku
-        ? parseInt(lastSku.sku.slice(this.prefix.length)) + 1
-        : 1;
+    let maxNumber = 0;
+    for (const p of products) {
+      const numPart = parseInt(p.sku.slice(this.prefix.length));
+      if (!isNaN(numPart) && numPart > maxNumber) {
+        maxNumber = numPart;
+      }
+    }
+
+    const startNumber = maxNumber + 1;
 
     const skus: string[] = [];
     for (let i = 0; i < count; i++) {

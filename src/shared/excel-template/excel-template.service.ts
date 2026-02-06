@@ -44,6 +44,21 @@ export class ExcelTemplateService {
     // --- Thêm dữ liệu ví dụ
     if (config.exampleData?.length) {
       worksheet.addRows(config.exampleData);
+
+      // --- MERGE CELLS FOR EXAMPLE DATA
+      const flatColumns = config.headerGroups?.length
+        ? config.headerGroups.flatMap((g) => g.columns)
+        : config.columns;
+
+      const mergeColumnIndexes = flatColumns
+        .map((col, index) => (col.merge ? index + 1 : null))
+        .filter((idx): idx is number => idx !== null);
+
+      if (mergeColumnIndexes.length > 0) {
+        const dataStartRow =
+          headerStartRow + (config.headerGroups?.length ? 2 : 1);
+        this.mergeCellsByColumn(worksheet, mergeColumnIndexes, dataStartRow);
+      }
     }
     // --- NOTE BOTTOM
     if (config.note?.position === 'bottom') {
@@ -81,7 +96,11 @@ export class ExcelTemplateService {
     }
 
     if (mergeColumnIndexes.length > 0) {
-      const startRow = config.headerGroups?.length ? 3 : 2;
+      let headerStartRow = 1;
+      if (config.note?.position === 'top') {
+        headerStartRow += 3; // Mặc định note chiếm 3 hàng như trong addNoteRow
+      }
+      const startRow = headerStartRow + (config.headerGroups?.length ? 2 : 1);
       this.mergeCellsByColumn(worksheet, mergeColumnIndexes, startRow);
     }
 
