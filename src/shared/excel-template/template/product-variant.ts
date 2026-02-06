@@ -177,19 +177,33 @@ export const PRODUCT_VARIANT_EXCEL_TEMPLATE: ExcelTemplateConfig = {
       ],
     },
   ],
-  schema: ImportProductSchema,
   columns: [
     { header: 'Tên sản phẩm*', key: 'product_name', width: 25, merge: true },
     { header: 'Mã sản phẩm (SKU)', key: 'product_sku', width: 15, merge: true },
     { header: 'Đơn vị tính*', key: 'base_unit', width: 12, merge: true },
     { header: 'Tên danh mục', key: 'category_name', width: 30, merge: true },
     { header: 'Mô tả sản phẩm', key: 'description', width: 36, merge: true },
-    { header: 'Tên biến thể*', key: 'variant_name', width: 40 },
+    { header: 'Tên biến thể', key: 'variant_name', width: 40 },
     { header: 'Mã biến thể (SKU)', key: 'variant_sku', width: 15 },
     { header: 'Mã vạch (Barcode)', key: 'barcode', width: 15 },
-    { header: 'Giá bán* (VND)', key: 'price', width: 12 },
+    { header: 'Giá bán (VND)', key: 'price', width: 12 },
     { header: 'Giá vốn (VND)', key: 'cost', width: 12 },
     { header: 'Tồn kho ban đầu', key: 'quantity', width: 12 },
   ],
+  schema: ImportProductSchema,
   exampleData: PRODUCT_VARIANT_EXAMPLE_DATA,
+  note: {
+    text:
+      'LƯU Ý:\n' +
+      '- Các cột có dấu (*) là bắt buộc\n' +
+      '- Giá nhập, Giá bán, Số lượng phải là số\n' +
+      '- VAT, Chiết khấu nhập từ 0–100\n' +
+      '- Không thay đổi tên hoặc thứ tự cột\n' +
+      '- Nếu không nhập mã sản phẩm, hệ thống sẽ tự động tạo mã sản phẩm\n' +
+      '- Nếu không nhập mã biến thể, hệ thống sẽ tự động tạo mã biến thể\n' +
+      '- Với các sản phẩm không có thông tin biến thể hệ thống sẽ tự đông tạo 1 biến thể mặc định theo tên sản phẩm gốc',
+    // height: 70,
+    position: 'top',
+    backgroundColor: 'FFF2F2F2',
+  },
 };

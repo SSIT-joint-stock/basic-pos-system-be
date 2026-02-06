@@ -10,14 +10,10 @@ export const ImportProductSchema = z.object({
   }),
   category_name: z.string().optional(),
   description: z.string().optional(),
-  variant_name: z.string().nonempty({
-    message: 'Vui lòng nhập tên biến thể',
-  }),
+  variant_name: z.string().optional(),
   variant_sku: z.string().optional(),
   barcode: z.string().optional(),
-  price: z.string().nonempty({
-    message: 'Vui lòng nhập giá bán',
-  }),
+  price: z.string().optional(),
   cost: z.string().optional(),
   quantity: z.string().optional(),
 });
