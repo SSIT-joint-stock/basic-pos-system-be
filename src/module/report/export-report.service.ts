@@ -9,9 +9,9 @@ import {
   ReportCustomerExcel,
 } from 'app/shared/excel-template/template/report-customer';
 import {
-  REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
-  ReportOrderItemExcel,
-} from 'app/shared/excel-template/template/report-order-item';
+  REPORT_SALES_EXCEL_TEMPLATE,
+  ReportSalesExcel,
+} from 'app/shared/excel-template/template/report-sales';
 import {
   REPORT_SUPPLIERS_EXCEL_TEMPLATE,
   ReportSupplierExcel,
@@ -23,12 +23,8 @@ type SupplierWithOrders = Prisma.SupplierGetPayload<{
 type CustomerWithOrders = Prisma.CustomerGetPayload<{
   include: { orders: true };
 }>;
-type OrderItemWithOrder = Prisma.OrderItemGetPayload<{
-  include: {
-    order: { include: { customer: true } };
-    variant: true;
-    product: true;
-  };
+type OrderWithCustomer = Prisma.OrderGetPayload<{
+  include: { customer: true };
 }>;
 
 @Injectable()
@@ -68,34 +64,21 @@ export class ExportReportService {
     return this.excelService.exportData(REPORT_CUSTOMERS_EXCEL_TEMPLATE, rows);
   }
 
-  async exportReportOrderItems(storeId: string) {
-    const orderItems = await this.prisma.orderItem.findMany({
+  async exportReportSales(storeId: string) {
+    const orders = await this.prisma.order.findMany({
       where: {
-        order: {
-          store_id: storeId,
-        },
+        store_id: storeId,
       },
       include: {
-        order: {
-          include: {
-            customer: true,
-          },
-        },
-        variant: true,
-        product: true,
+        customer: true,
       },
       orderBy: {
-        order: {
-          createdAt: 'desc',
-        },
+        createdAt: 'desc',
       },
     });
 
-    const rows = this.flattenOrderItemData(orderItems);
-    return this.excelService.exportData(
-      REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
-      rows,
-    );
+    const rows = this.flattenSalesData(orders);
+    return this.excelService.exportData(REPORT_SALES_EXCEL_TEMPLATE, rows);
   }
   private flattenSupplierData(suppliers: SupplierWithOrders[]) {
     const rows: ReportSupplierExcel[] = [];
@@ -151,23 +134,22 @@ export class ExportReportService {
     return rows;
   }
 
-  private flattenOrderItemData(orderItems: OrderItemWithOrder[]) {
-    const rows: ReportOrderItemExcel[] = [];
+  private flattenSalesData(orders: OrderWithCustomer[]) {
+    const rows: ReportSalesExcel[] = [];
 
-    orderItems.forEach((item, index) => {
+    orders.forEach((order, index) => {
       rows.push({
         stt: index + 1,
-        order_date: this.format.formatDate(item.order.createdAt),
-        order_code: item.order.code || '',
+        order_date: this.format.formatDate(order.createdAt),
+        order_code: order.code || '',
         customer_name:
-          item.order.customer_name || item.order.customer?.name || '',
-        order_total_amount: this.format.formatCurrency(item.order.total_amount),
-        variant_name: item.variant?.name || '',
-        product_name: item.product?.name || '',
-        base_unit: item.product?.baseUnit || '',
-        quantity: item.quantity,
-        price: this.format.formatCurrency(item.price),
-        line_total: this.format.formatCurrency(item.total),
+          order.customer_name || order.customer?.name || 'Khách lẻ',
+        total_amount: this.format.formatCurrency(order.subtotal_amount),
+        discount_amount: this.format.formatCurrency(order.discount_amount),
+        tax_amount: this.format.formatCurrency(order.tax_amount),
+        final_amount: this.format.formatCurrency(order.total_amount),
+        payment_method: this.status.paymentMethod(order.payment_method),
+        status: this.status.orderStatus(order.status),
       });
     });
 
