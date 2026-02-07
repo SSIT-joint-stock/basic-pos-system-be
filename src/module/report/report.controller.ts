@@ -10,7 +10,7 @@ import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUser } from 'app/common/types/user.type';
 import { ReportCustomerService } from 'app/module/report/customer/report-customer.service';
 import { ExportReportService } from 'app/module/report/export-report.service';
-import { ReportSalesService } from 'app/module/report/sales/report-sales.service';
+import { ReportOrderItemService } from 'app/module/report/order-item/report-order-item.service';
 import { ReportSupplierService } from 'app/module/report/supplier/report-supplier.service';
 import express from 'express';
 import z from 'zod';
@@ -20,7 +20,7 @@ export class ReportController {
   constructor(
     private readonly reportCustomer: ReportCustomerService,
     private readonly reportSupplier: ReportSupplierService,
-    private readonly reportSales: ReportSalesService,
+    private readonly reportOrderItem: ReportOrderItemService,
     private readonly excel: ExportReportService,
   ) {}
 
@@ -104,8 +104,8 @@ export class ReportController {
   }
 
   @RequirePermission([PERMISSIONS.REPORT_READ])
-  @Get('sales')
-  async getReportSales(
+  @Get('order-items')
+  async getReportOrderItems(
     @User() user: IUser,
     @FilterParse({
       allowPagination: true,
@@ -128,7 +128,7 @@ export class ReportController {
     })
     query: FilterParseResult<any>,
   ) {
-    const { data, total } = await this.reportSales.getReportSales(
+    const { data, total } = await this.reportOrderItem.getReportOrderItems(
       user.storeId || '',
       query.prismaQuery,
     );
@@ -164,12 +164,15 @@ export class ReportController {
     res.end(buffer);
   }
 
-  @Get('/excel/sales')
-  async exportExcelSales(@Res() res: express.Response, @User() user: IUser) {
-    const buffer = await this.excel.exportReportSales(user.storeId || '');
+  @Get('/excel/order-items')
+  async exportExcelOrderItems(
+    @Res() res: express.Response,
+    @User() user: IUser,
+  ) {
+    const buffer = await this.excel.exportReportOrderItems(user.storeId || '');
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename=sales-report.xlsx',
+      'attachment; filename=order-items.xlsx',
     );
     res.setHeader(
       'Content-Type',
