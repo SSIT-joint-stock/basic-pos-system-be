@@ -7,6 +7,7 @@ import {
   ProductVariantExcel,
 } from 'app/shared/excel-template/template/product-variant';
 
+import { BadRequestError } from 'app/common/response';
 import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
 import { ImportExcelProductDto } from './dto/import-product-by-excel.dto';
 import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
@@ -205,10 +206,7 @@ export class ProductExcelService {
     const validItems = dto.items.filter((item) => item.isStatus);
 
     if (validItems.length === 0) {
-      return {
-        count: 0,
-        message: 'Không có bản ghi nào hợp lệ để lưu.',
-      };
+      throw new BadRequestError('Không có bản ghi nào hợp lệ để lưu.');
     }
 
     // Nhóm các bản ghi theo sản phẩm (dựa trên SKU hoặc Tên)

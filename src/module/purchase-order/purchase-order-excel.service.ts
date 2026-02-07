@@ -102,7 +102,9 @@ export class PurchaseOrderExcelService {
       // 2. Lọc các item hợp lệ (isStatus: true)
       const validItems = dto.items.filter((item) => item.isStatus === true);
       if (validItems.length === 0)
-        throw new BadRequestError('Không có sản phẩm hợp lệ để nhập');
+        throw new BadRequestError(
+          'Không có sản phẩm hợp lệ để nhập vào cửa hàng',
+        );
 
       // 3. Lấy thông tin variant chi tiết để tính toán
       const variantIds = validItems.map((item) => item.variant_id);
@@ -264,14 +266,14 @@ export class PurchaseOrderExcelService {
     const errors: string[] = [];
 
     if (!dbProduct) {
-      errors.push(`SKU ${item.sku} không tồn tại trên hệ thống.`);
+      errors.push(`SKU ${item.sku} không tồn tại trong cửa hàng.`);
       return errors; // Nếu không tìm thấy sản phẩm, trả về lỗi ngay
     }
 
     // Kiểm tra lệch tên
     if (item.item_name?.trim() !== dbProduct.name.trim()) {
       errors.push(
-        `Tên sản phẩm trong file không khớp hệ thống (Hệ thống: ${dbProduct.name}).`,
+        `Tên sản phẩm trong file không khớp trong cửa hàng (Cửa hàng: ${dbProduct.name} - File: ${item.item_name}).`,
       );
     }
 

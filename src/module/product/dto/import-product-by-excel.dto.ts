@@ -68,6 +68,6 @@ export class ImportExcelProductDto {
 
 // Dạng lỗi để trả về
 export type ImportValidationError = {
-  rowIndex: number; // dòng Excel (bắt đầu từ 2)
+  rowIndex: number;
   issues: string[];
 };
