@@ -55,6 +55,7 @@ import { VariantModule } from './module/variant/variant.module';
 import { OauthModule } from './module/oauth/oauth.module';
 import { StoreMemberModule } from './module/store-member/store-member.module';
 import { ReportModule } from './module/report/report.module';
+import { AssetsModule } from './assets/assets.module';
 import { PurchaseReturnModule } from './module/purchase-return/purchase-return.module';
 import { OrderReturnModule } from './module/order-return/order-return.module';
 
@@ -137,6 +138,7 @@ import { OrderReturnModule } from './module/order-return/order-return.module';
     VariantModule,
     StoreMemberModule,
     ReportModule,
+    AssetsModule,
     PurchaseReturnModule,
     OrderReturnModule,
   ],
