@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'app/prisma/prisma.service';
 import { Prisma, product_type, stock_movement_type } from '@prisma/client';
 import { BadRequestError } from 'app/common/response';
-import type { IUserWithPermissions } from 'app/common/types/permission.type';
+import { PrismaService } from 'app/prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
 
-import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
+import { IUser } from 'app/common/types/user.type';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
+import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
 
 @Injectable()
 export class ProductService {
@@ -17,7 +17,8 @@ export class ProductService {
     PRODUCT_NOT_FOUND: 'Không tìm thấy sản phẩm!',
     PRODUCT_SKU_EXISTS:
       'Mã sản phẩm đã tồn tại trong cửa hàng. Vui lòng thử lập mã khác!',
-
+    BARCODE_ALREADY_EXISTS:
+      'Mã vạch (barcode) của thuộc tính đã tồn tại ở sản phẩm khác',
     // File
     FILE_NOT_FOUND: 'File not found',
     FILE_EMPTY: 'File is empty',
@@ -31,20 +32,18 @@ export class ProductService {
     private readonly stockMovementService: StockMovementService,
   ) {}
 
-  async create(
-    user: IUserWithPermissions,
-    storeId: string,
-    data: CreateProductDto,
-  ) {
+  async create(user: IUser, storeId: string, data: CreateProductDto) {
     return this.prisma.$transaction(async (tx) => {
       const genSku = await this.generateSku.generateSku(storeId);
-      await this.checkHasSku(data.sku || genSku, storeId);
-      const { categoryIds, tagIds, quantity, cost, price, ...body } = data;
+      const skuToUse = data.sku && data.sku.trim() !== '' ? data.sku : genSku;
+      await this.checkHasSku(skuToUse, storeId);
+      const { categoryIds, tagIds, quantity, cost, price, barcode, ...body } =
+        data;
       // create product
       const newProduct = await tx.product.create({
         data: {
           ...body,
-          sku: data.sku || genSku,
+          sku: skuToUse,
           store_id: storeId,
           created_by: user.id,
           source_type: product_type.QUICK_CREATE,
@@ -64,16 +63,17 @@ export class ProductService {
           variant: true,
         },
       });
-      // create variant now pos sys always set default is is_set_default_variant and when find some plan to implement this feat
-      // if (data.is_set_default_variant === true) {
+      if (barcode && barcode.trim() !== '') {
+        await this.checkHasBarCode(barcode, storeId);
+      }
       const newVariant = await tx.variant.create({
         data: {
           product_id: newProduct?.id,
           name: newProduct?.name,
-          sku:
-            (await this.generateVariantSku.generateSkuVariant(storeId)) || '',
+          sku: await this.generateVariantSku.generateSkuVariant(storeId),
           price: price || 0,
           cost: cost || 0,
+          barcode: barcode || '',
         },
       });
       await tx.variantStock.create({
@@ -117,7 +117,6 @@ export class ProductService {
         sku: true,
         image_url: true,
         product_status: true,
-        barcode: true,
         created_by: true,
         tags: true,
         baseUnit: true,
@@ -176,7 +175,7 @@ export class ProductService {
       await this.checkHasSku(data.sku, storeId, id);
     }
 
-    const { categoryIds, tagIds, ...res } = data;
+    const { categoryIds, tagIds, barcode, ...res } = data;
     // 3) Thực hiện update
     const updated = await this.prisma.product.update({
       where: { id, store_id: storeId },
@@ -198,6 +197,22 @@ export class ProductService {
       },
       include: { categories: true, tags: true }, // FIX: Sau co the bo
     });
+
+    if (barcode && barcode.trim() !== '') {
+      await this.checkHasBarCode(barcode, storeId, id);
+      // Khi update thông qua Product level, ta mặc định update barcode cho variant đầu tiên tìm thấy
+      // (Phù hợp với mô hình Quick Create 1 sản phẩm - 1 variant)
+      const firstVariant = await this.prisma.variant.findFirst({
+        where: { product_id: id },
+      });
+      if (firstVariant) {
+        await this.prisma.variant.update({
+          where: { id: firstVariant.id },
+          data: { barcode },
+        });
+      }
+    }
+
     return updated;
   }
 
@@ -257,13 +272,35 @@ export class ProductService {
       where: {
         sku,
         store_id: storeId,
-        is_deleted: false,
+        // is_deleted: false, // Bỏ is_deleted: false vì Prisma unique constraint áp dụng cho cả record đã xóa (is_deleted: true)
         NOT: { id: productId },
       },
     });
 
     if (hasSku) {
       throw new BadRequestError(this.errorMessages.PRODUCT_SKU_EXISTS);
+    }
+  }
+  private async checkHasBarCode(
+    barcode: string,
+    storeId: string,
+    productId?: string,
+  ) {
+    const hasBarcode = await this.prisma.variant.findFirst({
+      where: {
+        barcode,
+        product: {
+          store_id: storeId,
+          is_deleted: false,
+        },
+        // Nếu là cập nhật sản phẩm, ta cho phép giữ lại barcode của chính sản phẩm đó (nhưng không được trùng của sản phẩm khác)
+        // Nếu là tạo mới thì productId là undefined, filter này sẽ tìm toàn bộ store
+        ...(productId ? { NOT: { product_id: productId } } : {}),
+      },
+    });
+
+    if (hasBarcode) {
+      throw new BadRequestError(this.errorMessages.BARCODE_ALREADY_EXISTS);
     }
   }
 }

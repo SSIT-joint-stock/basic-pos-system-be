@@ -3,6 +3,7 @@ import {
   order_status,
   payment_method,
   payment_status,
+  product_status,
   purchase_order_status,
   StoreMemberRole,
 } from '@prisma/client';
@@ -60,5 +61,15 @@ export class FormatStatus {
       MEMBER: 'Nhân viên',
     };
     return map[role];
+  }
+
+  // ===== PRODUCT STATUS =====
+  productStatus(status: product_status): string {
+    const map: Record<product_status, string> = {
+      ACTIVE: 'Hoạt động',
+      INACTIVE: 'Không hoạt động',
+      SOLD: 'Hết hàng',
+    };
+    return map[status];
   }
 }
