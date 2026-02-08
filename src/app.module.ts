@@ -58,6 +58,7 @@ import { ReportModule } from './module/report/report.module';
 import { AssetsModule } from './assets/assets.module';
 import { PurchaseReturnModule } from './module/purchase-return/purchase-return.module';
 import { OrderReturnModule } from './module/order-return/order-return.module';
+import { CatalogModule } from './module/catalog/catalog.module';
 
 @Module({
   imports: [
@@ -141,6 +142,7 @@ import { OrderReturnModule } from './module/order-return/order-return.module';
     AssetsModule,
     PurchaseReturnModule,
     OrderReturnModule,
+    CatalogModule,
   ],
   providers: [
     TokenService,
