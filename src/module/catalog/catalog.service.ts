@@ -24,6 +24,15 @@ export class CatalogService {
       throw new NotFoundError(`Sản phẩm có mã vach ${barcode} không tồn tại`);
     }
 
-    return variant;
+    const stock = variant?.variant_stocks?.find(
+      (stock) => stock.store_id === storeId,
+    );
+    return {
+      ...variant,
+      onHand: stock?.onHand ?? 0,
+      reserved: stock?.reserved ?? 0,
+      damaged: stock?.damaged ?? 0,
+      variant_stocks: undefined,
+    };
   }
 }
