@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import { ApiSuccess } from 'app/common/decorators';
@@ -49,7 +50,7 @@ export class StoreMemberController {
   @RequirePermissions([PERMISSIONS.MEMBER_DELETE])
   @ApiSuccess('Xóa thành viên thành công')
   removeMemberLegacy(
-    @Body('memberUserId') memberUserId: string,
+    @Query('userId') memberUserId: string,
     @User() user: IUser,
   ) {
     if (!user.storeId) throw new NotFoundError('User not in store');

@@ -25,7 +25,6 @@ export class OrdersService {
       payment_method,
       order_items = [],
     } = dto;
-    console.log(order_items);
 
     const pricing = this.pricingService.calcOrderTotals(
       order_items.map((i) => ({
@@ -73,6 +72,19 @@ export class OrdersService {
                 total: pricing.lineItems[index].total_amount,
               })),
             },
+          },
+        },
+      });
+      await this.prisma.storeMember.update({
+        where: {
+          storeId_userId: {
+            storeId,
+            userId: user.id,
+          },
+        },
+        data: {
+          total_order: {
+            increment: pricing.total_amount,
           },
         },
       });

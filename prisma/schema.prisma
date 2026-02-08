@@ -321,6 +321,8 @@ model StoreMember {
   userId    String          @db.Uuid
   name String       @default("")
   email String      @default("")
+  total_order Int   @default(0)
+
   role      StoreMemberRole @default(MEMBER)
   createdAt DateTime        @default(now())
 
