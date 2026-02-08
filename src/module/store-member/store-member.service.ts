@@ -289,6 +289,14 @@ export class StoreMemberService {
         skip: query.skip,
         take: query.take,
         orderBy: query.orderBy,
+        include: {
+          user: {
+            select: {
+              username: true,
+              email: true,
+            },
+          },
+        },
       }),
       this.prismaService.storeMember.count({
         where,

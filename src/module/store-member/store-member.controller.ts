@@ -71,7 +71,7 @@ export class StoreMemberController {
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
       allowedSortBy: ['createdAt', 'name'],
-      searchBy: ['username', 'email'],
+      searchBy: ['name', 'email'],
       searchKey: 'q',
       listFields: ['categories'],
       schema: z.object({
