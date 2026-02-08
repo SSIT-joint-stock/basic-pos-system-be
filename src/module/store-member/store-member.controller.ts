@@ -1,24 +1,31 @@
-import express from 'express';
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
   Res,
 } from '@nestjs/common';
 import { ApiSuccess } from 'app/common/decorators';
 import { User } from 'app/common/decorators/user.decorator';
 import type { IUser } from 'app/common/types/user.type';
+import express from 'express';
 
-import { StoreMemberService } from './store-member.service';
+import {
+  FilterParse,
+  type FilterParseResult,
+} from 'app/common/decorators/filter-parse.decorator';
+import { RequirePermissions } from 'app/common/decorators/permission.decorator';
+import { NotFoundError, PaginatedResponse } from 'app/common/response';
+import { PERMISSIONS } from 'app/common/types/permission.type';
+import z from 'zod';
 import { AddExistingMemberDto } from './dto/add-existing-member.dto';
 import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { StoreMemberExcelService } from './store-member-excel.service';
-import { Response } from 'express';
+import { StoreMemberService } from './store-member.service';
 @Controller('store-member')
 export class StoreMemberController {
   constructor(
@@ -26,94 +33,121 @@ export class StoreMemberController {
     private readonly storeMemberExcelService: StoreMemberExcelService,
   ) {}
 
-  @Post('add-member/:storeId')
+  @Post('add-member')
+  @RequirePermissions([PERMISSIONS.MEMBER_CREATE])
   @ApiSuccess('Thêm thành viên thành công')
-  addMemberLegacy(
-    @Param('storeId') storeId: string,
-    @Body() dto: AddExistingMemberDto,
-    @User() user: IUser,
-  ) {
-    return this.storeMemberService.addExistingUserToStore(storeId, dto, user);
+  addMemberLegacy(@Body() dto: AddExistingMemberDto, @User() user: IUser) {
+    if (!user.storeId) throw new NotFoundError('User not in store');
+    return this.storeMemberService.addExistingUserToStore(
+      user.storeId,
+      dto,
+      user,
+    );
   }
 
-  @Delete('delete-member/:storeId')
+  @Delete('delete-member')
+  @RequirePermissions([PERMISSIONS.MEMBER_DELETE])
   @ApiSuccess('Xóa thành viên thành công')
   removeMemberLegacy(
-    @Param('storeId') storeId: string,
     @Body('memberUserId') memberUserId: string,
     @User() user: IUser,
   ) {
-    return this.storeMemberService.removeMember(storeId, memberUserId, user);
+    if (!user.storeId) throw new NotFoundError('User not in store');
+    return this.storeMemberService.removeMember(
+      user.storeId,
+      memberUserId,
+      user,
+    );
   }
 
-  @Get('members/:storeId')
+  @Get('members')
+  @RequirePermissions([PERMISSIONS.MEMBER_READ])
   @ApiSuccess('Get members in store successfully')
-  getMembersLegacy(@Param('storeId') storeId: string, @User() user: IUser) {
-    return this.storeMemberService.getMembers(storeId, user);
-  }
-
-  @Post(':storeId/members/create')
-  @ApiSuccess('Tạo và thêm thành viên vào cửa hàng thành công')
-  createAndAddMember(
-    @Param('storeId') storeId: string,
-    @Body() dto: CreateAndAddMemberDto,
+  async getMembersLegacy(
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'name'],
+      searchBy: ['username', 'email'],
+      searchKey: 'q',
+      listFields: ['categories'],
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
     @User() user: IUser,
   ) {
-    return this.storeMemberService.createAndAddMember(storeId, dto, user);
+    const { data, total } = await this.storeMemberService.getMembers(
+      user.storeId || '',
+      query.prismaQuery,
+      user,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @Get(':storeId/members/:memberUserId')
+  @Post('create')
+  @RequirePermissions([PERMISSIONS.MEMBER_CREATE])
+  @ApiSuccess('Tạo và thêm thành viên vào cửa hàng thành công')
+  createAndAddMember(@Body() dto: CreateAndAddMemberDto, @User() user: IUser) {
+    return this.storeMemberService.createAndAddMember(
+      user.storeId || '',
+      dto,
+      user,
+    );
+  }
+
+  @Get('members/:memberUserId')
+  @RequirePermissions([PERMISSIONS.MEMBER_READ])
   @ApiSuccess('Lấy thông tin thành viên trong cửa hàng thành công')
   getMemberDetail(
-    @Param('storeId') storeId: string,
     @Param('memberUserId') memberUserId: string,
     @User() user: IUser,
   ) {
-    return this.storeMemberService.getMemberDetail(storeId, memberUserId, user);
+    return this.storeMemberService.getMemberDetail(
+      user.storeId || '',
+      memberUserId,
+      user,
+    );
   }
 
-  @Patch(':storeId/members/:memberUserId/role')
+  @Patch('members/:memberUserId/role')
+  @RequirePermissions([PERMISSIONS.MEMBER_UPDATE])
   @ApiSuccess('Cập nhật vai trò thành viên thành công')
   updateMemberRole(
-    @Param('storeId') storeId: string,
     @Param('memberUserId') memberUserId: string,
     @Body() dto: UpdateMemberRoleDto,
     @User() user: IUser,
   ) {
     return this.storeMemberService.updateMemberRole(
-      storeId,
+      user.storeId || '',
       memberUserId,
       dto,
       user,
     );
-  }
-  @Get(':storeId/excel/template')
-  async downloadStoreMemberTemplate(@Res() res: express.Response) {
-    const buffer =
-      await this.storeMemberExcelService.downloadExampleStoreMember();
-
-    res.set({
-      'Content-Disposition': 'attachment; filename=thanh_vien_cua_hang.xlsx',
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Length': buffer.length,
-    });
-
-    res.end(buffer);
   }
 
   /**
    * Export danh sách Store Member
    * GET /api/v1/store-member/:storeId/excel/export
    */
-  @Get(':storeId/excel/export')
+  @Get('excel/export')
+  @RequirePermissions([PERMISSIONS.MEMBER_READ])
   async exportStoreMembersExcel(
-    @Param('storeId') storeId: string,
     @User() user: IUser,
     @Res() res: express.Response,
   ) {
     const buffer = await this.storeMemberExcelService.exportStoreMembers(
-      storeId,
+      user.storeId || '',
       user,
     );
 

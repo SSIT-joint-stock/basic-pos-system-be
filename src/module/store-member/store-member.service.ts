@@ -1,17 +1,17 @@
-import { PrismaService } from 'app/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { IUser } from 'app/common/types/user.type';
+import { PrismaService } from 'app/prisma/prisma.service';
 
-import { StoreMemberRole } from '@prisma/client';
+import { Prisma, StoreMemberRole } from '@prisma/client';
+import { BcryptService } from 'app/common/helpers/bcrypt.util';
 import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
 } from 'app/common/response';
-import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
-import { BcryptService } from 'app/common/helpers/bcrypt.util';
-import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { AddExistingMemberDto } from './dto/add-existing-member.dto';
+import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Injectable()
 export class StoreMemberService {
@@ -239,32 +239,63 @@ export class StoreMemberService {
   }
 
   // get members
-  async getMembers(storeId: string, currentUser: IUser) {
-    const isOwner = await this.checkIsOwner(storeId, currentUser.id);
+  // async getMembers(storeId: string, currentUser: IUser) {
+  //   const isOwner = await this.checkIsOwner(storeId, currentUser.id);
+  //   if (!isOwner) {
+  //     throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_VIEW_MEMBERS);
+  //   }
+
+  //   // 2. Get all members in store
+  //   const members = await this.prismaService.storeMember.findMany({
+  //     where: {
+  //       storeId,
+  //     },
+  //     include: {
+  //       user: {
+  //         select: {
+  //           id: true,
+  //           username: true,
+  //           email: true,
+  //         },
+  //       },
+  //     },
+  //     orderBy: {
+  //       createdAt: 'asc',
+  //     },
+  //   });
+
+  //   return members;
+  // }
+  async getMembers(
+    store_id: string,
+    query: Prisma.UserFindManyArgs,
+    user: IUser,
+  ) {
+    const isOwner = await this.checkIsOwner(store_id, user.id);
     if (!isOwner) {
       throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_VIEW_MEMBERS);
     }
+    const where: Prisma.UserWhereInput = {
+      AND: [query.where ?? {}],
+    };
 
-    // 2. Get all members in store
-    const members = await this.prismaService.storeMember.findMany({
-      where: {
-        storeId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
+    const [memberInfo, total] = await Promise.all([
+      this.prismaService.user.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+
+        include: {
+          memberships: true,
         },
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
+      }),
+      this.prismaService.user.count({
+        where,
+      }),
+    ]);
 
-    return members;
+    return { data: memberInfo, total };
   }
   //get member detail
   async getMemberDetail(storeId: string, memberUserId: string, owner: IUser) {
