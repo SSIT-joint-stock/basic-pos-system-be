@@ -319,6 +319,8 @@ model StoreRewardPoint {
 model StoreMember {
   storeId   String          @db.Uuid
   userId    String          @db.Uuid
+  name String       @default("")
+  email String      @default("")
   role      StoreMemberRole @default(MEMBER)
   createdAt DateTime        @default(now())
 

@@ -98,6 +98,8 @@ export class StoreMemberService {
         storeId,
         userId: user.id,
         role: StoreMemberRole.MEMBER,
+        name: user.username,
+        email: user.email,
       },
       include: {
         user: {
@@ -167,6 +169,8 @@ export class StoreMemberService {
         storeId,
         userId: user.id,
         role: StoreMemberRole.MEMBER,
+        name: user.username,
+        email: user.email,
       },
       include: {
         user: {
@@ -268,29 +272,25 @@ export class StoreMemberService {
   // }
   async getMembers(
     store_id: string,
-    query: Prisma.UserFindManyArgs,
+    query: Prisma.StoreMemberFindManyArgs,
     user: IUser,
   ) {
     const isOwner = await this.checkIsOwner(store_id, user.id);
     if (!isOwner) {
       throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_VIEW_MEMBERS);
     }
-    const where: Prisma.UserWhereInput = {
+    const where: Prisma.StoreMemberWhereInput = {
       AND: [query.where ?? {}],
     };
 
     const [memberInfo, total] = await Promise.all([
-      this.prismaService.user.findMany({
+      this.prismaService.storeMember.findMany({
         where,
         skip: query.skip,
         take: query.take,
         orderBy: query.orderBy,
-
-        include: {
-          memberships: true,
-        },
       }),
-      this.prismaService.user.count({
+      this.prismaService.storeMember.count({
         where,
       }),
     ]);
