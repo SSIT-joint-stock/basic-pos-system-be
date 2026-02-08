@@ -7,6 +7,9 @@ export class PurchaseOrderItemDto {
   @IsUUID()
   variant_id: string;
 
+  @IsOptional()
+  isStatus?: boolean;
+
   @IsNumber()
   @Min(0)
   quantity: number;

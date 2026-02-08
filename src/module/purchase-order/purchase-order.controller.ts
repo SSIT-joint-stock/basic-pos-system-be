@@ -1,4 +1,17 @@
-import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  FileTypeValidator,
+  Get,
+  MaxFileSizeValidator,
+  Param,
+  ParseFilePipe,
+  Post,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { payment_status, purchase_order_status } from '@prisma/client';
 import { ApiSuccess } from 'app/common/decorators';
 import {
@@ -7,9 +20,10 @@ import {
 } from 'app/common/decorators/filter-parse.decorator';
 import { RequirePermission } from 'app/common/decorators/permission.decorator';
 import { User } from 'app/common/decorators/user.decorator';
-import { PaginatedResponse } from 'app/common/response';
+import { BadRequestError, PaginatedResponse } from 'app/common/response';
 import { PERMISSIONS } from 'app/common/types/permission.type';
 import type { IUser } from 'app/common/types/user.type';
+import { ImportExcelPurchaseDto } from 'app/module/purchase-order/dto/import-excel-purchase.dto';
 import express from 'express';
 import z from 'zod';
 import { AcceptPaymentImportPurchaseDto } from './dto/accept-payment-puchase.dto';
@@ -225,6 +239,35 @@ export class PurchaseOrderController {
       id,
       user?.storeId || '',
     );
+  }
+
+  @Post('excel/import/validation')
+  @UseInterceptors(FileInterceptor('po_validation'))
+  @ApiSuccess('Lấy file nhập hàng thành công!')
+  async validationImportPO(
+    @User() { storeId }: IUser,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({
+            fileType: /(spreadsheet|excel|vnd.openxmlformats)/,
+          }),
+
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }), // 5MB
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    if (!storeId)
+      throw new BadRequestError('Lỗi khi tìm cửa hàng. Vui lòng đăng nhập lại');
+    return await this.excel.checkValidationImportPO(file, storeId);
+  }
+
+  @Post('excel/import/save')
+  @ApiSuccess('Nhập hàng thành công!')
+  async importPO(@Body() dto: ImportExcelPurchaseDto, @User() user: IUser) {
+    return await this.excel.importPurchaseOrders(dto, user, user.storeId || '');
   }
 
   @Get('excel/template')

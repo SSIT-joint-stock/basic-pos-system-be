@@ -21,8 +21,10 @@ export class VariantService {
     STORE_NOT_FOUND: 'Không tìm thấy cửa hàng!',
     VARIANT_NOT_FOUND: 'Không tìm thấy biến thể của sản phẩm!',
     CANNOT_DELETE_VARIANT: 'Không thể xoá biến thể cuối cùng của sản phẩm.',
-    VARIANT_EXISTED:
-      'Tên/mã (sku) biến thể nây được tìm thấy trong sản phẩm. Vui lòng thử lại!',
+    VARIANT_EXISTED_BARCODE_OR_SKU:
+      'Mã vach (barcode) / mã (sku) biến thể này được tìm thấy trong cửa hàng. Vui lòng thử lại!',
+    VARIANT_NAME_EXISTED:
+      'Tên biến thể này được tìm thấy trong sản phẩm. Vui lòng thử lại!',
   };
   constructor(
     private readonly prisma: PrismaService,
@@ -38,7 +40,8 @@ export class VariantService {
     await Promise.all([
       this.checkStore(storeId),
       this.checkProduct(productId),
-      this.existedVariant(productId, undefined, dto.sku, dto.name),
+      this.existedVariant(storeId, undefined, dto.sku, dto.barcode),
+      this.existedVariantName(productId, undefined, dto.name),
     ]);
     return this.prisma.$transaction(async (tx) => {
       const newVariant = await tx.variant.create({
@@ -140,9 +143,12 @@ export class VariantService {
   ) {
     await Promise.all([
       this.checkVariant(id, productId, storeId),
-      this.existedVariant(productId, id, dto.sku, dto.name),
-      this.existedVariant(productId, id, dto.sku, dto.name),
+      this.existedVariant(storeId, id, dto.sku, dto.barcode),
+      this.existedVariantName(productId, id, dto.name),
     ]);
+    if (dto.sku?.trim() === '') {
+      dto.sku = await this.generateSkuVariant.generateSkuVariant(storeId);
+    }
     const { conversions, ...variantInfo } = dto;
 
     const updated = await this.prisma.variant.update({
@@ -241,15 +247,29 @@ export class VariantService {
     };
   }
   private async existedVariant(
-    productId: string,
+    storeId: string,
     id?: string,
     sku?: string,
-    name?: string,
+    barcode?: string,
   ) {
+    const filters: Prisma.VariantWhereInput[] = [];
+
+    if (sku && sku.trim() !== '') {
+      filters.push({ sku });
+    }
+
+    if (barcode && barcode.trim() !== '') {
+      filters.push({ barcode });
+    }
+
+    if (filters.length === 0) return null;
+
     const variant = await this.prisma.variant.findFirst({
       where: {
-        product_id: productId,
-        OR: [{ sku: sku }, { name: name }],
+        product: {
+          store_id: storeId,
+        },
+        OR: filters,
         NOT: {
           id: id, // Loại trừ variant hiện tại (nếu update)
         },
@@ -257,7 +277,27 @@ export class VariantService {
     });
 
     if (variant) {
-      throw new ConflictError(this.errMsg.VARIANT_EXISTED);
+      throw new ConflictError(this.errMsg.VARIANT_EXISTED_BARCODE_OR_SKU);
+    }
+    return variant;
+  }
+  private async existedVariantName(
+    productId: string,
+    id?: string,
+    name?: string,
+  ) {
+    const variant = await this.prisma.variant.findFirst({
+      where: {
+        product_id: productId,
+        name: name,
+        NOT: {
+          id: id, // Loại trừ variant hiện tại (nếu update)
+        },
+      },
+    });
+
+    if (variant) {
+      throw new ConflictError(this.errMsg.VARIANT_NAME_EXISTED);
     }
     return variant;
   }

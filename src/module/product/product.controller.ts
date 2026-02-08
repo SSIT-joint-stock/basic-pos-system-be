@@ -1,43 +1,48 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import express from 'express';
+
 import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
+  Res,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { product_status } from '@prisma/client';
 import { ApiSuccess } from 'app/common/decorators';
-import { FilterParse } from 'app/common/decorators/filter-parse.decorator';
+import {
+  FilterParse,
+  type FilterParseResult,
+} from 'app/common/decorators/filter-parse.decorator';
 import { RequirePermissions } from 'app/common/decorators/permission.decorator';
-import { UserWithPermissions } from 'app/common/decorators/user-with-permissions.decorator';
-import { PaginatedResponse } from 'app/common/response';
-import type { IUserWithPermissions } from 'app/common/types/permission.type';
+import { User } from 'app/common/decorators/user.decorator';
+import { BadRequestError, PaginatedResponse } from 'app/common/response';
 import { PERMISSIONS } from 'app/common/types/permission.type';
-import { PermissionGuard } from 'app/permissions/guard/permission.guard';
+import { type IUser } from 'app/common/types/user.type';
+import { ProductExcelService } from 'app/module/product/product-excel.service';
 import z from 'zod';
 import { CreateProductDto } from './dto/create-product.dto';
+import { ImportExcelProductDto } from './dto/import-product-by-excel.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { ImportProductService } from './import-product.service';
 import { ProductService } from './product.service';
-@Controller('stores/:storeId/products')
-@UseGuards(PermissionGuard)
+@Controller('products')
 export class ProductController {
   constructor(
     private readonly productService: ProductService,
-    private readonly importProductService: ImportProductService,
+    private readonly excel: ProductExcelService,
   ) {}
 
   @Get('filter-product')
   @ApiSuccess('Lấy toàn bộ dự liệu sản phẩm!')
-  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL])
   async filterProducts(
     @FilterParse({
       allowPagination: true,
@@ -46,7 +51,7 @@ export class ProductController {
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
       allowedSortBy: ['createdAt', 'name'],
-      searchBy: ['name', 'description', 'sku', 'barcode'],
+      searchBy: ['name', 'description', 'sku'],
       searchKey: 'q',
       listFields: ['categories'],
       schema: z.object({
@@ -64,11 +69,11 @@ export class ProductController {
         categories: z.string().optional(),
       }),
     })
-    query,
-    @Param('storeId') storeId: string,
+    query: FilterParseResult<any>,
+    @User() user: IUser,
   ) {
     const { data, total } = await this.productService.filterProducts(
-      storeId,
+      user.storeId || '',
       query.prismaQuery,
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
@@ -77,59 +82,99 @@ export class ProductController {
   @Post()
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @ApiSuccess('Tạo sản phẩm thành công!')
-  create(
-    @Param('storeId') storeId: string,
-    @UserWithPermissions() user: IUserWithPermissions,
-    @Body() createProductDto: CreateProductDto,
-  ) {
-    return this.productService.create(user, storeId, createProductDto);
+  create(@User() user: IUser, @Body() createProductDto: CreateProductDto) {
+    return this.productService.create(
+      user,
+      user.storeId || '',
+      createProductDto,
+    );
   }
 
   @Get(':id')
   @ApiSuccess('Lấy chi tiết sản phẩm!')
-  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL], 'OR')
-  findOne(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.productService.findOne(storeId, id);
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ, PERMISSIONS.PRODUCT_ALL])
+  findOne(@User() user: IUser, @Param('id') id: string) {
+    return this.productService.findOne(user.storeId || '', id);
   }
 
   @Patch(':id')
-  @RequirePermissions(
-    [PERMISSIONS.PRODUCT_UPDATE, PERMISSIONS.PRODUCT_ALL],
-    'OR',
-  )
+  @RequirePermissions([PERMISSIONS.PRODUCT_UPDATE, PERMISSIONS.PRODUCT_ALL])
   @ApiSuccess('Cập nhật sản phẩm thành công!')
   update(
-    @Param('storeId') storeId: string,
+    @User() user: IUser,
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
   ) {
-    return this.productService.update(storeId, id, updateProductDto);
+    return this.productService.update(user.storeId || '', id, updateProductDto);
   }
 
   @Delete(':id')
   @RequirePermissions([PERMISSIONS.PRODUCT_DELETE])
   @ApiSuccess('Xóa sản phẩm thành công!')
-  remove(@Param('storeId') storeId: string, @Param('id') id: string) {
-    return this.productService.remove(storeId, id);
+  remove(@User() user: IUser, @Param('id') id: string) {
+    return this.productService.remove(user.storeId || '', id);
   }
 
-  @Post('import-excel')
-  @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
-  @UseInterceptors(FileInterceptor('file'))
-  @ApiSuccess('Nhập sản phẩm từ file excel thành công!')
-  importExcel(
-    @Param('storeId') storeId: string,
-    @UserWithPermissions() user: IUserWithPermissions,
-    @UploadedFile() file: Express.Multer.File,
+  // Excel
+  @Get('excel/template')
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ])
+  async downloadProductTemplate(@Res() res: express.Response) {
+    const buffer = await this.excel.downloadTemplateProduct();
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=mau_san_pham.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.end(buffer);
+  }
+  // Excel
+  @Get('excel/export')
+  @RequirePermissions([PERMISSIONS.PRODUCT_READ])
+  async exportProduct(@Res() res: express.Response, @User() user: IUser) {
+    const buffer = await this.excel.exportProductExcel(user.storeId || '');
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=danh_sach_san_pham.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.end(buffer);
+  }
+
+  @Post('excel/import/validation')
+  @UseInterceptors(FileInterceptor('product_validation'))
+  @ApiSuccess('Kiểm tra file nhập hàng thành công!')
+  async validationImportProduct(
+    @User() { storeId }: IUser,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({
+            fileType: /(spreadsheet|excel|vnd.openxmlformats)/,
+          }),
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }), // 5MB
+        ],
+      }),
+    )
+    file: Express.Multer.File,
   ) {
-    return this.importProductService.importExcelFile(file);
+    if (!storeId)
+      throw new BadRequestError('Lỗi khi tìm cửa hàng. Vui lòng đăng nhập lại');
+    return await this.excel.checkValidationImportProduct(file, storeId);
   }
 
-  // @Post('example-product-excel')
-  // @RawResponse()
-  // @ApiSuccess('Lấy file mẫu sản phẩm thành công!')
-  // getExampleProductExcel(): StreamableFile {
-  //   // return this.productService.downloadExampleExcel();
-  //   return this.excel.downloadExampleExcel('product');
-  // }
+  @Post('excel/import/save')
+  @ApiSuccess('Tạo sản phẩm bằng file excel thành công!')
+  async importProduct(@User() user: IUser, @Body() dto: ImportExcelProductDto) {
+    return await this.excel.importProduct(dto, user.storeId || '', user.id);
+  }
 }

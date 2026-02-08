@@ -21,6 +21,6 @@ import { TokenService } from './token.service';
     BcryptService,
   ],
   imports: [UsersModule, ConfigModule.forFeature(jwtConfig)],
-  exports: [AuthService],
+  exports: [AuthService, TokenService],
 })
 export class AuthModule {}

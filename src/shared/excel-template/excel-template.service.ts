@@ -10,6 +10,7 @@ export class ExcelTemplateService {
     DATA_NOT_VALID:
       'File Excel có dữ liệu không hợp lệ. Vui lòng nhập đúng dữ liệu với mẫu Excel!',
   };
+
   /**
    * Tạo mẫu Excel từ cấu hình ExcelTemplateConfig
    * @param config Cấu hình ExcelTemplateConfig
@@ -17,15 +18,58 @@ export class ExcelTemplateService {
    */
   async generateTemplateExample(config: ExcelTemplateConfig): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
-    const worksheet = this.createWorksheet(workbook, config);
-    // add example data vao file excel
+    const worksheet = workbook.addWorksheet(config.sheetName);
+
+    let headerStartRow = 1;
+
+    // --- NOTE TOP
+    if (config.note?.position === 'top') {
+      const noteRows = this.addNoteRow(worksheet, config, headerStartRow);
+      headerStartRow += noteRows; // Không nên +3 trừ khi bạn thực sự muốn trống 3 hàng
+    }
+
+    // --- Cấu hình cột (Chỉ set Key và Width, KHÔNG set Header ở đây)
+    const flatCols = config.headerGroups?.length
+      ? config.headerGroups.flatMap((g) => g.columns)
+      : config.columns;
+
+    worksheet.columns = flatCols.map((c) => ({
+      key: c.key,
+      width: c.width ?? 20,
+    }));
+
+    // --- Tạo header thủ công tại headerStartRow
+    this.createHeader(worksheet, config, headerStartRow);
+
+    // --- Thêm dữ liệu ví dụ
     if (config.exampleData?.length) {
       worksheet.addRows(config.exampleData);
+
+      // --- MERGE CELLS FOR EXAMPLE DATA
+      const flatColumns = config.headerGroups?.length
+        ? config.headerGroups.flatMap((g) => g.columns)
+        : config.columns;
+
+      const mergeColumnIndexes = flatColumns
+        .map((col, index) => (col.merge ? index + 1 : null))
+        .filter((idx): idx is number => idx !== null);
+
+      if (mergeColumnIndexes.length > 0) {
+        const dataStartRow =
+          headerStartRow + (config.headerGroups?.length ? 2 : 1);
+        this.mergeCellsByColumn(worksheet, mergeColumnIndexes, dataStartRow);
+      }
     }
-    // sau do ghi moi buffer
-    const arrayBuffer = await workbook.xlsx.writeBuffer();
-    return Buffer.from(arrayBuffer);
+    // --- NOTE BOTTOM
+    if (config.note?.position === 'bottom') {
+      const startRow = worksheet.rowCount + 2;
+      this.addNoteRow(worksheet, config, startRow);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
+
   /**
    * Xuất dữ liệu vào file Excel
    * @param config Cấu hình ExcelTemplateConfig
@@ -52,7 +96,11 @@ export class ExcelTemplateService {
     }
 
     if (mergeColumnIndexes.length > 0) {
-      const startRow = config.headerGroups?.length ? 3 : 2;
+      let headerStartRow = 1;
+      if (config.note?.position === 'top') {
+        headerStartRow += 3; // Mặc định note chiếm 3 hàng như trong addNoteRow
+      }
+      const startRow = headerStartRow + (config.headerGroups?.length ? 2 : 1);
       this.mergeCellsByColumn(worksheet, mergeColumnIndexes, startRow);
     }
 
@@ -70,15 +118,13 @@ export class ExcelTemplateService {
     config: ExcelTemplateConfig,
     file: Express.Multer.File,
   ): Promise<T[]> {
-    // Kiểm tra xem có file upload hay không
     if (!file) {
       throw new BadRequestException(this.errMsg.DONT_HAVE_FILE);
     }
 
-    // Kiểm tra xem có schema hay không
-    if (!config.schema) {
-      throw new BadRequestException('Schema không được định nghĩa');
-    }
+    // if (!config.schema) {
+    //   throw new BadRequestException('Schema không được định nghĩa');
+    // }
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(file.buffer as any);
@@ -91,27 +137,49 @@ export class ExcelTemplateService {
     const validRows: T[] = [];
     const errors: Array<{ row: number; errors: Record<string, string[]> }> = [];
 
+    // --- BƯỚC 1: XÁC ĐỊNH HÀNG HEADER VÀ HÀNG BẮT ĐẦU DỮ LIỆU ---
+    let headerRowNumber = 0;
+    const firstColumnHeader = config.columns[0].header;
+
+    // Duyệt tìm hàng có chứa text của tiêu đề cột đầu tiên
     worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return; // bỏ qua header
-      if (rowNumber === 1) return; // skip header
+      if (headerRowNumber > 0) return; // Đã tìm thấy thì bỏ qua các hàng sau
+
+      const firstCellText = (row.getCell(1).text ?? '').trim();
+      if (firstCellText === firstColumnHeader) {
+        headerRowNumber = rowNumber;
+      }
+    });
+
+    // Nếu không tìm thấy header, có thể file sai mẫu
+    if (headerRowNumber === 0) {
+      throw new BadRequestException(
+        'Cấu trúc file không đúng mẫu hoặc thiếu tiêu đề cột.',
+      );
+    }
+
+    // Dữ liệu thực tế bắt đầu từ hàng sau Header
+    const dataStartRow = headerRowNumber + 1;
+
+    // --- BƯỚC 2: CHỈ ĐỌC DỮ LIỆU TỪ HÀNG dataStartRow ---
+    worksheet.eachRow((row, rowNumber) => {
+      // Bỏ qua mọi hàng trước và bao gồm cả hàng Header
+      if (rowNumber < dataStartRow) return;
 
       try {
-        // Bỏ qua các dòng trống
-        // Skip empty rows
-        const isEmptyRow = config.columns.every((col, idx) => {
+        // Kiểm tra dòng trống
+        const isEmptyRow = config.columns.every((_, idx) => {
           const cellText = (row.getCell(idx + 1).text ?? '').trim();
           return cellText === '';
         });
 
-        if (isEmptyRow) {
-          return;
-        }
+        if (isEmptyRow) return;
 
         const rawData = config.columns.reduce(
           (acc, col, idx) => {
-            let v = (row.getCell(idx + 1).text ?? '').trim(); // ⭐ dùng text
+            let v = (row.getCell(idx + 1).text ?? '').trim();
 
-            // ⭐ FIX: nếu bị dạng `"0"` / `"abc"` thì bỏ dấu ngoặc kép
+            // Xử lý dấu ngoặc kép dư thừa nếu có
             if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) {
               v = v.slice(1, -1).trim();
             }
@@ -156,79 +224,116 @@ export class ExcelTemplateService {
 
     return validRows;
   }
-
   /**
    * Tạo worksheet từ cấu hình ExcelTemplateConfig
    * @param workbook Workbook ExcelJS
    * @param config Cấu hình ExcelTemplateConfig
    * @returns Worksheet được tạo
    */
+
   private createWorksheet(
     workbook: ExcelJS.Workbook,
     config: ExcelTemplateConfig,
-  ) {
+  ): ExcelJS.Worksheet {
     const worksheet = workbook.addWorksheet(config.sheetName);
 
-    // HEADER 2 TẦNG
+    let headerStartRow = 1;
+    if (config.note?.position === 'top') {
+      const noteRows = this.addNoteRow(worksheet, config, headerStartRow);
+      headerStartRow += noteRows; // Ví dụ: note chiếm 3 hàng, headerStartRow sẽ là 4
+    }
+
+    // --- THAY ĐỔI Ở ĐÂY: Không gán worksheet.columns trực tiếp ---
+    const flatColumns = config.headerGroups?.length
+      ? config.headerGroups.flatMap((g) => g.columns)
+      : config.columns;
+
+    // Thiết lập độ rộng cột (vẫn cần thiết nhưng không gán header ở đây)
+    worksheet.columns = flatColumns.map((c) => ({
+      key: c.key,
+      width: c.width ?? 20,
+    }));
+
     if (config.headerGroups?.length) {
-      const flatColumns = config.headerGroups.flatMap((g) => g.columns);
-
-      // Set columns 1 LẦN DUY NHẤT (key + width)
-      worksheet.columns = flatColumns.map((c) => ({
-        key: c.key,
-        width: c.width ?? 48,
-      }));
-
+      // HEADER 2 TẦNG (Logic giữ nguyên nhưng đảm bảo dùng headerStartRow)
       let colIndex = 1;
-
-      // Row 1: header lớn | Row 2: header con
       config.headerGroups.forEach((group) => {
         const startCol = colIndex;
         const endCol = colIndex + group.columns.length - 1;
 
-        worksheet.mergeCells(1, startCol, 1, endCol);
-        const groupCell = worksheet.getCell(1, startCol);
+        worksheet.mergeCells(headerStartRow, startCol, headerStartRow, endCol);
+        const groupCell = worksheet.getCell(headerStartRow, startCol);
         groupCell.value = group.title;
         this.styleGroupHeader(groupCell);
 
         group.columns.forEach((col) => {
-          const headerCell = worksheet.getCell(2, colIndex);
+          const headerCell = worksheet.getCell(headerStartRow + 1, colIndex);
           headerCell.value = col.header;
           this.styleSubHeader(headerCell);
           colIndex++;
         });
       });
+      worksheet.getRow(headerStartRow).height = 32;
+      worksheet.getRow(headerStartRow + 1).height = 28;
+      worksheet.views = [{ state: 'frozen', ySplit: headerStartRow + 1 }];
+    } else {
+      // HEADER 1 TẦNG
+      config.columns.forEach((col, index) => {
+        const cell = worksheet.getCell(headerStartRow, index + 1);
+        cell.value = col.header;
+        this.styleGroupHeader(cell);
+      });
+      worksheet.getRow(headerStartRow).height = 30;
+      worksheet.views = [{ state: 'frozen', ySplit: headerStartRow }];
+    }
+    worksheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: 'center',
+          wrapText: true,
+        };
+      });
+    });
 
-      // Height + freeze
-      worksheet.getRow(1).height = 32;
-      worksheet.getRow(2).height = 28;
-      worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+    // ... (phần style và wrap text giữ nguyên)
+    return worksheet;
+  }
 
-      // Wrap text toàn sheet
-      worksheet.eachRow((row) => {
-        row.eachCell((cell) => {
-          cell.alignment = {
-            vertical: 'middle',
-            horizontal: 'center',
-            wrapText: true,
-          };
+  private createHeader(
+    worksheet: ExcelJS.Worksheet,
+    config: ExcelTemplateConfig,
+    startRow: number,
+  ) {
+    if (config.headerGroups?.length) {
+      let colIndex = 1;
+      config.headerGroups.forEach((group) => {
+        const endCol = colIndex + group.columns.length - 1;
+        worksheet.mergeCells(startRow, colIndex, startRow, endCol);
+        const groupCell = worksheet.getCell(startRow, colIndex);
+        groupCell.value = group.title;
+        this.styleGroupHeader(groupCell);
+
+        group.columns.forEach((col) => {
+          const headerCell = worksheet.getCell(startRow + 1, colIndex);
+          headerCell.value = col.header;
+          this.styleSubHeader(headerCell);
+          colIndex++;
         });
       });
-
-      return worksheet;
+      worksheet.getRow(startRow).height = 32;
+      worksheet.getRow(startRow + 1).height = 28;
+      worksheet.views = [{ state: 'frozen', ySplit: startRow + 1 }];
+    } else {
+      // Header 1 tầng: Gán giá trị trực tiếp từng ô thay vì dùng worksheet.columns
+      config.columns.forEach((col, index) => {
+        const cell = worksheet.getCell(startRow, index + 1);
+        cell.value = col.header;
+        this.styleGroupHeader(cell);
+      });
+      worksheet.getRow(startRow).height = 30;
+      worksheet.views = [{ state: 'frozen', ySplit: startRow }];
     }
-
-    //FALLBACK HEADER 1 TẦNG
-    worksheet.columns = config.columns.map((col) => ({
-      header: col.header,
-      key: col.key,
-      width: col.width ?? 48,
-    }));
-
-    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
-    worksheet.getRow(1).eachCell((cell) => this.styleGroupHeader(cell));
-
-    return worksheet;
   }
 
   private mergeCellsByColumn(
@@ -303,5 +408,46 @@ export class ExcelTemplateService {
       bottom: { style: 'thin' },
       right: { style: 'thin' },
     };
+  }
+
+  private addNoteRow(
+    worksheet: ExcelJS.Worksheet,
+    config: ExcelTemplateConfig,
+    startRow: number,
+  ) {
+    if (!config.note) return 0;
+
+    // Lấy tổng số cột thực tế
+    const totalCols = config.headerGroups?.length
+      ? config.headerGroups.flatMap((g) => g.columns).length
+      : config.columns.length;
+
+    const rowSpan = 3;
+    // Merge từ hàng startRow đến startRow + rowSpan - 1
+    worksheet.mergeCells(startRow, 1, startRow + rowSpan - 1, totalCols);
+
+    const cell = worksheet.getCell(startRow, 1);
+    cell.value = config.note.text;
+    cell.value = config.note.text;
+
+    cell.alignment = {
+      wrapText: true,
+      vertical: 'top',
+      horizontal: 'left',
+    };
+
+    cell.font = { italic: true, size: 11 };
+
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: config.note.backgroundColor ?? 'FFF5F5F5' },
+    };
+
+    worksheet.getRow(startRow).height = config.note.height ?? 60;
+
+    // ... (style giữ nguyên)
+
+    return rowSpan;
   }
 }

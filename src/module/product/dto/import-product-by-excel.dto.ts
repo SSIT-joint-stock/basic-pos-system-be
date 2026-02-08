@@ -1,48 +1,73 @@
-import { product_status } from '@prisma/client';
-import z from 'zod';
+import {
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
-const toNumber = z.union([z.number(), z.string()]).transform((v) => {
-  if (typeof v === 'number') return v;
-  const n = Number((v ?? '').toString().replace(/[, ]+/g, ''));
-  return Number.isFinite(n) ? n : 0;
-});
+export class ImportProductItemDto {
+  @IsString()
+  @IsNotEmpty()
+  product_name: string;
 
-export const ProductStatusEnum = z.enum(product_status);
+  @IsString()
+  @IsOptional()
+  product_sku?: string;
 
-export const ImportProductRowSchema = z.object({
-  name: z.string().min(1, 'name is required'),
-  sku: z.string().min(1, 'sku is required').max(128),
-  barcode: z
-    .union([z.string(), z.number()])
-    .optional()
-    .transform((v) => (v == null ? undefined : String(v))),
-  price: toNumber.default(0),
-  cost: toNumber.default(0),
-  description: z
-    .union([z.string(), z.number()])
-    .optional()
-    .transform((v) => (v == null ? undefined : String(v))),
-  image_url: z
-    .string()
-    .url('image_url must be a valid URL')
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-  category: z.string().min(1, 'category is required'),
-  product_status: z
-    .preprocess(
-      (v) =>
-        String(v ?? 'ACTIVE')
-          .toUpperCase()
-          .trim(),
-      ProductStatusEnum,
-    )
-    .default('ACTIVE'),
-});
+  @IsString()
+  @IsNotEmpty()
+  base_unit: string;
 
-export type ImportProductRow = z.infer<typeof ImportProductRowSchema>;
+  @IsString()
+  @IsOptional()
+  category_name?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  variant_name: string;
+
+  @IsString()
+  @IsOptional()
+  variant_sku?: string;
+
+  @IsString()
+  @IsOptional()
+  barcode?: string;
+
+  @IsNumber()
+  @IsOptional()
+  price?: number;
+
+  @IsNumber()
+  @IsOptional()
+  cost?: number;
+
+  @IsNumber()
+  @IsOptional()
+  quantity?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  isStatus?: boolean;
+
+  @IsString()
+  @IsOptional()
+  msg?: string;
+}
+
+export class ImportExcelProductDto {
+  @IsArray()
+  items: ImportProductItemDto[];
+}
 
 // Dạng lỗi để trả về
 export type ImportValidationError = {
-  rowIndex: number; // dòng Excel (bắt đầu từ 2)
+  rowIndex: number;
   issues: string[];
 };
