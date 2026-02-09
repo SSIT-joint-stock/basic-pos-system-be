@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
-import { NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
@@ -41,10 +40,6 @@ export class StoreMemberExcelService {
         createdAt: 'desc',
       },
     });
-
-    if (!members.length) {
-      throw new NotFoundError('Cửa hàng chưa có thành viên');
-    }
 
     const data = members.map((member) => ({
       email: member.user?.email ?? '',

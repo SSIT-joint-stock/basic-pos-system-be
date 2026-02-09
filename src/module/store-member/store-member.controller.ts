@@ -46,7 +46,7 @@ export class StoreMemberController {
     );
   }
 
-  @Delete('delete-member/userId')
+  @Delete('delete-member/:userId')
   @RequirePermissions([PERMISSIONS.MEMBER_DELETE])
   @ApiSuccess('Xóa thành viên thành công')
   removeMemberLegacy(
