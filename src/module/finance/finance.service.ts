@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { CashTransaction, payment_method } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -49,27 +53,55 @@ export class FinanceService {
   // ========================================
   // RECEIPT OPERATIONS (Phiếu Thu)
   // ========================================
-
   /**
-   * Tạo phiếu thu mới
+   * Create a new receipt
    * @param dto - CreateReceiptDto
-   * @returns CashTransaction
+   * @param storeId - ID cửa hàng (từ current store trong token)
+   * @param createdBy - ID người tạo (từ user đang login)
+   * @param referenceId - Optional: ID đơn hàng/phiếu liên quan
+   * @param referenceType - Optional: Loại tham chiếu
    */
-  async createReceipt(dto: CreateReceiptDto): Promise<CashTransaction> {
-    return this.createReceiptUseCase.execute(dto);
+  async createReceipt(
+    dto: CreateReceiptDto,
+    storeId: string,
+    createdBy: string,
+    referenceId?: string,
+    referenceType?: string,
+  ): Promise<CashTransaction> {
+    return this.createReceiptUseCase.execute(
+      dto,
+      storeId,
+      createdBy,
+      referenceId,
+      referenceType,
+    );
   }
-
   // ========================================
   // PAYMENT OPERATIONS (Phiếu Chi)
   // ========================================
 
   /**
-   * Tạo phiếu chi mới
+   * Create a new payment
    * @param dto - CreatePaymentDto
-   * @returns CashTransaction
+   * @param storeId - ID cửa hàng (từ current store trong token)
+   * @param createdBy - ID người tạo (từ user đang login)
+   * @param referenceId - Optional: ID đơn hàng/phiếu liên quan
+   * @param referenceType - Optional: Loại tham chiếu
    */
-  async createPayment(dto: CreatePaymentDto): Promise<CashTransaction> {
-    return this.createPaymentUseCase.execute(dto);
+  async createPayment(
+    dto: CreatePaymentDto,
+    storeId: string,
+    createdBy: string,
+    referenceId?: string,
+    referenceType?: string,
+  ): Promise<CashTransaction> {
+    return this.createPaymentUseCase.execute(
+      dto,
+      storeId,
+      createdBy,
+      referenceId,
+      referenceType,
+    );
   }
 
   // ========================================
@@ -397,22 +429,30 @@ export class FinanceService {
       });
     }
 
-    // Map to CreateReceiptDto
+    // Validate customer exists
+    if (!order.customer_id) {
+      throw new BadRequestException(
+        'Không thể tạo phiếu thu: Đơn hàng không có thông tin khách hàng',
+      );
+    }
+
     const dto: CreateReceiptDto = {
-      store_id: order.store_id,
       amount: amount,
       payment_method: paymentMethod,
       transaction_source: 'SALE',
-      contact_name: order.customer_name || 'Khách lẻ',
-      contact_id: order.customer_id || undefined,
-      contact_type: order.customer_id ? 'Customer' : undefined,
+      contact_id: order.customer_id,
+      contact_type: 'Customer',
       description: `Thu tiền bán hàng đơn ${order.code || order.id}`,
-      reference_type: 'Order',
-      reference_id: orderId,
-      created_by: createdBy,
     };
 
-    return this.createReceipt(dto);
+    // Call useCase với reference_* được set internal
+
+    return this.createReceiptUseCase.executeFromOrder(
+      dto,
+      order.store_id,
+      createdBy,
+      orderId,
+    );
   }
 
   /**
@@ -447,20 +487,22 @@ export class FinanceService {
 
     // Map to CreatePaymentDto
     const dto: CreatePaymentDto = {
-      store_id: purchase.store_id,
       amount: amount,
       payment_method: paymentMethod,
       transaction_source: 'PURCHASE',
-      contact_name: purchase.supplier?.name || purchase.supplier_name,
       contact_id: purchase.supplier_id,
       contact_type: 'Supplier',
       description: `Chi tiền nhập hàng phiếu ${purchase.order_number}`,
-      reference_type: 'PurchaseOrder',
-      reference_id: purchaseOrderId,
-      created_by: createdBy,
     };
 
-    return this.createPayment(dto);
+    // ✅ ĐÚNG: Truyền đầy đủ 5 tham số
+    return this.createPayment(
+      dto, // 1. DTO
+      purchase.store_id, // 2. storeId từ purchase
+      createdBy, // 3. createdBy từ tham số
+      purchaseOrderId, // 4. referenceId
+      'PurchaseOrder', // 5. referenceType
+    );
   }
 
   /**
@@ -470,8 +512,7 @@ export class FinanceService {
    * @param amount - Số tiền chi
    * @param paymentMethod - Phương thức thanh toán
    * @returns CashTransaction
-   */
-  async createPaymentFromOrderReturn(
+   */ async createPaymentFromOrderReturn(
     orderReturnId: string,
     createdBy: string,
     amount: number,
@@ -492,23 +533,25 @@ export class FinanceService {
       });
     }
 
+    // ✅ ĐÚNG: Dùng orderReturn, không phải purchase
     const dto: CreatePaymentDto = {
-      store_id: orderReturn.store_id,
       amount: amount,
       payment_method: paymentMethod,
-      transaction_source: 'ORDER_RETURN',
-      contact_name: orderReturn.order.customer_name || 'Khách lẻ',
-      contact_id: orderReturn.order.customer_id || undefined,
-      contact_type: orderReturn.order.customer_id ? 'Customer' : undefined,
-      description: `Chi tiền trả hàng cho đơn ${orderReturn.order.code || orderReturn.order.id}`,
-      reference_type: 'OrderReturn',
-      reference_id: orderReturnId,
-      created_by: createdBy,
+      transaction_source: 'ORDER_RETURN', // ✅ ĐÚNG
+      contact_id: orderReturn.order.customer_id || orderReturn.order.id, // ✅ ĐÚNG
+      contact_type: orderReturn.order.customer_id ? 'Customer' : 'Other', // ✅ ĐÚNG
+      description: `Chi tiền trả hàng cho đơn ${orderReturn.order.code || orderReturn.order.id}`, // ✅ ĐÚNG
     };
 
-    return this.createPayment(dto);
+    // ✅ ĐÚNG: Truyền đầy đủ 5 tham số
+    return this.createPayment(
+      dto, // 1. DTO
+      orderReturn.store_id, // 2. storeId từ orderReturn (không phải purchase!)
+      createdBy, // 3. createdBy từ tham số
+      orderReturnId, // 4. referenceId (không phải purchaseOrderId!)
+      'OrderReturn', // 5. referenceType
+    );
   }
-
   /**
    * Tạo phiếu thu từ trả hàng nhập (trả NCC)
    * @param purchaseReturnId - ID đơn trả hàng nhập
@@ -558,23 +601,29 @@ export class FinanceService {
       });
     }
 
+    // Validate supplier exists
+    if (!purchaseReturn.purchase_order.supplier_id) {
+      throw new BadRequestException(
+        'Không thể tạo phiếu thu: Phiếu trả hàng không có thông tin nhà cung cấp',
+      );
+    }
+
     const dto: CreateReceiptDto = {
-      store_id: purchaseReturn.store_id,
       amount: amount,
       payment_method: paymentMethod,
       transaction_source: 'PURCHASE_RETURN',
-      contact_name:
-        purchaseReturn.purchase_order.supplier?.name ||
-        purchaseReturn.purchase_order.supplier_name,
       contact_id: purchaseReturn.purchase_order.supplier_id,
       contact_type: 'Supplier',
       description: `Thu tiền trả hàng nhập phiếu ${purchaseReturn.purchase_order.order_number}`,
-      reference_type: 'PurchaseReturn',
-      reference_id: purchaseReturnId,
-      created_by: createdBy,
     };
 
-    return this.createReceipt(dto);
+    // Call useCase với reference_* được set internal
+    return this.createReceiptUseCase.executeFromPurchaseReturn(
+      dto,
+      purchaseReturn.store_id,
+      createdBy,
+      purchaseReturnId,
+    );
   }
   // ========================================
   // STATISTICS METHODS

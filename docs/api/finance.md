@@ -68,18 +68,13 @@
 
 ```json
 {
-  "store_id": "string (UUID)",
-  "amount": "number (>= 0)",
+  "amount": "number (> 0)",
   "payment_method": "CASH | CREDIT_CARD | DEBIT_CARD | BANK_TRANSFER | DIGITAL_WALLET",
   "transaction_source": "SALE | PURCHASE_RETURN | CUSTOMER_DEBT | OTHER_INCOME | OPENING_BALANCE",
-  "contact_name": "string",
-  "description": "string",
-  "notes": "string (optional)",
-  "reference_id": "string (UUID, optional)",
-  "reference_type": "string (optional, e.g., 'Order')",
-  "contact_id": "string (UUID, optional)",
-  "contact_type": "string (optional, e.g., 'Customer')",
-  "created_by": "string (UUID)"
+  "contact_id": "string (UUID)",
+  "contact_type": "Customer | Supplier | Other",
+  "description": "string (optional)",
+  "notes": "string (optional)"
 }
 ```
 
@@ -87,18 +82,20 @@
 
 | **Tên trường**     | **Kiểu** | **Bắt buộc** | **Ghi chú**                                                                   |
 | ------------------ | -------- | ------------ | ----------------------------------------------------------------------------- |
-| store_id           | string   | ✓            | ID cửa hàng (UUID)                                                            |
-| amount             | number   | ✓            | Số tiền thu (>= 0, tối đa 999,999,999,999.99)                                 |
+| amount             | number   | ✓            | Số tiền thu (> 0, tối đa 999,999,999,999.99)                                  |
 | payment_method     | enum     | ✓            | `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`, `DIGITAL_WALLET`        |
 | transaction_source | enum     | ✓            | `SALE`, `PURCHASE_RETURN`, `CUSTOMER_DEBT`, `OTHER_INCOME`, `OPENING_BALANCE` |
-| contact_name       | string   | ✓            | Tên người nộp tiền                                                            |
-| description        | string   | ✓            | Lý do thu tiền                                                                |
+| contact_id         | string   | ✓            | ID khách hàng/nhà cung cấp (UUID)                                             |
+| contact_type       | string   | ✓            | `Customer`, `Supplier`, `Other`                                               |
+| description        | string   |              | Lý do thu tiền                                                                |
 | notes              | string   |              | Ghi chú thêm                                                                  |
-| reference_id       | string   |              | ID đơn hàng/phiếu liên quan (UUID)                                            |
-| reference_type     | string   |              | Loại tham chiếu (`Order`, `PurchaseReturn`...)                                |
-| contact_id         | string   |              | ID khách hàng/nhà cung cấp (UUID)                                             |
-| contact_type       | string   |              | `Customer`, `Supplier`, `Other`                                               |
-| created_by         | string   | ✓            | ID người tạo (UUID)                                                           |
+
+**LƯU Ý QUAN TRỌNG:**
+
+- ❌ **KHÔNG** truyền `store_id` - Hệ thống tự động lấy từ `currentStoreId` trong access token
+- ❌ **KHÔNG** truyền `created_by` - Hệ thống tự động lấy từ `user.id` trong access token
+- ❌ **KHÔNG** truyền `contact_name` - Hệ thống tự động query từ database dựa trên `contact_id` và `contact_type`
+- ❌ **KHÔNG** truyền `reference_id`, `reference_type` - Chỉ set tự động từ module khác (Order, PurchaseReturn...)
 
 ### 1.3 Dữ liệu đầu ra
 
@@ -124,8 +121,8 @@
     "contact_type": "Customer",
     "description": "Thu tiền bán hàng",
     "notes": null,
-    "reference_type": "Order",
-    "reference_id": "order-uuid",
+    "reference_type": null,
+    "reference_id": null,
     "status": "CONFIRMED",
     "transaction_date": "2025-02-07T10:30:00.000Z",
     "created_by": "user-uuid",
@@ -144,7 +141,7 @@
 
 **Error Response:**
 
-- **400 Bad Request – Dữ liệu không hợp lệ**
+- **400 Bad Request – Số tiền không hợp lệ**
 
 ```json
 {
@@ -152,10 +149,8 @@
   "error": {
     "code": "BAD_REQUEST",
     "message": "Số tiền thu phải lớn hơn 0",
-    "details": {
-      "field": "amount",
-      "value": 0
-    }
+    "field": "amount",
+    "value": 0
   },
   "meta": {
     "timestamp": "2025-02-07T10:30:00.000Z",
@@ -164,18 +159,16 @@
 }
 ```
 
-- **404 Not Found – Không tìm thấy cửa hàng**
+- **404 Not Found – Không tìm thấy khách hàng**
 
 ```json
 {
   "success": false,
   "error": {
     "code": "NOT_FOUND",
-    "message": "Không tìm thấy cửa hàng",
-    "details": {
-      "field": "store_id",
-      "value": "invalid-uuid"
-    }
+    "message": "Không tìm thấy khách hàng",
+    "field": "contact_id",
+    "value": "invalid-uuid"
   },
   "meta": {
     "timestamp": "2025-02-07T10:30:00.000Z",
@@ -202,18 +195,13 @@
 
 ```json
 {
-  "store_id": "string (UUID)",
-  "amount": "number (>= 0)",
+  "amount": "number (> 0)",
   "payment_method": "CASH | CREDIT_CARD | DEBIT_CARD | BANK_TRANSFER | DIGITAL_WALLET",
   "transaction_source": "PURCHASE | ORDER_RETURN | SUPPLIER_DEBT | OTHER_EXPENSE",
-  "contact_name": "string",
-  "description": "string",
-  "notes": "string (optional)",
-  "reference_id": "string (UUID, optional)",
-  "reference_type": "string (optional)",
-  "contact_id": "string (UUID, optional)",
-  "contact_type": "string (optional)",
-  "created_by": "string (UUID)"
+  "contact_id": "string (UUID)",
+  "contact_type": "Customer | Supplier | Other",
+  "description": "string (optional)",
+  "notes": "string (optional)"
 }
 ```
 
@@ -221,18 +209,13 @@
 
 | **Tên trường**     | **Kiểu** | **Bắt buộc** | **Ghi chú**                                                            |
 | ------------------ | -------- | ------------ | ---------------------------------------------------------------------- |
-| store_id           | string   | ✓            | ID cửa hàng (UUID)                                                     |
-| amount             | number   | ✓            | Số tiền chi (>= 0, tối đa 999,999,999,999.99)                          |
+| amount             | number   | ✓            | Số tiền chi (> 0, tối đa 999,999,999,999.99)                           |
 | payment_method     | enum     | ✓            | `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`, `DIGITAL_WALLET` |
 | transaction_source | enum     | ✓            | `PURCHASE`, `ORDER_RETURN`, `SUPPLIER_DEBT`, `OTHER_EXPENSE`           |
-| contact_name       | string   | ✓            | Tên người nhận tiền                                                    |
-| description        | string   | ✓            | Lý do chi tiền                                                         |
+| contact_id         | string   | ✓            | ID khách hàng/nhà cung cấp (UUID)                                      |
+| contact_type       | string   | ✓            | `Customer`, `Supplier`, `Other`                                        |
+| description        | string   |              | Lý do chi tiền                                                         |
 | notes              | string   |              | Ghi chú thêm                                                           |
-| reference_id       | string   |              | ID đơn nhập/phiếu liên quan (UUID)                                     |
-| reference_type     | string   |              | `PurchaseOrder`, `OrderReturn`...                                      |
-| contact_id         | string   |              | ID khách hàng/nhà cung cấp (UUID)                                      |
-| contact_type       | string   |              | `Customer`, `Supplier`, `Other`                                        |
-| created_by         | string   | ✓            | ID người tạo (UUID)                                                    |
 
 ### 2.3 Dữ liệu đầu ra
 
@@ -258,8 +241,8 @@
     "contact_type": "Supplier",
     "description": "Chi tiền nhập hàng",
     "notes": null,
-    "reference_type": "PurchaseOrder",
-    "reference_id": "purchase-uuid",
+    "reference_type": null,
+    "reference_id": null,
     "status": "CONFIRMED",
     "transaction_date": "2025-02-07T11:00:00.000Z",
     "created_by": "user-uuid",

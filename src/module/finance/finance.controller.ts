@@ -10,7 +10,12 @@ import {
   HttpCode,
   HttpStatus,
   Res,
+  Request, // ← THÊM
+  BadRequestException, // ← THÊM
+  UnauthorizedException, // ← THÊM
 } from '@nestjs/common';
+
+import type { Request as ExpressRequest } from 'express';
 import type { Response } from 'express';
 import {
   ApiTags,
@@ -51,6 +56,18 @@ export class FinanceController {
     summary: 'Tạo phiếu thu mới',
     description: 'Tạo phiếu thu tiền mặt vào quỹ (PT00001, PT00002...)',
   })
+  @ApiQuery({
+    name: 'reference_id',
+    required: false,
+    description: 'ID đơn hàng/phiếu liên quan (UUID)',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'reference_type',
+    required: false,
+    description: 'Loại tham chiếu (Order, PurchaseOrder, OrderReturn...)',
+    enum: ['Order', 'PurchaseOrder', 'OrderReturn', 'PurchaseReturn'],
+  })
   @ApiResponse({
     status: 201,
     description: 'Phiếu thu đã được tạo thành công',
@@ -61,25 +78,57 @@ export class FinanceController {
   })
   @ApiResponse({
     status: 404,
-    description: 'Không tìm thấy cửa hàng',
+    description: 'Không tìm thấy cửa hàng hoặc reference',
   })
-  async createReceipt(@Body() dto: CreateReceiptDto) {
-    return this.financeService.createReceipt(dto);
-  }
+  async createReceipt(
+    @Body() dto: CreateReceiptDto,
+    @Query('reference_id') referenceId?: string,
+    @Query('reference_type') referenceType?: string,
+    @Request() req?: ExpressRequest,
+  ) {
+    // Lấy store_id từ current store trong token
+    const storeId = (req?.user as any)?.currentStoreId;
+    if (!storeId) {
+      throw new BadRequestException(
+        'Vui lòng chọn cửa hàng trước khi tạo phiếu thu',
+      );
+    }
 
+    // Lấy user_id từ token
+    const userId = (req?.user as any)?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Không xác định được người dùng');
+    }
+
+    return this.financeService.createReceipt(
+      dto,
+      storeId,
+      userId,
+      referenceId,
+      referenceType,
+    );
+  }
   // ========================================
   // PAYMENT ENDPOINTS (Phiếu Chi)
   // ========================================
 
-  /**
-   * Tạo phiếu chi mới
-   * POST /finance/payments
-   */
   @Post('payments')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Tạo phiếu chi mới',
     description: 'Tạo phiếu chi tiền mặt ra khỏi quỹ (PC00001, PC00002...)',
+  })
+  @ApiQuery({
+    name: 'reference_id',
+    required: false,
+    description: 'ID đơn hàng/phiếu liên quan (UUID)',
+    type: String,
+  })
+  @ApiQuery({
+    name: 'reference_type',
+    required: false,
+    description: 'Loại tham chiếu (PurchaseOrder, OrderReturn...)',
+    enum: ['PurchaseOrder', 'OrderReturn'],
   })
   @ApiResponse({
     status: 201,
@@ -91,12 +140,36 @@ export class FinanceController {
   })
   @ApiResponse({
     status: 404,
-    description: 'Không tìm thấy cửa hàng',
+    description: 'Không tìm thấy cửa hàng hoặc reference',
   })
-  async createPayment(@Body() dto: CreatePaymentDto) {
-    return this.financeService.createPayment(dto);
-  }
+  async createPayment(
+    @Body() dto: CreatePaymentDto,
+    @Query('reference_id') referenceId?: string,
+    @Query('reference_type') referenceType?: string,
+    @Request() req?: ExpressRequest,
+  ) {
+    // Lấy store_id từ current store trong token
+    const storeId = (req?.user as any)?.currentStoreId;
+    if (!storeId) {
+      throw new BadRequestException(
+        'Vui lòng chọn cửa hàng trước khi tạo phiếu chi',
+      );
+    }
 
+    // Lấy user_id từ token
+    const userId = (req?.user as any)?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Không xác định được người dùng');
+    }
+
+    return this.financeService.createPayment(
+      dto,
+      storeId,
+      userId,
+      referenceId,
+      referenceType,
+    );
+  }
   // ========================================
   // TRANSACTION CRUD ENDPOINTS
   // ========================================

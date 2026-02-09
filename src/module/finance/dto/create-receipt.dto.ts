@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsUUID,
   Min,
+  Max,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { transaction_source, payment_method } from '@prisma/client';
@@ -13,24 +14,24 @@ import { transaction_source, payment_method } from '@prisma/client';
 /**
  * DTO để tạo phiếu thu mới
  * Dùng khi: Thu tiền bán hàng, thu công nợ, thu khác
+ *
+ * LƯU Ý:
+ * - store_id: Lấy từ current store trong access token (không cần truyền)
+ * - contact_name: Lấy từ database dựa trên contact_id (không cần truyền)
+ * - created_by: Lấy từ user đang login trong token (không cần truyền)
+ * - reference_id, reference_type: Chỉ set tự động từ module khác (không cho phép truyền)
  */
 export class CreateReceiptDto {
-  @ApiProperty({
-    description: 'ID cửa hàng',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsNotEmpty({ message: 'ID cửa hàng không được để trống' })
-  @IsUUID('4', { message: 'ID cửa hàng không hợp lệ' })
-  store_id: string;
-
   @ApiProperty({
     description: 'Số tiền thu (VNĐ)',
     example: 500000,
     minimum: 0,
+    maximum: 999999999999.99,
   })
   @IsNotEmpty({ message: 'Số tiền thu không được để trống' })
   @IsNumber({}, { message: 'Số tiền thu phải là số' })
   @Min(0, { message: 'Số tiền thu phải lớn hơn hoặc bằng 0' })
+  @Max(999999999999.99, { message: 'Số tiền thu vượt quá giới hạn' })
   amount: number;
 
   @ApiProperty({
@@ -52,20 +53,33 @@ export class CreateReceiptDto {
   transaction_source: transaction_source;
 
   @ApiProperty({
-    description: 'Tên người nộp tiền',
-    example: 'Nguyễn Văn A',
+    description:
+      'ID khách hàng/nhà cung cấp (hệ thống sẽ tự động lấy tên từ database)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsNotEmpty({ message: 'Tên người nộp tiền không được để trống' })
-  @IsString({ message: 'Tên người nộp tiền phải là chuỗi' })
-  contact_name: string;
+  @IsNotEmpty({ message: 'ID liên hệ không được để trống' })
+  @IsUUID('4', { message: 'ID liên hệ không hợp lệ' })
+  contact_id: string;
+
+  @ApiProperty({
+    description: 'Loại người liên hệ',
+    enum: ['Customer', 'Supplier', 'Other'],
+    example: 'Customer',
+  })
+  @IsNotEmpty({ message: 'Loại liên hệ không được để trống' })
+  @IsEnum(['Customer', 'Supplier', 'Other'], {
+    message: 'Loại liên hệ phải là Customer, Supplier, hoặc Other',
+  })
+  contact_type: string;
 
   @ApiProperty({
     description: 'Lý do thu tiền',
-    example: 'Thu tiền bán hàng đơn DH00001',
+    example: 'Thu tiền bán hàng',
+    required: false,
   })
-  @IsNotEmpty({ message: 'Lý do thu tiền không được để trống' })
+  @IsOptional()
   @IsString({ message: 'Lý do thu tiền phải là chuỗi' })
-  description: string;
+  description?: string;
 
   @ApiProperty({
     description: 'Ghi chú thêm',
@@ -75,48 +89,4 @@ export class CreateReceiptDto {
   @IsOptional()
   @IsString({ message: 'Ghi chú phải là chuỗi' })
   notes?: string;
-
-  @ApiProperty({
-    description: 'ID đơn hàng/phiếu liên quan',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-    required: false,
-  })
-  @IsOptional()
-  @IsUUID('4', { message: 'ID tham chiếu không hợp lệ' })
-  reference_id?: string;
-
-  @ApiProperty({
-    description: 'Loại tham chiếu (Order, PurchaseOrder, OrderReturn...)',
-    example: 'Order',
-    required: false,
-  })
-  @IsOptional()
-  @IsString({ message: 'Loại tham chiếu phải là chuỗi' })
-  reference_type?: string;
-
-  @ApiProperty({
-    description: 'ID khách hàng/nhà cung cấp',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-    required: false,
-  })
-  @IsOptional()
-  @IsUUID('4', { message: 'ID liên hệ không hợp lệ' })
-  contact_id?: string;
-
-  @ApiProperty({
-    description: 'Loại người liên hệ (Customer, Supplier, Other)',
-    example: 'Customer',
-    required: false,
-  })
-  @IsOptional()
-  @IsString({ message: 'Loại liên hệ phải là chuỗi' })
-  contact_type?: string;
-
-  @ApiProperty({
-    description: 'ID người tạo phiếu',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsNotEmpty({ message: 'ID người tạo không được để trống' })
-  @IsUUID('4', { message: 'ID người tạo không hợp lệ' })
-  created_by: string;
 }
