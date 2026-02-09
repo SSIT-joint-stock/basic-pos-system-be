@@ -21,6 +21,7 @@ import {
 import { RequirePermissions } from 'app/common/decorators/permission.decorator';
 import { NotFoundError, PaginatedResponse } from 'app/common/response';
 import { PERMISSIONS } from 'app/common/types/permission.type';
+import { UpdateInfoMemberDto } from 'app/module/store-member/dto/update-info-member.dto';
 import z from 'zod';
 import { AddExistingMemberDto } from './dto/add-existing-member.dto';
 import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
@@ -117,6 +118,22 @@ export class StoreMemberController {
     return this.storeMemberService.getMemberDetail(
       user.storeId || '',
       memberUserId,
+      user,
+    );
+  }
+
+  @Patch('update/:memberId')
+  @RequirePermissions([PERMISSIONS.MEMBER_UPDATE])
+  @ApiSuccess('Cập nhật thông t thành viên thành công')
+  updateInfoMember(
+    @Param('memberId') memberUserId: string,
+    @Body() dto: UpdateInfoMemberDto,
+    @User() user: IUser,
+  ) {
+    return this.storeMemberService.updateMemberInfo(
+      user.storeId || '',
+      memberUserId,
+      dto,
       user,
     );
   }

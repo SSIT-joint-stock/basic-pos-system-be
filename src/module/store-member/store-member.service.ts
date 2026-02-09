@@ -9,6 +9,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from 'app/common/response';
+import { UpdateInfoMemberDto } from 'app/module/store-member/dto/update-info-member.dto';
 import { AddExistingMemberDto } from './dto/add-existing-member.dto';
 import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
@@ -48,6 +49,7 @@ export class StoreMemberService {
     USERNAME_ALREADY_EXISTS: 'Tên đăng nhập đã tồn tại trong hệ thống',
     PASSWORD_CONFIRM_NOT_MATCH: 'Mật khẩu và xác nhận mật khẩu không khớp',
   };
+  // USER ALWAYS IS SOURCE OF TRUTH
   async addExistingUserToStore(
     storeId: string,
     dto: AddExistingMemberDto,
@@ -238,6 +240,41 @@ export class StoreMemberService {
             email: true,
           },
         },
+      },
+    });
+  }
+  async updateMemberInfo(
+    storeId: string,
+    memberUserId: string,
+    dto: UpdateInfoMemberDto,
+    owner: IUser,
+  ) {
+    // 1. Only store owner can update member role
+    const isOwner = await this.checkIsOwner(storeId, owner.id);
+    if (!isOwner) {
+      throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_UPDATE_ROLE);
+    }
+
+    const updated = await this.prismaService.user.update({
+      where: {
+        id: memberUserId,
+      },
+      data: {
+        username: dto.username,
+        email: dto.email,
+      },
+    });
+    if (!updated) throw new NotFoundError(this.errMsg.MEMBER_NOT_FOUND);
+    await this.prismaService.storeMember.update({
+      where: {
+        storeId_userId: {
+          storeId,
+          userId: memberUserId,
+        },
+      },
+      data: {
+        name: updated.username,
+        email: updated.email,
       },
     });
   }
