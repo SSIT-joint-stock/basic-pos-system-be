@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
-import { ForbiddenError, NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
@@ -23,23 +22,8 @@ export class StoreMemberExcelService {
   }
 
   async exportStoreMembers(storeId: string, user: IUser) {
-    // Check user có thuộc store không
-
-    const storeMember = await this.prisma.storeMember.findFirst({
-      where: {
-        storeId,
-        userId: user.id,
-      },
-    });
-
-    if (!storeMember) {
-      throw new ForbiddenError(
-        'Bạn không có quyền export thành viên của cửa hàng này',
-      );
-    }
-
+    await this.checkIsOwner(storeId, user.id);
     // Lấy danh sách member của store
-
     const members = await this.prisma.storeMember.findMany({
       where: {
         storeId,
@@ -57,10 +41,6 @@ export class StoreMemberExcelService {
       },
     });
 
-    if (!members.length) {
-      throw new NotFoundError('Cửa hàng chưa có thành viên');
-    }
-
     const data = members.map((member) => ({
       email: member.user?.email ?? '',
       username: member.user?.username ?? '',
@@ -69,5 +49,18 @@ export class StoreMemberExcelService {
     }));
 
     return this.excelService.exportData(STORE_MEMBER_EXCEL_TEMPLATE, data);
+  }
+  private async checkIsOwner(
+    storeId: string,
+    ownerId: string,
+  ): Promise<boolean> {
+    const hasAccess = await this.prisma.store.findFirst({
+      where: {
+        id: storeId,
+        owner_id: ownerId,
+      },
+    });
+
+    return !!hasAccess;
   }
 }

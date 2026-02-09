@@ -40,7 +40,7 @@ export const STORE_MEMBER_EXCEL_TEMPLATE: ExcelTemplateConfig = {
   fileName: 'thanh_vien_cua_hang.xlsx',
   columns: [
     { header: 'Email*', key: 'email', width: 40 },
-    { header: 'Tên người dùng', key: 'username', width: 30 },
+    { header: 'Tên đăng nhập', key: 'username', width: 30 },
     { header: 'Vai trò*', key: 'role', width: 25 },
     { header: 'Ngày tham gia', key: 'createdAt', width: 30 },
   ],
