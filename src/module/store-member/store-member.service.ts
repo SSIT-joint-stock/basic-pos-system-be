@@ -26,6 +26,8 @@ export class StoreMemberService {
       'Chỉ chủ cửa hàng mới có quyền xoá thành viên',
     ONLY_OWNER_CAN_UPDATE_ROLE:
       'Chỉ chủ cửa hàng mới có quyền cập nhật vai trò thành viên',
+    ONLY_OWNER_CAN_UPDATE_INFO:
+      'Chỉ chủ cửa hàng mới có quyền cập nhật thông tin thành viên',
     ONLY_OWNER_CAN_VIEW_MEMBERS:
       'Chỉ chủ cửa hàng mới có quyền xem danh sách thành viên',
     ONLY_OWNER_CAN_VIEW_MEMBER_DETAIL:
@@ -48,6 +50,7 @@ export class StoreMemberService {
     EMAIL_ALREADY_EXISTS: 'Email đã tồn tại trong hệ thống',
     USERNAME_ALREADY_EXISTS: 'Tên đăng nhập đã tồn tại trong hệ thống',
     PASSWORD_CONFIRM_NOT_MATCH: 'Mật khẩu và xác nhận mật khẩu không khớp',
+    USER_ALREADY_EXISTS: 'Email hoặc tên đăng nhập đã tồn tại',
   };
   // USER ALWAYS IS SOURCE OF TRUTH
   async addExistingUserToStore(
@@ -252,19 +255,27 @@ export class StoreMemberService {
     // 1. Only store owner can update member role
     const isOwner = await this.checkIsOwner(storeId, owner.id);
     if (!isOwner) {
-      throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_UPDATE_ROLE);
+      throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_UPDATE_INFO);
     }
-
-    const updated = await this.prismaService.user.update({
+    const user = await this.prismaService.user.findUnique({
       where: {
         id: memberUserId,
+      },
+    });
+    if (!user) {
+      throw new NotFoundError(this.errMsg.MEMBER_NOT_FOUND);
+    }
+    await this.validateUserDoesNotExist(dto.email, dto.username, user.id);
+    const updated = await this.prismaService.user.update({
+      where: {
+        id: user.id,
       },
       data: {
         username: dto.username,
         email: dto.email,
       },
     });
-    if (!updated) throw new NotFoundError(this.errMsg.MEMBER_NOT_FOUND);
+
     await this.prismaService.storeMember.update({
       where: {
         storeId_userId: {
@@ -430,5 +441,22 @@ export class StoreMemberService {
     });
 
     return !!hasAccess;
+  }
+
+  private async validateUserDoesNotExist(
+    email: string,
+    username: string,
+    id: string,
+  ) {
+    const user = await this.prismaService.user.findFirst({
+      where: {
+        OR: [{ email }, { username }],
+        NOT: { id: id },
+      },
+    });
+
+    if (user) {
+      throw new ConflictError(this.errMsg.USER_ALREADY_EXISTS);
+    }
   }
 }

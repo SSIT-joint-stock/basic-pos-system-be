@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   Res,
 } from '@nestjs/common';
 import { ApiSuccess } from 'app/common/decorators';
@@ -47,11 +46,11 @@ export class StoreMemberController {
     );
   }
 
-  @Delete('delete-member')
+  @Delete('delete-member/userId')
   @RequirePermissions([PERMISSIONS.MEMBER_DELETE])
   @ApiSuccess('Xóa thành viên thành công')
   removeMemberLegacy(
-    @Query('userId') memberUserId: string,
+    @Param('userId') memberUserId: string,
     @User() user: IUser,
   ) {
     if (!user.storeId) throw new NotFoundError('User not in store');
@@ -108,31 +107,28 @@ export class StoreMemberController {
     );
   }
 
-  @Get('members/:memberUserId')
+  @Get('members/:userId')
   @RequirePermissions([PERMISSIONS.MEMBER_READ])
   @ApiSuccess('Lấy thông tin thành viên trong cửa hàng thành công')
-  getMemberDetail(
-    @Param('memberUserId') memberUserId: string,
-    @User() user: IUser,
-  ) {
+  getMemberDetail(@Param('userId') userId: string, @User() user: IUser) {
     return this.storeMemberService.getMemberDetail(
       user.storeId || '',
-      memberUserId,
+      userId,
       user,
     );
   }
 
-  @Patch('update/:memberId')
+  @Patch('update/:userId')
   @RequirePermissions([PERMISSIONS.MEMBER_UPDATE])
-  @ApiSuccess('Cập nhật thông t thành viên thành công')
+  @ApiSuccess('Cập nhật thông tin thành viên thành công')
   updateInfoMember(
-    @Param('memberId') memberUserId: string,
+    @Param('userId') userId: string,
     @Body() dto: UpdateInfoMemberDto,
     @User() user: IUser,
   ) {
     return this.storeMemberService.updateMemberInfo(
       user.storeId || '',
-      memberUserId,
+      userId,
       dto,
       user,
     );
