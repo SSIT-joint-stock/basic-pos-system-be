@@ -75,7 +75,7 @@ export class OrdersService {
           },
         },
       });
-      await this.prisma.storeMember.update({
+      await tx.storeMember.update({
         where: {
           storeId_userId: {
             storeId,

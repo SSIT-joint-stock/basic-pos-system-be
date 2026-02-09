@@ -11,6 +11,7 @@ import type { IUser } from 'app/common/types/user.type';
 import { ReportCustomerService } from 'app/module/report/customer/report-customer.service';
 import { ExportReportService } from 'app/module/report/export-report.service';
 import { ReportOrderItemService } from 'app/module/report/order-item/report-order-item.service';
+import { ReportStoreMemberService } from 'app/module/report/store-member/store-member-reprot.service';
 import { ReportSupplierService } from 'app/module/report/supplier/report-supplier.service';
 import express from 'express';
 import z from 'zod';
@@ -21,6 +22,7 @@ export class ReportController {
     private readonly reportCustomer: ReportCustomerService,
     private readonly reportSupplier: ReportSupplierService,
     private readonly reportOrderItem: ReportOrderItemService,
+    private readonly reportStoreMember: ReportStoreMemberService,
     private readonly excel: ExportReportService,
   ) {}
 
@@ -135,6 +137,38 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('store-members')
+  async getReportStoreMembers(
+    @User() user: IUser,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt'],
+      searchBy: ['name', 'email'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportStoreMember.getReportStoreMembers(
+      user,
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
   // excel
   @Get('/excel/suppliers')
   async exportExcelSuppliers(
@@ -170,6 +204,25 @@ export class ReportController {
     @User() user: IUser,
   ) {
     const buffer = await this.excel.exportReportOrderItems(user.storeId || '');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=order-items.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
+
+  @Get('/excel/store-members')
+  async exportExcelStoreMembers(
+    @Res() res: express.Response,
+    @User() user: IUser,
+  ) {
+    const buffer = await this.excel.exportReportStoreMembers(
+      user.storeId || '',
+    );
     res.setHeader(
       'Content-Disposition',
       'attachment; filename=order-items.xlsx',
