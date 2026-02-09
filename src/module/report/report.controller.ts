@@ -25,9 +25,8 @@ export class ReportController {
     private readonly reportStoreMember: ReportStoreMemberService,
     private readonly excel: ExportReportService,
   ) {}
-
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('suppliers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportSuppliers(
     @User() user: IUser,
     @FilterParse({
@@ -58,8 +57,8 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('supplier/:supplierId')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportSupplier(
     @Param('supplierId') supplierId: string,
     @Query('limit') limit: number,
@@ -73,8 +72,8 @@ export class ReportController {
     );
   }
 
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('customers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportCustomer(
     @User() user: IUser,
     @FilterParse({
@@ -105,8 +104,8 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('order-items')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportOrderItems(
     @User() user: IUser,
     @FilterParse({
@@ -137,8 +136,8 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('store-members')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportStoreMembers(
     @User() user: IUser,
     @FilterParse({
@@ -168,9 +167,19 @@ export class ReportController {
     );
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
+  @Get('store-member/:memberId')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  async getReportStoreMember(
+    @Param('memberId') memberId: string,
+    @User() user: IUser,
+  ) {
+    if (!user.storeId) return [];
+    return this.reportStoreMember.getReportStoreMemberDetails(user, memberId);
+  }
 
   // excel
   @Get('/excel/suppliers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async exportExcelSuppliers(
     @Res() res: express.Response,
     @User() user: IUser,
@@ -185,6 +194,7 @@ export class ReportController {
   }
 
   @Get('/excel/customers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async exportExcelCustomers(
     @Res() res: express.Response,
     @User() user: IUser,
@@ -199,6 +209,7 @@ export class ReportController {
   }
 
   @Get('/excel/order-items')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async exportExcelOrderItems(
     @Res() res: express.Response,
     @User() user: IUser,
@@ -216,6 +227,7 @@ export class ReportController {
   }
 
   @Get('/excel/store-members')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async exportExcelStoreMembers(
     @Res() res: express.Response,
     @User() user: IUser,

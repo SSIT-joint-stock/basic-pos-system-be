@@ -12,7 +12,10 @@ export class ReportStoreMemberService {
     query: Prisma.StoreMemberFindFirstArgs,
   ) {
     if (!user.storeId) return { data: [], total: 0 };
-    await this.checkStore(user.storeId);
+    await Promise.all([
+      this.checkIsOwner(user.id, user.storeId),
+      this.checkStore(user.storeId),
+    ]);
     const where: Prisma.StoreMemberWhereInput = {
       AND: [query.where ?? {}, { storeId: user.storeId }],
     };
@@ -59,6 +62,33 @@ export class ReportStoreMemberService {
       total,
     };
   }
+  async getReportStoreMemberDetails(user: IUser, memberId: string) {
+    if (!user.storeId) return;
+    await Promise.all([
+      this.checkIsOwner(user.id, user.storeId),
+      this.checkStore(user.storeId),
+    ]);
+
+    const member = await this.prisma.storeMember.findFirst({
+      where: {
+        userId: memberId,
+      },
+    });
+    if (!member) throw new NotFoundError('Không tìm thấy thông tin nhân viên');
+    const orderCreatedByMember = await this.prisma.storeMember.findFirst({
+      where: {
+        userId: member.userId,
+      },
+      include: {
+        user: {
+          include: {
+            orders_cashier: true,
+          },
+        },
+      },
+    });
+    return orderCreatedByMember;
+  }
   private async checkStore(storeId: string) {
     const store = await this.prisma.store.findUnique({
       where: {
@@ -67,5 +97,15 @@ export class ReportStoreMemberService {
     });
     if (!store) throw new NotFoundError('Không tìm thấy cửa hàng');
     return store;
+  }
+  private async checkIsOwner(ownerId: string, storeId: string) {
+    const hasAccess = await this.prisma.store.findFirst({
+      where: {
+        id: storeId,
+        owner_id: ownerId,
+      },
+    });
+
+    return !!hasAccess;
   }
 }
