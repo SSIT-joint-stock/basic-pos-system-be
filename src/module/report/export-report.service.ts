@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { order_status, Prisma } from '@prisma/client';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -16,6 +16,10 @@ import {
   REPORT_SUPPLIERS_EXCEL_TEMPLATE,
   ReportSupplierExcel,
 } from 'app/shared/excel-template/template/report-supplier';
+import {
+  REPORT_STORE_MEMBER_EXCEL_TEMPLATE,
+  ReportStoreMemberExcel,
+} from 'app/shared/excel-template/template/rerport-store-member';
 
 type SupplierWithOrders = Prisma.SupplierGetPayload<{
   include: { purchase_orders: true };
@@ -28,6 +32,18 @@ type OrderItemWithOrder = Prisma.OrderItemGetPayload<{
     order: { include: { customer: true } };
     variant: true;
     product: true;
+  };
+}>;
+
+type StoreMemberWithUser = Prisma.StoreMemberGetPayload<{
+  include: {
+    user: {
+      include: {
+        orders_cashier: true;
+        username: true;
+        email: true;
+      };
+    };
   };
 }>;
 
@@ -94,6 +110,25 @@ export class ExportReportService {
     const rows = this.flattenOrderItemData(orderItems);
     return this.excelService.exportData(
       REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
+      rows,
+    );
+  }
+  async exportReportStoreMembers(storeId: string) {
+    const storeMembers = await this.prisma.storeMember.findMany({
+      where: {
+        storeId: storeId,
+      },
+      include: {
+        user: {
+          include: {
+            orders_cashier: true,
+          },
+        },
+      },
+    });
+    const rows = this.flattenStoreMemberData(storeMembers);
+    return this.excelService.exportData(
+      REPORT_STORE_MEMBER_EXCEL_TEMPLATE,
       rows,
     );
   }
@@ -168,6 +203,36 @@ export class ExportReportService {
         quantity: item.quantity,
         price: this.format.formatCurrency(item.price),
         line_total: this.format.formatCurrency(item.total),
+      });
+    });
+
+    return rows;
+  }
+
+  private flattenStoreMemberData(storeMembers: StoreMemberWithUser[]) {
+    const rows: ReportStoreMemberExcel[] = [];
+
+    storeMembers.forEach((member) => {
+      rows.push({
+        member_name: member.user.username || '',
+        member_email: member.user.email || '',
+        total_orders: member.user.orders_cashier.length.toString(),
+        total_order_success: member.user.orders_cashier
+          .filter((order) => order.status === order_status.COMPLETED)
+          .length.toString(),
+        total_order_price: this.format.formatCurrency(
+          member.user.orders_cashier.reduce(
+            (total, order) => total + order.total_amount,
+            0,
+          ),
+        ),
+        total_price_amount: this.format.formatCurrency(
+          member.user.orders_cashier.reduce(
+            (total, order) => total + order.customer_pay_amount,
+            0,
+          ),
+        ),
+        created_at: this.format.formatDate(member.createdAt),
       });
     });
 

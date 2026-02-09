@@ -11,6 +11,7 @@ import type { IUser } from 'app/common/types/user.type';
 import { ReportCustomerService } from 'app/module/report/customer/report-customer.service';
 import { ExportReportService } from 'app/module/report/export-report.service';
 import { ReportOrderItemService } from 'app/module/report/order-item/report-order-item.service';
+import { ReportStoreMemberService } from 'app/module/report/store-member/store-member-reprot.service';
 import { ReportSupplierService } from 'app/module/report/supplier/report-supplier.service';
 import express from 'express';
 import z from 'zod';
@@ -21,11 +22,11 @@ export class ReportController {
     private readonly reportCustomer: ReportCustomerService,
     private readonly reportSupplier: ReportSupplierService,
     private readonly reportOrderItem: ReportOrderItemService,
+    private readonly reportStoreMember: ReportStoreMemberService,
     private readonly excel: ExportReportService,
   ) {}
-
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('suppliers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportSuppliers(
     @User() user: IUser,
     @FilterParse({
@@ -56,8 +57,8 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('supplier/:supplierId')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportSupplier(
     @Param('supplierId') supplierId: string,
     @Query('limit') limit: number,
@@ -71,8 +72,8 @@ export class ReportController {
     );
   }
 
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('customers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportCustomer(
     @User() user: IUser,
     @FilterParse({
@@ -103,8 +104,8 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
-  @RequirePermission([PERMISSIONS.REPORT_READ])
   @Get('order-items')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async getReportOrderItems(
     @User() user: IUser,
     @FilterParse({
@@ -135,8 +136,50 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
+  @Get('store-members')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  async getReportStoreMembers(
+    @User() user: IUser,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt'],
+      searchBy: ['name', 'email'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportStoreMember.getReportStoreMembers(
+      user,
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+  @Get('store-member/:memberId')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  async getReportStoreMember(
+    @Param('memberId') memberId: string,
+    @User() user: IUser,
+  ) {
+    if (!user.storeId) return [];
+    return this.reportStoreMember.getReportStoreMemberDetails(user, memberId);
+  }
+
   // excel
   @Get('/excel/suppliers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async exportExcelSuppliers(
     @Res() res: express.Response,
     @User() user: IUser,
@@ -151,6 +194,7 @@ export class ReportController {
   }
 
   @Get('/excel/customers')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async exportExcelCustomers(
     @Res() res: express.Response,
     @User() user: IUser,
@@ -165,11 +209,32 @@ export class ReportController {
   }
 
   @Get('/excel/order-items')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
   async exportExcelOrderItems(
     @Res() res: express.Response,
     @User() user: IUser,
   ) {
     const buffer = await this.excel.exportReportOrderItems(user.storeId || '');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=order-items.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
+
+  @Get('/excel/store-members')
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  async exportExcelStoreMembers(
+    @Res() res: express.Response,
+    @User() user: IUser,
+  ) {
+    const buffer = await this.excel.exportReportStoreMembers(
+      user.storeId || '',
+    );
     res.setHeader(
       'Content-Disposition',
       'attachment; filename=order-items.xlsx',
