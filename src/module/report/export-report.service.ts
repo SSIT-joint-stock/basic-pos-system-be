@@ -16,7 +16,10 @@ import {
   REPORT_SUPPLIERS_EXCEL_TEMPLATE,
   ReportSupplierExcel,
 } from 'app/shared/excel-template/template/report-supplier';
-import { ReportStoreMemberExcel } from 'app/shared/excel-template/template/rerport-store-member';
+import {
+  REPORT_STORE_MEMBER_EXCEL_TEMPLATE,
+  ReportStoreMemberExcel,
+} from 'app/shared/excel-template/template/rerport-store-member';
 
 type SupplierWithOrders = Prisma.SupplierGetPayload<{
   include: { purchase_orders: true };
@@ -124,7 +127,10 @@ export class ExportReportService {
       },
     });
     const rows = this.flattenStoreMemberData(storeMembers);
-    return this.excelService.exportData(REPORT_CUSTOMERS_EXCEL_TEMPLATE, rows);
+    return this.excelService.exportData(
+      REPORT_STORE_MEMBER_EXCEL_TEMPLATE,
+      rows,
+    );
   }
   private flattenSupplierData(suppliers: SupplierWithOrders[]) {
     const rows: ReportSupplierExcel[] = [];

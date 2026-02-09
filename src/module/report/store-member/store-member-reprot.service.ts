@@ -81,7 +81,7 @@ export class ReportStoreMemberService {
       },
       include: {
         user: {
-          include: {
+          select: {
             orders_cashier: true,
           },
         },
