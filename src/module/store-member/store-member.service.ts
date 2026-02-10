@@ -1,17 +1,18 @@
-import { PrismaService } from 'app/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { IUser } from 'app/common/types/user.type';
+import { PrismaService } from 'app/prisma/prisma.service';
 
-import { StoreMemberRole } from '@prisma/client';
+import { Prisma, StoreMemberRole } from '@prisma/client';
+import { BcryptService } from 'app/common/helpers/bcrypt.util';
 import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
 } from 'app/common/response';
-import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
-import { BcryptService } from 'app/common/helpers/bcrypt.util';
-import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { UpdateInfoMemberDto } from 'app/module/store-member/dto/update-info-member.dto';
 import { AddExistingMemberDto } from './dto/add-existing-member.dto';
+import { CreateAndAddMemberDto } from './dto/create-and-add-member.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Injectable()
 export class StoreMemberService {
@@ -25,6 +26,8 @@ export class StoreMemberService {
       'Chỉ chủ cửa hàng mới có quyền xoá thành viên',
     ONLY_OWNER_CAN_UPDATE_ROLE:
       'Chỉ chủ cửa hàng mới có quyền cập nhật vai trò thành viên',
+    ONLY_OWNER_CAN_UPDATE_INFO:
+      'Chỉ chủ cửa hàng mới có quyền cập nhật thông tin thành viên',
     ONLY_OWNER_CAN_VIEW_MEMBERS:
       'Chỉ chủ cửa hàng mới có quyền xem danh sách thành viên',
     ONLY_OWNER_CAN_VIEW_MEMBER_DETAIL:
@@ -47,7 +50,9 @@ export class StoreMemberService {
     EMAIL_ALREADY_EXISTS: 'Email đã tồn tại trong hệ thống',
     USERNAME_ALREADY_EXISTS: 'Tên đăng nhập đã tồn tại trong hệ thống',
     PASSWORD_CONFIRM_NOT_MATCH: 'Mật khẩu và xác nhận mật khẩu không khớp',
+    USER_ALREADY_EXISTS: 'Email hoặc tên đăng nhập đã tồn tại',
   };
+  // USER ALWAYS IS SOURCE OF TRUTH
   async addExistingUserToStore(
     storeId: string,
     dto: AddExistingMemberDto,
@@ -98,6 +103,8 @@ export class StoreMemberService {
         storeId,
         userId: user.id,
         role: StoreMemberRole.MEMBER,
+        name: user.username,
+        email: user.email,
       },
       include: {
         user: {
@@ -167,6 +174,8 @@ export class StoreMemberService {
         storeId,
         userId: user.id,
         role: StoreMemberRole.MEMBER,
+        name: user.username,
+        email: user.email,
       },
       include: {
         user: {
@@ -237,34 +246,112 @@ export class StoreMemberService {
       },
     });
   }
-
-  // get members
-  async getMembers(storeId: string, currentUser: IUser) {
-    const isOwner = await this.checkIsOwner(storeId, currentUser.id);
+  async updateMemberInfo(
+    storeId: string,
+    memberUserId: string,
+    dto: UpdateInfoMemberDto,
+    owner: IUser,
+  ) {
+    // 1. Only store owner can update member role
+    const isOwner = await this.checkIsOwner(storeId, owner.id);
     if (!isOwner) {
-      throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_VIEW_MEMBERS);
+      throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_UPDATE_INFO);
     }
-
-    // 2. Get all members in store
-    const members = await this.prismaService.storeMember.findMany({
+    const user = await this.prismaService.user.findUnique({
       where: {
-        storeId,
+        id: memberUserId,
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
+    });
+    if (!user) {
+      throw new NotFoundError(this.errMsg.MEMBER_NOT_FOUND);
+    }
+    await this.validateUserDoesNotExist(dto.email, dto.username, user.id);
+    const updated = await this.prismaService.user.update({
+      where: {
+        id: user.id,
       },
-      orderBy: {
-        createdAt: 'asc',
+      data: {
+        username: dto.username,
+        email: dto.email,
       },
     });
 
-    return members;
+    await this.prismaService.storeMember.update({
+      where: {
+        storeId_userId: {
+          storeId,
+          userId: memberUserId,
+        },
+      },
+      data: {
+        name: updated.username,
+        email: updated.email,
+      },
+    });
+  }
+
+  // get members
+  // async getMembers(storeId: string, currentUser: IUser) {
+  //   const isOwner = await this.checkIsOwner(storeId, currentUser.id);
+  //   if (!isOwner) {
+  //     throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_VIEW_MEMBERS);
+  //   }
+
+  //   // 2. Get all members in store
+  //   const members = await this.prismaService.storeMember.findMany({
+  //     where: {
+  //       storeId,
+  //     },
+  //     include: {
+  //       user: {
+  //         select: {
+  //           id: true,
+  //           username: true,
+  //           email: true,
+  //         },
+  //       },
+  //     },
+  //     orderBy: {
+  //       createdAt: 'asc',
+  //     },
+  //   });
+
+  //   return members;
+  // }
+  async getMembers(
+    store_id: string,
+    query: Prisma.StoreMemberFindManyArgs,
+    user: IUser,
+  ) {
+    const isOwner = await this.checkIsOwner(store_id, user.id);
+    if (!isOwner) {
+      throw new ForbiddenError(this.errMsg.ONLY_OWNER_CAN_VIEW_MEMBERS);
+    }
+    const where: Prisma.StoreMemberWhereInput = {
+      AND: [query.where ?? {}],
+    };
+
+    const [memberInfo, total] = await Promise.all([
+      this.prismaService.storeMember.findMany({
+        where,
+        skip: query.skip,
+        take: query.take,
+        orderBy: query.orderBy,
+        include: {
+          user: {
+            select: {
+              username: true,
+              email: true,
+            },
+          },
+        },
+      }),
+      this.prismaService.storeMember.count({
+        where,
+      }),
+    ]);
+
+    return { data: memberInfo, total };
   }
   //get member detail
   async getMemberDetail(storeId: string, memberUserId: string, owner: IUser) {
@@ -354,5 +441,22 @@ export class StoreMemberService {
     });
 
     return !!hasAccess;
+  }
+
+  private async validateUserDoesNotExist(
+    email: string,
+    username: string,
+    id: string,
+  ) {
+    const user = await this.prismaService.user.findFirst({
+      where: {
+        OR: [{ email }, { username }],
+        NOT: { id: id },
+      },
+    });
+
+    if (user) {
+      throw new ConflictError(this.errMsg.USER_ALREADY_EXISTS);
+    }
   }
 }

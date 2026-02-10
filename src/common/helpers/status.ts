@@ -6,6 +6,7 @@ import {
   product_status,
   purchase_order_status,
   StoreMemberRole,
+  transaction_status,
 } from '@prisma/client';
 
 @Injectable()
@@ -71,5 +72,15 @@ export class FormatStatus {
       SOLD: 'Hết hàng',
     };
     return map[status];
+  }
+
+  // ===== TRANSACTION STATUS =====
+  transactionStatus(status: transaction_status): string {
+    const labels = {
+      PENDING: 'Chờ duyệt',
+      CONFIRMED: 'Đã duyệt',
+      CANCELLED: 'Đã hủy',
+    };
+    return labels[status] || status;
   }
 }

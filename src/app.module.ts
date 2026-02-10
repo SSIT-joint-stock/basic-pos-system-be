@@ -59,6 +59,9 @@ import { AssetsModule } from './assets/assets.module';
 import { PurchaseReturnModule } from './module/purchase-return/purchase-return.module';
 import { OrderReturnModule } from './module/order-return/order-return.module';
 
+import { FinanceModule } from './module/finance/finance.module';
+import { CatalogModule } from './module/catalog/catalog.module';
+
 @Module({
   imports: [
     ServeStaticModule.forRoot(
@@ -141,6 +144,9 @@ import { OrderReturnModule } from './module/order-return/order-return.module';
     AssetsModule,
     PurchaseReturnModule,
     OrderReturnModule,
+    FinanceModule,
+
+    CatalogModule,
   ],
   providers: [
     TokenService,

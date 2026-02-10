@@ -1,7 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { order_status, Prisma, stock_movement_type } from '@prisma/client';
+import {
+  order_status,
+  payment_method as PaymentMethod,
+  Prisma,
+  stock_movement_type,
+  StoreMemberRole,
+} from '@prisma/client';
 import { NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
+import { FinanceService } from 'app/module/finance/finance.service';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ApplyStockUseCase } from '../variant/use-case/apply-stock.usecase';
 import { PricingService } from './../../shared/usecase/order-price.usecase';
@@ -12,6 +19,7 @@ import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
+    private financeService: FinanceService,
     private generateOrderCode: GenerateOrderCodeUseCase,
     private applyStock: ApplyStockUseCase,
     private readonly pricingService: PricingService,
@@ -25,7 +33,6 @@ export class OrdersService {
       payment_method,
       order_items = [],
     } = dto;
-    console.log(order_items);
 
     const pricing = this.pricingService.calcOrderTotals(
       order_items.map((i) => ({
@@ -76,10 +83,44 @@ export class OrdersService {
           },
         },
       });
+      // update store member record total
+      const member = await tx.storeMember.findUnique({
+        where: {
+          storeId_userId: {
+            storeId,
+            userId: user.id,
+          },
+        },
+      });
 
+      if (member && member.role !== StoreMemberRole.OWNER) {
+        await tx.storeMember.update({
+          where: {
+            storeId_userId: {
+              storeId,
+              userId: user.id,
+            },
+          },
+          data: {
+            total_order: {
+              increment: pricing.total_amount,
+            },
+          },
+        });
+      }
+
+      // update record cash-book
       for (const item of order_items) {
         await this.handleStockChange(storeId, item, tx);
       }
+
+      await this.financeService.createReceiptFromOrder(
+        order.id,
+        user.id,
+        Math.min(customer_pay_amount, pricing.total_amount),
+        payment_method || PaymentMethod.CASH,
+        tx,
+      );
 
       return { order, orderId: order.id };
     });

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, purchase_return_status } from '@prisma/client';
+import { order_status, Prisma, purchase_return_status } from '@prisma/client';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -9,13 +9,13 @@ import {
   ReportCustomerExcel,
 } from 'app/shared/excel-template/template/report-customer';
 import {
-  REPORT_ORDER_RETURN_EXCEL_TEMPLATE,
-  ReportOrderReturnExcel,
-} from 'app/shared/excel-template/template/report-order-return';
-import {
   REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
   ReportOrderItemExcel,
 } from 'app/shared/excel-template/template/report-order-item';
+import {
+  REPORT_ORDER_RETURN_EXCEL_TEMPLATE,
+  ReportOrderReturnExcel,
+} from 'app/shared/excel-template/template/report-order-return';
 import {
   REPORT_PURCHASE_INVOICE_EXCEL_TEMPLATE,
   ReportPurchaseInvoiceExcel,
@@ -36,6 +36,10 @@ import {
   REPORT_SUPPLIERS_EXCEL_TEMPLATE,
   ReportSupplierExcel,
 } from 'app/shared/excel-template/template/report-supplier';
+import {
+  REPORT_STORE_MEMBER_EXCEL_TEMPLATE,
+  ReportStoreMemberExcel,
+} from 'app/shared/excel-template/template/rerport-store-member';
 
 type SupplierWithOrders = Prisma.SupplierGetPayload<{
   include: { purchase_orders: true };
@@ -48,6 +52,18 @@ type OrderItemWithOrder = Prisma.OrderItemGetPayload<{
     order: { include: { customer: true } };
     variant: true;
     product: true;
+  };
+}>;
+
+type StoreMemberWithUser = Prisma.StoreMemberGetPayload<{
+  include: {
+    user: {
+      include: {
+        orders_cashier: true;
+        username: true;
+        email: true;
+      };
+    };
   };
 }>;
 type VariantStockWithVariant = Prisma.VariantStockGetPayload<{
@@ -157,6 +173,25 @@ export class ExportReportService {
     const rows = this.flattenOrderItemData(orderItems);
     return this.excelService.exportData(
       REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
+      rows,
+    );
+  }
+  async exportReportStoreMembers(storeId: string) {
+    const storeMembers = await this.prisma.storeMember.findMany({
+      where: {
+        storeId: storeId,
+      },
+      include: {
+        user: {
+          include: {
+            orders_cashier: true,
+          },
+        },
+      },
+    });
+    const rows = this.flattenStoreMemberData(storeMembers);
+    return this.excelService.exportData(
+      REPORT_STORE_MEMBER_EXCEL_TEMPLATE,
       rows,
     );
   }
@@ -368,6 +403,36 @@ export class ExportReportService {
     return rows;
   }
 
+  private flattenStoreMemberData(storeMembers: StoreMemberWithUser[]) {
+    const rows: ReportStoreMemberExcel[] = [];
+
+    storeMembers.forEach((member) => {
+      rows.push({
+        member_name: member.user.username || '',
+        member_email: member.user.email || '',
+        total_orders: member.user.orders_cashier.length.toString(),
+        total_order_success: member.user.orders_cashier
+          .filter((order) => order.status === order_status.COMPLETED)
+          .length.toString(),
+        total_order_price: this.format.formatCurrency(
+          member.user.orders_cashier.reduce(
+            (total, order) => total + order.total_amount,
+            0,
+          ),
+        ),
+        total_price_amount: this.format.formatCurrency(
+          member.user.orders_cashier.reduce(
+            (total, order) => total + order.customer_pay_amount,
+            0,
+          ),
+        ),
+        created_at: this.format.formatDate(member.createdAt),
+      });
+    });
+
+    return rows;
+  }
+
   private flattenStockData(stocks: VariantStockWithVariant[]) {
     const rows: ReportStockExcel[] = [];
 
@@ -396,9 +461,7 @@ export class ExportReportService {
     purchaseItems: PurchaseOrderItemWithOrder[],
     orderItems: OrderItemWithOrderInfo[],
   ) {
-    const rows: Array<
-      ReportStockLedgerExcel & { rawDate: Date }
-    > = [];
+    const rows: Array<ReportStockLedgerExcel & { rawDate: Date }> = [];
 
     purchaseItems.forEach((item) => {
       const quantity = Number(item.total_base_qty ?? item.quantity ?? 0);
@@ -441,7 +504,7 @@ export class ExportReportService {
       return b.rawDate.getTime() - a.rawDate.getTime();
     });
 
-    return rows.map(({ rawDate, ...row }, index) => ({
+    return rows.map(({ ...row }, index) => ({
       ...row,
       stt: index + 1,
     }));
@@ -461,7 +524,9 @@ export class ExportReportService {
         payment_status: this.status.paymentStatus(
           item.purchase_return.payment_status,
         ),
-        total_return: this.format.formatCurrency(item.purchase_return.total ?? 0),
+        total_return: this.format.formatCurrency(
+          item.purchase_return.total ?? 0,
+        ),
         variant_name: item.variant?.name || item.item_name || '',
         product_name: item.product?.name || '',
         base_unit: item.product?.baseUnit || '',
@@ -543,7 +608,7 @@ export class ExportReportService {
 
     rows.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
 
-    return rows.map(({ rawDate, ...row }) => row);
+    return rows.map(({ ...row }) => row);
   }
 
   private formatPurchaseReturnStatus(status: purchase_return_status) {
