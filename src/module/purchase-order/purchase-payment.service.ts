@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, purchase_order_status } from '@prisma/client';
+import { payment_method, Prisma, purchase_order_status } from '@prisma/client';
 import { BadRequestError, NotFoundError } from 'app/common/response';
+import { FinanceService } from 'app/module/finance/finance.service';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { AcceptPaymentImportPurchaseDto } from './dto/accept-payment-puchase.dto';
 
 @Injectable()
 export class PurchasePaymentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financeService: FinanceService,
+  ) {}
   private readonly errMsg = {
     PURCHASE_ORDER_NOT_FOUND: 'Không tìm thấy đơn nhập hàng',
     INVALID_PAYMENT_AMOUNT: 'Số tiền thanh toán không hợp lệ',
@@ -81,6 +85,14 @@ export class PurchasePaymentService {
           },
         },
       });
+      // create  payment cash-book
+      await this.financeService.createPaymentFromPurchase(
+        purchaseOrder.id,
+        purchaseOrder.created_by,
+        Number(purchaseOrder.total),
+        purchaseOrder.payment_method || payment_method.CASH,
+        tx,
+      );
       return {
         purchase_order_id: id,
         order_number: purchaseOrder.order_number,

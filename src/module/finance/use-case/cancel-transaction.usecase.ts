@@ -1,10 +1,10 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+import { CashTransaction, Prisma, transaction_status } from '@prisma/client';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { CashTransaction } from '@prisma/client';
 import { SyncCashBookUseCase } from './sync-cash-book.usecase';
 
 /**
@@ -26,9 +26,14 @@ export class CancelTransactionUseCase {
    * @param cancelledBy - ID người hủy
    * @returns CashTransaction đã hủy
    */
-  async execute(id: string, cancelledBy: string): Promise<CashTransaction> {
+  async execute(
+    id: string,
+    cancelledBy: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<CashTransaction> {
+    const prisma = tx || this.prisma;
     // 1. Find transaction
-    const transaction = await this.prisma.cashTransaction.findUnique({
+    const transaction = await prisma.cashTransaction.findUnique({
       where: { id },
     });
 
@@ -41,7 +46,7 @@ export class CancelTransactionUseCase {
     }
 
     // 2. Validate can cancel
-    if (transaction.status === 'CANCELLED') {
+    if (transaction.status === transaction_status.CANCELLED) {
       throw new BadRequestException({
         message: 'Giao dịch đã bị hủy trước đó',
         field: 'status',
@@ -50,10 +55,10 @@ export class CancelTransactionUseCase {
     }
 
     // 3. Cancel transaction
-    const cancelledTransaction = await this.prisma.cashTransaction.update({
+    const cancelledTransaction = await prisma.cashTransaction.update({
       where: { id },
       data: {
-        status: 'CANCELLED',
+        status: transaction_status.CANCELLED,
         cancelled_by: cancelledBy,
       },
       include: {
@@ -67,8 +72,8 @@ export class CancelTransactionUseCase {
     });
 
     // 4. Re-sync cash book
-    this.syncCashBookUseCase
-      .syncForDate(transaction.store_id, transaction.transaction_date)
+    await this.syncCashBookUseCase
+      .syncForDate(transaction.store_id, transaction.transaction_date, tx)
       .catch((error) => {
         console.error('Failed to sync cash book:', error);
       });

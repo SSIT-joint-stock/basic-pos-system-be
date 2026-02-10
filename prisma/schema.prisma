@@ -148,11 +148,26 @@ enum transaction_source {
   OPENING_BALANCE   // Số dư đầu kỳ
 }
 
+enum TransactionReferenceType {
+  ORDER
+  PURCHASE_ORDER
+  ORDER_RETURN
+  PURCHASE_RETURN
+  OTHER
+}
+
 // Trạng thái giao dịch
 enum transaction_status {
   PENDING    // Chờ xác nhận
   CONFIRMED  // Đã xác nhận
   CANCELLED  // Đã hủy
+}
+
+enum contact_type {
+  CUSTOMER
+  SUPPLIER
+  OTHER
+  STORE_MEMBER
 }
 
 enum supplier_status {
@@ -1061,12 +1076,13 @@ model CashTransaction {
   amount              Decimal             @db.Decimal(15, 2)
   payment_method      payment_method
   
-  reference_type      String?
+  reference_type      TransactionReferenceType?
   reference_id        String?             @db.Uuid
+  reference_code      String?
   
-  contact_type        String?
+  contact_type        contact_type?
   contact_id          String?             @db.Uuid
-  contact_name        String
+  contact_name        String?
   
   description         String
   notes               String?
@@ -1087,7 +1103,7 @@ model CashTransaction {
   @@index([store_id, transaction_type])
   @@index([store_id, code])
   @@index([reference_type, reference_id])
-  @@index([contact_type, contact_id])
+  @@index([contact_type])
   @@map("cash_transaction")
 }
 

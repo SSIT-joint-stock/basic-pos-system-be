@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { BadRequestError, NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
+import { FinanceService } from 'app/module/finance/finance.service';
 import { AcceptPaymentReturn } from 'app/module/order-return/dto/accept-payment-return.dto';
 import { AcceptQuantityReturnDto } from 'app/module/order-return/dto/accept-quantity-return.dto';
 import { OrderReturnDto } from 'app/module/order-return/dto/order-return.dto';
@@ -25,6 +26,7 @@ export class OrderReturnService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly generateReturnNumber: GenerateReturnOrderUseCase,
+    private readonly financeService: FinanceService,
     private readonly pricingService: PricingService,
     private readonly applyStock: ApplyStockUseCase,
   ) {}
@@ -174,6 +176,12 @@ export class OrderReturnService {
           notes: dto.notes,
         },
       });
+      await this.financeService.createPaymentFromOrderReturn(
+        orderReturn.id,
+        orderReturn.created_id,
+        Number(dto.amount) || Number(orderReturn.suggest_total),
+        dto.payment_method,
+      );
     });
   }
 

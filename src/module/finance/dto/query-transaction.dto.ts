@@ -1,36 +1,26 @@
-import {
-  IsOptional,
-  IsUUID,
-  IsEnum,
-  IsDateString,
-  IsString,
-  IsInt,
-  Min,
-  Max,
-} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  transaction_type,
+  payment_method,
   transaction_source,
   transaction_status,
-  payment_method,
+  transaction_type,
 } from '@prisma/client';
 import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 /**
  * DTO để query/filter danh sách giao dịch
  * Dùng cho API: GET /finance/transactions
  */
 export class QueryTransactionDto {
-  @ApiProperty({
-    description: 'ID cửa hàng',
-    required: false,
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @IsOptional()
-  @IsUUID('4', { message: 'ID cửa hàng không hợp lệ' })
-  store_id?: string;
-
   @ApiProperty({
     description: 'Loại giao dịch',
     enum: transaction_type,

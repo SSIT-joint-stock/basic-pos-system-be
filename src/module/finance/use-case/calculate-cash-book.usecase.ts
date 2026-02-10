@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'app/prisma/prisma.service';
-import { CashBookEntry } from '@prisma/client';
+import {
+  CashBookEntry,
+  Prisma,
+  transaction_status,
+  transaction_type,
+} from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaService } from 'app/prisma/prisma.service';
 
 /**
  * UseCase: Tính toán sổ quỹ cho một ngày
@@ -20,7 +25,12 @@ export class CalculateCashBookUseCase {
    * @param date - Ngày cần tính toán
    * @returns CashBookEntry đã được tạo/cập nhật
    */
-  async calculateForDate(storeId: string, date: Date): Promise<CashBookEntry> {
+  async calculateForDate(
+    storeId: string,
+    date: Date,
+    tx?: Prisma.TransactionClient,
+  ): Promise<CashBookEntry> {
+    const prisma = tx || this.prisma;
     // Chuẩn hóa date về đầu ngày (00:00:00)
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -32,7 +42,7 @@ export class CalculateCashBookUseCase {
     const previousDay = new Date(startOfDay);
     previousDay.setDate(previousDay.getDate() - 1);
 
-    const previousEntry = await this.prisma.cashBookEntry.findUnique({
+    const previousEntry = await prisma.cashBookEntry.findUnique({
       where: {
         store_id_date: {
           store_id: storeId,
@@ -46,11 +56,11 @@ export class CalculateCashBookUseCase {
       : new Decimal(0);
 
     // 2. Tính tổng thu trong ngày (chỉ CONFIRMED)
-    const receiptsResult = await this.prisma.cashTransaction.aggregate({
+    const receiptsResult = await prisma.cashTransaction.aggregate({
       where: {
         store_id: storeId,
-        transaction_type: 'RECEIPT',
-        status: 'CONFIRMED',
+        transaction_type: transaction_type.RECEIPT,
+        status: transaction_status.CONFIRMED,
         transaction_date: {
           gte: startOfDay,
           lte: endOfDay,
@@ -64,11 +74,11 @@ export class CalculateCashBookUseCase {
     const totalReceipts = receiptsResult._sum.amount || new Decimal(0);
 
     // 3. Tính tổng chi trong ngày (chỉ CONFIRMED)
-    const paymentsResult = await this.prisma.cashTransaction.aggregate({
+    const paymentsResult = await prisma.cashTransaction.aggregate({
       where: {
         store_id: storeId,
-        transaction_type: 'PAYMENT',
-        status: 'CONFIRMED',
+        transaction_type: transaction_type.PAYMENT,
+        status: transaction_status.CONFIRMED,
         transaction_date: {
           gte: startOfDay,
           lte: endOfDay,
@@ -87,7 +97,7 @@ export class CalculateCashBookUseCase {
       .minus(totalPayments);
 
     // 5. Upsert CashBookEntry
-    const cashBookEntry = await this.prisma.cashBookEntry.upsert({
+    const cashBookEntry = await prisma.cashBookEntry.upsert({
       where: {
         store_id_date: {
           store_id: storeId,
@@ -118,9 +128,13 @@ export class CalculateCashBookUseCase {
    * @param storeId - ID cửa hàng
    * @returns Số dư hiện tại
    */
-  async getCurrentBalance(storeId: string): Promise<Decimal> {
+  async getCurrentBalance(
+    storeId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Decimal> {
+    const prisma = tx || this.prisma;
     // Lấy entry gần nhất
-    const latestEntry = await this.prisma.cashBookEntry.findFirst({
+    const latestEntry = await prisma.cashBookEntry.findFirst({
       where: {
         store_id: storeId,
       },
@@ -135,19 +149,19 @@ export class CalculateCashBookUseCase {
 
     // Nếu chưa có entry nào, tính từ tất cả transactions
     const [receiptsSum, paymentsSum] = await Promise.all([
-      this.prisma.cashTransaction.aggregate({
+      prisma.cashTransaction.aggregate({
         where: {
           store_id: storeId,
-          transaction_type: 'RECEIPT',
-          status: 'CONFIRMED',
+          transaction_type: transaction_type.RECEIPT,
+          status: transaction_status.CONFIRMED,
         },
         _sum: { amount: true },
       }),
-      this.prisma.cashTransaction.aggregate({
+      prisma.cashTransaction.aggregate({
         where: {
           store_id: storeId,
-          transaction_type: 'PAYMENT',
-          status: 'CONFIRMED',
+          transaction_type: transaction_type.PAYMENT,
+          status: transaction_status.CONFIRMED,
         },
         _sum: { amount: true },
       }),

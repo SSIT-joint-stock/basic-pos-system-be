@@ -1,36 +1,40 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'app/prisma/prisma.service';
-import { CashTransaction, payment_method } from '@prisma/client';
+import {
+  CashTransaction,
+  contact_type,
+  payment_method,
+  Prisma,
+  transaction_source,
+  transaction_type,
+  TransactionReferenceType,
+} from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaService } from 'app/prisma/prisma.service';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
 import {
-  TRANSACTIONS_EXCEL_TEMPLATE,
   CASH_BOOK_EXCEL_TEMPLATE,
+  TRANSACTIONS_EXCEL_TEMPLATE,
 } from 'app/shared/excel-template/template/finance-excel-template';
-import {
-  transaction_type,
-  transaction_source,
-  transaction_status,
-} from '@prisma/client';
 // DTOs
-import { CreateReceiptDto } from './dto/create-receipt.dto';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { QueryTransactionDto } from './dto/query-transaction.dto';
 import { CashBookQueryDto } from './dto/cash-book-query.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateReceiptDto } from './dto/create-receipt.dto';
+import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
 // UseCases
-import { GenerateTransactionCodeUseCase } from './use-case/generate-transaction-code.usecase';
-import { CreateReceiptUseCase } from './use-case/create-receipt.usecase';
-import { CreatePaymentUseCase } from './use-case/create-payment.usecase';
-import { UpdateTransactionUseCase } from './use-case/update-transaction.usecase';
-import { CancelTransactionUseCase } from './use-case/cancel-transaction.usecase';
+import { Format } from 'app/common/helpers/format';
+import { FormatStatus } from 'app/common/helpers/status';
 import { CalculateCashBookUseCase } from './use-case/calculate-cash-book.usecase';
+import { CancelTransactionUseCase } from './use-case/cancel-transaction.usecase';
+import { CreatePaymentUseCase } from './use-case/create-payment.usecase';
+import { CreateReceiptUseCase } from './use-case/create-receipt.usecase';
+import { GenerateTransactionCodeUseCase } from './use-case/generate-transaction-code.usecase';
 import { SyncCashBookUseCase } from './use-case/sync-cash-book.usecase';
+import { UpdateTransactionUseCase } from './use-case/update-transaction.usecase';
 
 /**
  * Finance Service - Orchestration Layer
@@ -48,6 +52,8 @@ export class FinanceService {
     private readonly calculateCashBookUseCase: CalculateCashBookUseCase,
     private readonly syncCashBookUseCase: SyncCashBookUseCase,
     private readonly excelTemplateService: ExcelTemplateService,
+    private readonly format: Format,
+    private readonly status: FormatStatus,
   ) {}
 
   // ========================================
@@ -66,7 +72,9 @@ export class FinanceService {
     storeId: string,
     createdBy: string,
     referenceId?: string,
-    referenceType?: string,
+    referenceType?: TransactionReferenceType,
+    referenceCode?: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
     return this.createReceiptUseCase.execute(
       dto,
@@ -74,6 +82,8 @@ export class FinanceService {
       createdBy,
       referenceId,
       referenceType,
+      referenceCode,
+      tx,
     );
   }
   // ========================================
@@ -93,7 +103,9 @@ export class FinanceService {
     storeId: string,
     createdBy: string,
     referenceId?: string,
-    referenceType?: string,
+    referenceType?: TransactionReferenceType,
+    referenceCode?: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
     return this.createPaymentUseCase.execute(
       dto,
@@ -101,6 +113,8 @@ export class FinanceService {
       createdBy,
       referenceId,
       referenceType,
+      referenceCode,
+      tx,
     );
   }
 
@@ -138,68 +152,23 @@ export class FinanceService {
   }
 
   /**
-   * Lấy danh sách giao dịch với filter và pagination
-   * @param query - QueryTransactionDto
-   * @returns Paginated transactions
+   * Lấy danh sách giao dịch với filter và pagination (Refactored for FilterParse)
+   * @param storeId - ID cửa hàng
+   * @param prismaQuery - Prisma query args from FilterParse
    */
-  async getTransactions(query: QueryTransactionDto) {
-    const {
-      store_id,
-      transaction_type,
-      transaction_source,
-      status,
-      payment_method,
-      from_date,
-      to_date,
-      search,
-      page = 1,
-      limit = 20,
-    } = query;
+  async getTransactions(
+    storeId: string,
+    prismaQuery: Prisma.CashTransactionFindManyArgs,
+  ) {
+    const where = {
+      ...prismaQuery.where,
+      store_id: storeId,
+    };
 
-    // Build where clause
-    const where: any = {};
-
-    if (store_id) where.store_id = store_id;
-    if (transaction_type) where.transaction_type = transaction_type;
-    if (transaction_source) where.transaction_source = transaction_source;
-    if (status) where.status = status;
-    if (payment_method) where.payment_method = payment_method;
-
-    // Date range filter
-    if (from_date || to_date) {
-      where.transaction_date = {};
-      if (from_date) {
-        where.transaction_date.gte = new Date(from_date);
-      }
-      if (to_date) {
-        const endDate = new Date(to_date);
-        endDate.setHours(23, 59, 59, 999);
-        where.transaction_date.lte = endDate;
-      }
-    }
-
-    // Search filter (code, contact_name, description)
-    if (search) {
-      where.OR = [
-        { code: { contains: search, mode: 'insensitive' } },
-        { contact_name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    // Pagination
-    const skip = (page - 1) * limit;
-    const take = limit;
-
-    // Execute queries
     const [transactions, total] = await Promise.all([
       this.prisma.cashTransaction.findMany({
+        ...prismaQuery,
         where,
-        skip,
-        take,
-        orderBy: {
-          transaction_date: 'desc',
-        },
         include: {
           store: {
             select: {
@@ -211,15 +180,11 @@ export class FinanceService {
       }),
       this.prisma.cashTransaction.count({ where }),
     ]);
+    console.log(transactions);
 
     return {
       data: transactions,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      total,
     };
   }
 
@@ -232,8 +197,9 @@ export class FinanceService {
   async updateTransaction(
     id: string,
     dto: UpdateTransactionDto,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
-    return this.updateTransactionUseCase.execute(id, dto);
+    return this.updateTransactionUseCase.execute(id, dto, tx);
   }
 
   /**
@@ -245,8 +211,9 @@ export class FinanceService {
   async cancelTransaction(
     id: string,
     cancelledBy: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
-    return this.cancelTransactionUseCase.execute(id, cancelledBy);
+    return this.cancelTransactionUseCase.execute(id, cancelledBy, tx);
   }
 
   /**
@@ -258,8 +225,10 @@ export class FinanceService {
   async approveTransaction(
     id: string,
     approvedBy: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
-    const transaction = await this.prisma.cashTransaction.findUnique({
+    const prisma = tx || this.prisma;
+    const transaction = await prisma.cashTransaction.findUnique({
       where: { id },
     });
 
@@ -271,7 +240,7 @@ export class FinanceService {
       });
     }
 
-    const updatedTransaction = await this.prisma.cashTransaction.update({
+    const updatedTransaction = await prisma.cashTransaction.update({
       where: { id },
       data: {
         status: 'CONFIRMED',
@@ -289,7 +258,7 @@ export class FinanceService {
 
     // Re-sync cash book
     this.syncCashBookUseCase
-      .syncForDate(transaction.store_id, transaction.transaction_date)
+      .syncForDate(transaction.store_id, transaction.transaction_date, tx)
       .catch((error) => {
         console.error('Failed to sync cash book:', error);
       });
@@ -302,14 +271,15 @@ export class FinanceService {
   // ========================================
 
   /**
-   * Lấy báo cáo sổ quỹ
+   * Lấy báo cáo sổ quỹ tiền mặt
+   * @param storeId - ID cửa hàng
    * @param query - CashBookQueryDto
-   * @returns Cash book entries
+   * @returns Cash book report
    */
-  async getCashBook(query: CashBookQueryDto) {
-    const { store_id, from_date, to_date } = query;
+  async getCashBook(storeId: string, query: CashBookQueryDto) {
+    const { from_date, to_date } = query;
 
-    const where: any = { store_id };
+    const where: Prisma.CashBookEntryWhereInput = { store_id: storeId };
 
     // Date range
     if (from_date || to_date) {
@@ -364,8 +334,11 @@ export class FinanceService {
    * @param storeId - ID cửa hàng
    * @returns Current balance
    */
-  async getCurrentBalance(storeId: string): Promise<Decimal> {
-    return this.calculateCashBookUseCase.getCurrentBalance(storeId);
+  async getCurrentBalance(
+    storeId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Decimal> {
+    return this.calculateCashBookUseCase.getCurrentBalance(storeId, tx);
   }
 
   /**
@@ -378,8 +351,14 @@ export class FinanceService {
     storeId: string,
     fromDate: Date,
     toDate: Date,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.syncCashBookUseCase.syncForDateRange(storeId, fromDate, toDate);
+    await this.syncCashBookUseCase.syncForDateRange(
+      storeId,
+      fromDate,
+      toDate,
+      tx,
+    );
   }
 
   // ========================================
@@ -415,10 +394,12 @@ export class FinanceService {
     createdBy: string,
     amount: number,
     paymentMethod: payment_method,
+    tx: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
     // Get order details
-    const order = await this.prisma.order.findUnique({
+    const order = await tx.order.findUnique({
       where: { id: orderId },
+      include: { customer: true },
     });
 
     if (!order) {
@@ -430,18 +411,14 @@ export class FinanceService {
     }
 
     // Validate customer exists
-    if (!order.customer_id) {
-      throw new BadRequestException(
-        'Không thể tạo phiếu thu: Đơn hàng không có thông tin khách hàng',
-      );
-    }
 
     const dto: CreateReceiptDto = {
       amount: amount,
       payment_method: paymentMethod,
-      transaction_source: 'SALE',
-      contact_id: order.customer_id,
-      contact_type: 'Customer',
+      transaction_source: transaction_source.SALE,
+      contact_type: contact_type.CUSTOMER,
+      contact_id: order.customer_id || undefined,
+      contact_name: order.customer_name || order.customer?.name || undefined,
       description: `Thu tiền bán hàng đơn ${order.code || order.id}`,
     };
 
@@ -452,6 +429,7 @@ export class FinanceService {
       order.store_id,
       createdBy,
       orderId,
+      tx,
     );
   }
 
@@ -468,9 +446,11 @@ export class FinanceService {
     createdBy: string,
     amount: number,
     paymentMethod: payment_method,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
+    const prisma = tx || this.prisma;
     // Get purchase order details
-    const purchase = await this.prisma.purchaseOrder.findUnique({
+    const purchase = await prisma.purchaseOrder.findUnique({
       where: { id: purchaseOrderId },
       include: {
         supplier: true,
@@ -489,19 +469,23 @@ export class FinanceService {
     const dto: CreatePaymentDto = {
       amount: amount,
       payment_method: paymentMethod,
-      transaction_source: 'PURCHASE',
-      contact_id: purchase.supplier_id,
-      contact_type: 'Supplier',
+      transaction_source: transaction_source.PURCHASE,
+      contact_type: contact_type.SUPPLIER,
+      contact_id: purchase.supplier_id || undefined,
+      contact_name:
+        purchase.supplier_name || purchase.supplier?.name || undefined,
       description: `Chi tiền nhập hàng phiếu ${purchase.order_number}`,
     };
 
-    // ✅ ĐÚNG: Truyền đầy đủ 5 tham số
+    // ✅ ĐÚNG: Truyền đầy đủ 6 tham số
     return this.createPayment(
       dto, // 1. DTO
       purchase.store_id, // 2. storeId từ purchase
       createdBy, // 3. createdBy từ tham số
       purchaseOrderId, // 4. referenceId
-      'PurchaseOrder', // 5. referenceType
+      TransactionReferenceType.PURCHASE_ORDER, // 5. referenceType
+      purchase.order_number, // 6. referenceCode
+      tx, // 7. tx
     );
   }
 
@@ -512,16 +496,21 @@ export class FinanceService {
    * @param amount - Số tiền chi
    * @param paymentMethod - Phương thức thanh toán
    * @returns CashTransaction
-   */ async createPaymentFromOrderReturn(
+   */
+  async createPaymentFromOrderReturn(
     orderReturnId: string,
     createdBy: string,
     amount: number,
     paymentMethod: payment_method,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
-    const orderReturn = await this.prisma.orderReturn.findUnique({
+    const prisma = tx || this.prisma;
+    const orderReturn = await prisma.orderReturn.findUnique({
       where: { id: orderReturnId },
       include: {
-        order: true,
+        order: {
+          include: { customer: true },
+        },
       },
     });
 
@@ -537,19 +526,28 @@ export class FinanceService {
     const dto: CreatePaymentDto = {
       amount: amount,
       payment_method: paymentMethod,
-      transaction_source: 'ORDER_RETURN', // ✅ ĐÚNG
-      contact_id: orderReturn.order.customer_id || orderReturn.order.id, // ✅ ĐÚNG
-      contact_type: orderReturn.order.customer_id ? 'Customer' : 'Other', // ✅ ĐÚNG
-      description: `Chi tiền trả hàng cho đơn ${orderReturn.order.code || orderReturn.order.id}`, // ✅ ĐÚNG
+      transaction_source: transaction_source.ORDER_RETURN,
+      contact_type: orderReturn.order.customer_id
+        ? contact_type.CUSTOMER
+        : contact_type.OTHER,
+      contact_id: orderReturn.order.customer_id || undefined,
+      contact_name:
+        orderReturn.customer_name ||
+        orderReturn.order.customer_name ||
+        orderReturn.order.customer?.name ||
+        undefined,
+      description: `Chi tiền trả hàng cho đơn ${orderReturn.order.code || orderReturn.order.id}`,
     };
 
-    // ✅ ĐÚNG: Truyền đầy đủ 5 tham số
+    // ✅ ĐÚNG: Truyền đầy đủ 6 tham số
     return this.createPayment(
       dto, // 1. DTO
       orderReturn.store_id, // 2. storeId từ orderReturn (không phải purchase!)
       createdBy, // 3. createdBy từ tham số
       orderReturnId, // 4. referenceId (không phải purchaseOrderId!)
-      'OrderReturn', // 5. referenceType
+      TransactionReferenceType.ORDER_RETURN, // 5. referenceType
+      orderReturn.order_return_number || orderReturn.order.id, // 6. referenceCode
+      tx, // 7. tx
     );
   }
   /**
@@ -573,8 +571,10 @@ export class FinanceService {
     createdBy: string,
     amount: number,
     paymentMethod: payment_method,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
-    const purchaseReturn = await this.prisma.purchaseReturn.findUnique({
+    const prisma = tx || this.prisma;
+    const purchaseReturn = await prisma.purchaseReturn.findUnique({
       where: { id: purchaseReturnId },
       include: {
         purchase_order: {
@@ -611,9 +611,14 @@ export class FinanceService {
     const dto: CreateReceiptDto = {
       amount: amount,
       payment_method: paymentMethod,
-      transaction_source: 'PURCHASE_RETURN',
-      contact_id: purchaseReturn.purchase_order.supplier_id,
-      contact_type: 'Supplier',
+      transaction_source: transaction_source.PURCHASE_RETURN,
+      contact_type: contact_type.SUPPLIER,
+      contact_id: purchaseReturn.purchase_order.supplier_id || undefined,
+      contact_name:
+        purchaseReturn.supplier_name ||
+        purchaseReturn.purchase_order.supplier_name ||
+        purchaseReturn.purchase_order.supplier?.name ||
+        undefined,
       description: `Thu tiền trả hàng nhập phiếu ${purchaseReturn.purchase_order.order_number}`,
     };
 
@@ -623,6 +628,7 @@ export class FinanceService {
       purchaseReturn.store_id,
       createdBy,
       purchaseReturnId,
+      tx,
     );
   }
   // ========================================
@@ -634,10 +640,10 @@ export class FinanceService {
    * @param query - CashBookQueryDto
    * @returns Daily statistics
    */
-  async getDailyStatistics(query: CashBookQueryDto) {
-    const { store_id, from_date, to_date } = query;
+  async getDailyStatistics(storeId: string, query: CashBookQueryDto) {
+    const { from_date, to_date } = query;
 
-    const where: any = { store_id };
+    const where: Prisma.CashBookEntryWhereInput = { store_id: storeId };
 
     if (from_date || to_date) {
       where.date = {};
@@ -865,11 +871,15 @@ export class FinanceService {
    * @param query - QueryTransactionDto
    * @returns Excel buffer
    */
-  async exportTransactions(query: QueryTransactionDto): Promise<Buffer> {
+  async exportTransactions(storeId: string): Promise<Buffer> {
     // Get all transactions (no pagination for export)
-    const { data } = await this.getTransactions({
-      ...query,
-      limit: 10000, // Max for export
+    const data = await this.prisma.cashTransaction.findMany({
+      where: {
+        store_id: storeId,
+      },
+      orderBy: {
+        transaction_date: 'desc',
+      },
     });
 
     // Map data to Excel format
@@ -878,13 +888,13 @@ export class FinanceService {
       code: transaction.code,
       type: this.getTypeLabel(transaction.transaction_type),
       source: this.getSourceLabel(transaction.transaction_source),
-      amount: this.formatCurrency(transaction.amount),
+      amount: this.format.formatCurrency(transaction.amount),
       payment_method: this.getPaymentMethodLabel(transaction.payment_method),
       contact_name: transaction.contact_name,
       description: transaction.description,
       notes: transaction.notes || '',
-      status: this.getStatusLabel(transaction.status),
-      transaction_date: this.formatDate(transaction.transaction_date),
+      status: this.status.transactionStatus(transaction.status),
+      transaction_date: this.format.formatDate(transaction.transaction_date),
     }));
 
     // Generate Excel using template
@@ -899,36 +909,49 @@ export class FinanceService {
    * @param query - CashBookQueryDto
    * @returns Excel buffer
    */
-  async exportCashBook(query: CashBookQueryDto): Promise<Buffer> {
-    const cashBook = await this.getCashBook(query);
+  async exportCashBook(
+    storeId: string,
+    query: CashBookQueryDto,
+  ): Promise<Buffer> {
+    const cashBook = await this.getCashBook(storeId, query);
 
     // Map data to Excel format
     const excelData = cashBook.entries.map((entry, index) => ({
       stt: index + 1,
-      date: this.formatDateOnly(entry.date),
-      opening_balance: this.formatCurrency(entry.opening_balance),
-      total_receipts: this.formatCurrency(entry.total_receipts),
-      total_payments: this.formatCurrency(entry.total_payments),
-      closing_balance: this.formatCurrency(entry.closing_balance),
-      net_change: this.formatCurrency(
+      date: this.format.formatDate(entry.date),
+      opening_balance: this.format.formatCurrency(entry.opening_balance),
+      total_receipts: this.format.formatCurrency(entry.total_receipts),
+      total_payments: this.format.formatCurrency(entry.total_payments),
+      closing_balance: this.format.formatCurrency(entry.closing_balance),
+      net_change: this.format.formatCurrency(
         new Decimal(entry.total_receipts).minus(entry.total_payments),
       ),
     }));
 
     // Add summary row
     excelData.push({
-      stt: '',
-      date: '📊 TỔNG CỘNG',
-      opening_balance: this.formatCurrency(cashBook.summary.opening_balance),
-      total_receipts: this.formatCurrency(cashBook.summary.total_receipts),
-      total_payments: this.formatCurrency(cashBook.summary.total_payments),
-      closing_balance: this.formatCurrency(cashBook.summary.closing_balance),
-      net_change: this.formatCurrency(
+      stt: cashBook.entries.length + 1,
+      date: this.format.formatDate(
+        cashBook.entries[cashBook.entries.length - 1].date,
+      ),
+      opening_balance: this.format.formatCurrency(
+        cashBook.summary.opening_balance,
+      ),
+      total_receipts: this.format.formatCurrency(
+        cashBook.summary.total_receipts,
+      ),
+      total_payments: this.format.formatCurrency(
+        cashBook.summary.total_payments,
+      ),
+      closing_balance: this.format.formatCurrency(
+        cashBook.summary.closing_balance,
+      ),
+      net_change: this.format.formatCurrency(
         new Decimal(cashBook.summary.total_receipts).minus(
           cashBook.summary.total_payments,
         ),
       ),
-    } as any);
+    });
 
     // Generate Excel using template
     return this.excelTemplateService.exportData(
@@ -981,48 +1004,5 @@ export class FinanceService {
       DIGITAL_WALLET: 'Ví điện tử',
     };
     return labels[method] || method;
-  }
-
-  /**
-   * Format transaction status label
-   */
-  private getStatusLabel(status: transaction_status): string {
-    const labels = {
-      PENDING: 'Chờ duyệt',
-      CONFIRMED: 'Đã duyệt',
-      CANCELLED: 'Đã hủy',
-    };
-    return labels[status] || status;
-  }
-
-  /**
-   * Format date to Vietnamese format
-   */
-  private formatDate(date: Date): string {
-    return new Intl.DateTimeFormat('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(date));
-  }
-
-  /**
-   * Format date only (no time)
-   */
-  private formatDateOnly(date: Date): string {
-    return new Intl.DateTimeFormat('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(new Date(date));
-  }
-
-  /**
-   * Format number to currency
-   */
-  private formatCurrency(value: number | Decimal): number {
-    return typeof value === 'number' ? value : Number(value);
   }
 }

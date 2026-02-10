@@ -1,15 +1,22 @@
 import {
-  Injectable,
   BadRequestException,
-  NotFoundException,
+  Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
+import {
+  CashTransaction,
+  contact_type,
+  Prisma,
+  transaction_status,
+  transaction_type,
+  TransactionReferenceType,
+} from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
-import { CashTransaction } from '@prisma/client';
 import { GenerateTransactionCodeUseCase } from './generate-transaction-code.usecase';
 import { SyncCashBookUseCase } from './sync-cash-book.usecase';
-import { Decimal } from '@prisma/client/runtime/library';
 
 /**
  * UseCase: Tạo phiếu chi mới
@@ -46,51 +53,57 @@ export class CreatePaymentUseCase {
     storeId: string,
     createdBy: string,
     referenceId?: string,
-    referenceType?: string,
+    referenceType?: TransactionReferenceType,
+    referenceCode?: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
+    const prisma = tx || this.prisma;
     // 1. Validate input
     this.validateInput(dto);
 
     // 2. Verify store exists
-    await this.verifyStoreExists(storeId);
-
-    // 3. Validate reference (nếu có)
-    await this.validateReference(storeId, referenceType, referenceId);
+    await this.verifyStoreExists(storeId, tx);
 
     // 4. Query contact_name from database
-    const contactName = await this.getContactName(
-      dto.contact_id,
-      dto.contact_type,
-    );
+    let contactName: string | undefined;
+    if (dto.contact_id) {
+      contactName = await this.getContactName(
+        dto.contact_id,
+        dto.contact_type,
+        tx,
+      );
+    }
 
     // 5. Generate payment code
     const code = await this.generateCodeUseCase.generatePaymentCode(storeId);
 
     // 6. Create transaction
-    const transaction = await this.prisma.cashTransaction.create({
+    const transaction = await prisma.cashTransaction.create({
       data: {
         code,
         store_id: storeId,
-        transaction_type: 'PAYMENT',
+        transaction_type: transaction_type.PAYMENT,
         transaction_source: dto.transaction_source,
         amount: new Decimal(dto.amount),
         payment_method: dto.payment_method,
 
         // Contact info
         contact_type: dto.contact_type,
-        contact_id: dto.contact_id,
+        contact_id: dto.contact_id || null,
         contact_name: contactName,
 
         // Reference info (từ query params hoặc null)
+        // Reference info
         reference_type: referenceType || null,
         reference_id: referenceId || null,
+        reference_code: referenceCode || null,
 
         // Description
         description: dto.description || '',
         notes: dto.notes || null,
 
         // Status
-        status: 'CONFIRMED',
+        status: transaction_status.CONFIRMED,
         transaction_date: new Date(),
 
         // Audit
@@ -107,12 +120,12 @@ export class CreatePaymentUseCase {
     });
 
     // 7. Sync cash book
-    this.syncCashBookUseCase
-      .syncForDate(storeId, transaction.transaction_date)
+    await this.syncCashBookUseCase
+      .syncForDate(storeId, transaction.transaction_date, tx)
       .catch((error: Error) => {
         this.logger.error(
-          `Failed to sync cash book for store ${storeId} on ${transaction.transaction_date}`,
-          error.stack,
+          `Failed to sync cash book for store ${storeId} on ${transaction.transaction_date.toISOString()}`,
+          error?.stack,
           'SyncCashBookError',
         );
       });
@@ -128,31 +141,46 @@ export class CreatePaymentUseCase {
     storeId: string,
     createdBy: string,
     purchaseOrderId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
+    const prisma = tx || this.prisma;
     this.validateInput(dto);
-    await this.verifyStoreExists(storeId);
-    const contactName = await this.getContactName(
-      dto.contact_id,
-      dto.contact_type,
-    );
+    await this.verifyStoreExists(storeId, tx);
+
+    const purchase = await prisma.purchaseOrder.findUnique({
+      where: { id: purchaseOrderId },
+      include: { supplier: true },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException('Purchase Order not found');
+    }
+
     const code = await this.generateCodeUseCase.generatePaymentCode(storeId);
 
-    const transaction = await this.prisma.cashTransaction.create({
+    const transaction = await prisma.cashTransaction.create({
       data: {
         code,
         store_id: storeId,
-        transaction_type: 'PAYMENT',
+        transaction_type: transaction_type.PAYMENT,
+
+        // Snapshot contact from Purchase Order
+        contact_id: purchase.supplier_id,
+        contact_name: purchase.supplier?.name,
+        contact_type: dto.contact_type,
+
         transaction_source: dto.transaction_source,
         amount: new Decimal(dto.amount),
         payment_method: dto.payment_method,
-        contact_type: dto.contact_type,
-        contact_id: dto.contact_id,
-        contact_name: contactName,
-        reference_type: 'PurchaseOrder',
+
+        // Reference info
+        reference_type: TransactionReferenceType.PURCHASE_ORDER,
         reference_id: purchaseOrderId,
+        reference_code: purchase.order_number,
+
         description: dto.description || '',
         notes: dto.notes || null,
-        status: 'CONFIRMED',
+        status: transaction_status.CONFIRMED,
         transaction_date: new Date(),
         created_by: createdBy,
       },
@@ -166,12 +194,12 @@ export class CreatePaymentUseCase {
       },
     });
 
-    this.syncCashBookUseCase
-      .syncForDate(storeId, transaction.transaction_date)
+    await this.syncCashBookUseCase
+      .syncForDate(storeId, transaction.transaction_date, tx)
       .catch((error: Error) => {
         this.logger.error(
-          `Failed to sync cash book for store ${storeId} on ${transaction.transaction_date}`,
-          error.stack,
+          `Failed to sync cash book for store ${storeId} on ${transaction.transaction_date.toISOString()}`,
+          error?.stack,
           'SyncCashBookError',
         );
       });
@@ -187,31 +215,49 @@ export class CreatePaymentUseCase {
     storeId: string,
     createdBy: string,
     orderReturnId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
+    const prisma = tx || this.prisma;
     this.validateInput(dto);
-    await this.verifyStoreExists(storeId);
-    const contactName = await this.getContactName(
-      dto.contact_id,
-      dto.contact_type,
-    );
+    await this.verifyStoreExists(storeId, tx);
+
+    const orderReturn = await prisma.orderReturn.findUnique({
+      where: { id: orderReturnId },
+      include: {
+        order: {
+          include: { customer: true },
+        },
+      },
+    });
+
+    if (!orderReturn) {
+      throw new NotFoundException('Order Return not found');
+    }
+
     const code = await this.generateCodeUseCase.generatePaymentCode(storeId);
 
-    const transaction = await this.prisma.cashTransaction.create({
+    const transaction = await prisma.cashTransaction.create({
       data: {
         code,
         store_id: storeId,
-        transaction_type: 'PAYMENT',
+        transaction_type: transaction_type.PAYMENT,
         transaction_source: dto.transaction_source,
         amount: new Decimal(dto.amount),
         payment_method: dto.payment_method,
+
+        // Snapshot contact from Order Return -> Order -> Customer
         contact_type: dto.contact_type,
-        contact_id: dto.contact_id,
-        contact_name: contactName,
-        reference_type: 'OrderReturn',
+        contact_id: orderReturn.order.customer_id,
+        contact_name: orderReturn.order.customer?.name,
+
+        // Reference info
+        reference_type: TransactionReferenceType.ORDER_RETURN,
         reference_id: orderReturnId,
+        reference_code: orderReturn.id, // Assuming ID as code if no dedicated code field
+
         description: dto.description || '',
         notes: dto.notes || null,
-        status: 'CONFIRMED',
+        status: transaction_status.CONFIRMED,
         transaction_date: new Date(),
         created_by: createdBy,
       },
@@ -225,12 +271,12 @@ export class CreatePaymentUseCase {
       },
     });
 
-    this.syncCashBookUseCase
-      .syncForDate(storeId, transaction.transaction_date)
+    await this.syncCashBookUseCase
+      .syncForDate(storeId, transaction.transaction_date, tx)
       .catch((error: Error) => {
         this.logger.error(
-          `Failed to sync cash book for store ${storeId} on ${transaction.transaction_date}`,
-          error.stack,
+          `Failed to sync cash book for store ${storeId} on ${transaction.transaction_date.toISOString()}`,
+          error?.stack,
           'SyncCashBookError',
         );
       });
@@ -239,55 +285,15 @@ export class CreatePaymentUseCase {
   }
 
   /**
-   * Get contact name from database
-   */
-  private async getContactName(
-    contactId: string,
-    contactType: string,
-  ): Promise<string> {
-    if (contactType === 'Customer') {
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: contactId },
-        select: { name: true },
-      });
-
-      if (!customer) {
-        throw new NotFoundException({
-          message: 'Không tìm thấy khách hàng',
-          field: 'contact_id',
-          value: contactId,
-        });
-      }
-
-      return customer.name;
-    } else if (contactType === 'Supplier') {
-      const supplier = await this.prisma.supplier.findUnique({
-        where: { id: contactId },
-        select: { name: true },
-      });
-
-      if (!supplier) {
-        throw new NotFoundException({
-          message: 'Không tìm thấy nhà cung cấp',
-          field: 'contact_id',
-          value: contactId,
-        });
-      }
-
-      return supplier.name;
-    } else {
-      return 'Khác';
-    }
-  }
-
-  /**
    * Validate reference if provided
    */
   private async validateReference(
     storeId: string,
-    referenceType?: string,
+    referenceType?: TransactionReferenceType,
     referenceId?: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
+    const prisma = tx || this.prisma;
     if (!referenceType && !referenceId) {
       return;
     }
@@ -298,14 +304,13 @@ export class CreatePaymentUseCase {
       );
     }
 
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(referenceId!)) {
       throw new BadRequestException('Reference ID phải là UUID hợp lệ');
     }
 
-    if (referenceType === 'PurchaseOrder') {
-      const purchase = await this.prisma.purchaseOrder.findUnique({
+    if (referenceType === TransactionReferenceType.PURCHASE_ORDER) {
+      const purchase = await prisma.purchaseOrder.findUnique({
         where: { id: referenceId },
         select: { id: true, store_id: true },
       });
@@ -323,8 +328,8 @@ export class CreatePaymentUseCase {
           'Đơn nhập hàng không thuộc cửa hàng hiện tại',
         );
       }
-    } else if (referenceType === 'OrderReturn') {
-      const orderReturn = await this.prisma.orderReturn.findUnique({
+    } else if (referenceType === TransactionReferenceType.ORDER_RETURN) {
+      const orderReturn = await prisma.orderReturn.findUnique({
         where: { id: referenceId },
         select: { id: true, store_id: true },
       });
@@ -374,8 +379,12 @@ export class CreatePaymentUseCase {
   /**
    * Verify store exists
    */
-  private async verifyStoreExists(storeId: string): Promise<void> {
-    const store = await this.prisma.store.findUnique({
+  private async verifyStoreExists(
+    storeId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const prisma = tx || this.prisma;
+    const store = await prisma.store.findUnique({
       where: { id: storeId },
       select: { id: true },
     });
@@ -386,6 +395,62 @@ export class CreatePaymentUseCase {
         field: 'store_id',
         value: storeId,
       });
+    }
+  }
+
+  private async getContactName(
+    contactId: string,
+    contactType: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<string> {
+    const prisma = tx || this.prisma;
+    if (contactType === contact_type.CUSTOMER) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: contactId },
+        select: { name: true },
+      });
+
+      if (!customer) {
+        throw new NotFoundException({
+          message: 'Không tìm thấy khách hàng',
+          field: 'contact_id',
+          value: contactId,
+        });
+      }
+
+      return customer.name;
+    } else if (contactType === contact_type.SUPPLIER) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: contactId },
+        select: { name: true },
+      });
+
+      if (!supplier) {
+        throw new NotFoundException({
+          message: 'Không tìm thấy nhà cung cấp',
+          field: 'contact_id',
+          value: contactId,
+        });
+      }
+
+      return supplier.name;
+    } else if (contactType === contact_type.STORE_MEMBER) {
+      // Logic for Store Member (User)
+      const user = await prisma.user.findUnique({
+        where: { id: contactId },
+        select: { username: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException({
+          message: 'Không tìm thấy nhân viên',
+          field: 'contact_id',
+          value: contactId,
+        });
+      }
+      return user.username;
+    } else {
+      return contact_type.OTHER;
     }
   }
 }

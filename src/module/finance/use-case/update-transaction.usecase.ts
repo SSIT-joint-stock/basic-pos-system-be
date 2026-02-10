@@ -1,13 +1,13 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+import { CashTransaction, Prisma, transaction_status } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { UpdateTransactionDto } from '../dto/update-transaction.dto';
-import { CashTransaction } from '@prisma/client';
 import { SyncCashBookUseCase } from './sync-cash-book.usecase';
-import { Decimal } from '@prisma/client/runtime/library';
 
 /**
  * UseCase: Cập nhật giao dịch
@@ -31,9 +31,11 @@ export class UpdateTransactionUseCase {
   async execute(
     id: string,
     dto: UpdateTransactionDto,
+    tx?: Prisma.TransactionClient,
   ): Promise<CashTransaction> {
+    const prisma = tx || this.prisma;
     // 1. Find transaction
-    const transaction = await this.prisma.cashTransaction.findUnique({
+    const transaction = await prisma.cashTransaction.findUnique({
       where: { id },
     });
 
@@ -46,7 +48,7 @@ export class UpdateTransactionUseCase {
     }
 
     // 2. Validate can update
-    if (transaction.status === 'CANCELLED') {
+    if (transaction.status === transaction_status.CANCELLED) {
       throw new BadRequestException({
         message: 'Không thể cập nhật giao dịch đã bị hủy',
         field: 'status',
@@ -63,20 +65,6 @@ export class UpdateTransactionUseCase {
       });
     }
 
-    // 4. Query contact_name if contact_id or contact_type changed
-    let contactName = transaction.contact_name; // Keep existing by default
-    if (dto.contact_id !== undefined || dto.contact_type !== undefined) {
-      const newContactId = dto.contact_id ?? transaction.contact_id;
-      const newContactType = dto.contact_type ?? transaction.contact_type;
-
-      // Only query if contact_id is not null
-      if (newContactId && newContactType) {
-        contactName = await this.getContactName(newContactId, newContactType);
-      } else if (newContactType === 'Other') {
-        contactName = 'Khác';
-      }
-    }
-
     // 5. Build update data - Only update fields that are provided
     const updateData: any = {
       ...(dto.amount !== undefined && { amount: new Decimal(dto.amount) }),
@@ -84,19 +72,15 @@ export class UpdateTransactionUseCase {
       ...(dto.transaction_source && {
         transaction_source: dto.transaction_source,
       }),
-      ...(dto.contact_id !== undefined && { contact_id: dto.contact_id }),
       ...(dto.contact_type !== undefined && {
         contact_type: dto.contact_type,
-      }),
-      ...(contactName !== transaction.contact_name && {
-        contact_name: contactName,
       }),
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.notes !== undefined && { notes: dto.notes }),
     };
 
     // 6. Update transaction
-    const updatedTransaction = await this.prisma.cashTransaction.update({
+    const updatedTransaction = await prisma.cashTransaction.update({
       where: { id },
       data: updateData,
       include: {
@@ -110,56 +94,17 @@ export class UpdateTransactionUseCase {
     });
 
     // 7. Re-sync cash book if amount changed and transaction is confirmed
-    if (dto.amount !== undefined && transaction.status === 'CONFIRMED') {
-      this.syncCashBookUseCase
-        .syncForDate(transaction.store_id, transaction.transaction_date)
+    if (
+      dto.amount !== undefined &&
+      transaction.status === transaction_status.CONFIRMED
+    ) {
+      await this.syncCashBookUseCase
+        .syncForDate(transaction.store_id, transaction.transaction_date, tx)
         .catch((error: Error) => {
           console.error('Failed to sync cash book:', error);
         });
     }
 
     return updatedTransaction;
-  }
-
-  /**
-   * Get contact name from database
-   */
-  private async getContactName(
-    contactId: string,
-    contactType: string,
-  ): Promise<string> {
-    if (contactType === 'Customer') {
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: contactId },
-        select: { name: true },
-      });
-
-      if (!customer) {
-        throw new NotFoundException({
-          message: 'Không tìm thấy khách hàng',
-          field: 'contact_id',
-          value: contactId,
-        });
-      }
-
-      return customer.name;
-    } else if (contactType === 'Supplier') {
-      const supplier = await this.prisma.supplier.findUnique({
-        where: { id: contactId },
-        select: { name: true },
-      });
-
-      if (!supplier) {
-        throw new NotFoundException({
-          message: 'Không tìm thấy nhà cung cấp',
-          field: 'contact_id',
-          value: contactId,
-        });
-      }
-
-      return supplier.name;
-    } else {
-      return 'Khác';
-    }
   }
 }

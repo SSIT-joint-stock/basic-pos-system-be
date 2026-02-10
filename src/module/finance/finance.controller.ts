@@ -1,37 +1,49 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
+  BadRequestException,
   Body,
-  Param,
-  Query,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
   Res,
-  Request, // ← THÊM
-  BadRequestException, // ← THÊM
-  UnauthorizedException, // ← THÊM
 } from '@nestjs/common';
 
-import type { Request as ExpressRequest } from 'express';
-import type { Response } from 'express';
 import {
-  ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
+import {
+  contact_type,
+  payment_method,
+  transaction_source,
+  transaction_status,
+  transaction_type,
+  TransactionReferenceType,
+} from '@prisma/client';
+import {
+  FilterParse,
+  type FilterParseResult,
+} from 'app/common/decorators/filter-parse.decorator';
+import { User } from 'app/common/decorators/user.decorator';
+import { PaginatedResponse } from 'app/common/response';
+import type { IUser } from 'app/common/types/user.type';
+import type { Response } from 'express';
+import z from 'zod';
 import { FinanceService } from './finance.service';
 
 // DTOs
-import { CreateReceiptDto } from './dto/create-receipt.dto';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { QueryTransactionDto } from './dto/query-transaction.dto';
 import { CashBookQueryDto } from './dto/cash-book-query.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateReceiptDto } from './dto/create-receipt.dto';
+import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
 /**
  * Finance Controller
@@ -66,7 +78,13 @@ export class FinanceController {
     name: 'reference_type',
     required: false,
     description: 'Loại tham chiếu (Order, PurchaseOrder, OrderReturn...)',
-    enum: ['Order', 'PurchaseOrder', 'OrderReturn', 'PurchaseReturn'],
+    enum: TransactionReferenceType,
+  })
+  @ApiQuery({
+    name: 'reference_code',
+    required: false,
+    description: 'Mã tham chiếu (VD: HD00001)',
+    type: String,
   })
   @ApiResponse({
     status: 201,
@@ -82,30 +100,24 @@ export class FinanceController {
   })
   async createReceipt(
     @Body() dto: CreateReceiptDto,
+    @User() user: IUser,
     @Query('reference_id') referenceId?: string,
-    @Query('reference_type') referenceType?: string,
-    @Request() req?: ExpressRequest,
+    @Query('reference_type') referenceType?: TransactionReferenceType,
+    @Query('reference_code') referenceCode?: string,
   ) {
-    // Lấy store_id từ current store trong token
-    const storeId = (req?.user as any)?.currentStoreId;
-    if (!storeId) {
+    if (!user.storeId) {
       throw new BadRequestException(
         'Vui lòng chọn cửa hàng trước khi tạo phiếu thu',
       );
     }
 
-    // Lấy user_id từ token
-    const userId = (req?.user as any)?.id;
-    if (!userId) {
-      throw new UnauthorizedException('Không xác định được người dùng');
-    }
-
     return this.financeService.createReceipt(
       dto,
-      storeId,
-      userId,
+      user.storeId,
+      user.id,
       referenceId,
       referenceType,
+      referenceCode,
     );
   }
   // ========================================
@@ -128,7 +140,13 @@ export class FinanceController {
     name: 'reference_type',
     required: false,
     description: 'Loại tham chiếu (PurchaseOrder, OrderReturn...)',
-    enum: ['PurchaseOrder', 'OrderReturn'],
+    enum: TransactionReferenceType,
+  })
+  @ApiQuery({
+    name: 'reference_code',
+    required: false,
+    description: 'Mã tham chiếu (VD: PN00001)',
+    type: String,
   })
   @ApiResponse({
     status: 201,
@@ -144,30 +162,24 @@ export class FinanceController {
   })
   async createPayment(
     @Body() dto: CreatePaymentDto,
+    @User() user: IUser,
     @Query('reference_id') referenceId?: string,
-    @Query('reference_type') referenceType?: string,
-    @Request() req?: ExpressRequest,
+    @Query('reference_type') referenceType?: TransactionReferenceType,
+    @Query('reference_code') referenceCode?: string,
   ) {
-    // Lấy store_id từ current store trong token
-    const storeId = (req?.user as any)?.currentStoreId;
-    if (!storeId) {
+    if (!user.storeId) {
       throw new BadRequestException(
         'Vui lòng chọn cửa hàng trước khi tạo phiếu chi',
       );
     }
 
-    // Lấy user_id từ token
-    const userId = (req?.user as any)?.id;
-    if (!userId) {
-      throw new UnauthorizedException('Không xác định được người dùng');
-    }
-
     return this.financeService.createPayment(
       dto,
-      storeId,
-      userId,
+      user.storeId,
+      user.id,
       referenceId,
       referenceType,
+      referenceCode,
     );
   }
   // ========================================
@@ -188,62 +200,47 @@ export class FinanceController {
     status: 200,
     description: 'Danh sách giao dịch',
   })
-  @ApiQuery({
-    name: 'store_id',
-    required: false,
-    description: 'Filter theo cửa hàng',
-  })
-  @ApiQuery({
-    name: 'transaction_type',
-    required: false,
-    enum: ['RECEIPT', 'PAYMENT'],
-    description: 'Filter theo loại (RECEIPT hoặc PAYMENT)',
-  })
-  @ApiQuery({
-    name: 'transaction_source',
-    required: false,
-    description: 'Filter theo nguồn phát sinh',
-  })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    enum: ['PENDING', 'CONFIRMED', 'CANCELLED'],
-    description: 'Filter theo trạng thái',
-  })
-  @ApiQuery({
-    name: 'payment_method',
-    required: false,
-    description: 'Filter theo phương thức thanh toán',
-  })
-  @ApiQuery({
-    name: 'from_date',
-    required: false,
-    description: 'Từ ngày (YYYY-MM-DD)',
-  })
-  @ApiQuery({
-    name: 'to_date',
-    required: false,
-    description: 'Đến ngày (YYYY-MM-DD)',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: 'Tìm kiếm theo mã, tên người liên hệ, hoặc mô tả',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Số trang (mặc định: 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Số lượng bản ghi mỗi trang (mặc định: 20)',
-  })
-  async getTransactions(@Query() query: QueryTransactionDto) {
-    return this.financeService.getTransactions(query);
+  async getTransactions(
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'transaction_date', 'amount'],
+      searchBy: ['code', 'contact_name', 'description'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        transaction_type: z.nativeEnum(transaction_type).optional(),
+        transaction_source: z.nativeEnum(transaction_source).optional(),
+        status: z.nativeEnum(transaction_status).optional(),
+        payment_method: z.nativeEnum(payment_method).optional(),
+        reference_type: z.nativeEnum(TransactionReferenceType).optional(),
+        reference_code: z.string().optional(),
+        contact_type: z.nativeEnum(contact_type).optional(),
+        contact_id: z.string().uuid().optional(),
+        transaction_date: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+    @User() user: IUser,
+  ) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
+    const { data, total } = await this.financeService.getTransactions(
+      user.storeId,
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   /**
@@ -442,8 +439,13 @@ export class FinanceController {
       },
     },
   })
-  async getCashBook(@Query() query: CashBookQueryDto) {
-    return this.financeService.getCashBook(query);
+  async getCashBook(@Query() query: CashBookQueryDto, @User() user: IUser) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
+    return this.financeService.getCashBook(user.storeId, query);
   }
 
   /**
@@ -472,10 +474,15 @@ export class FinanceController {
       },
     },
   })
-  async getCurrentBalance(@Query('store_id') storeId: string) {
-    const balance = await this.financeService.getCurrentBalance(storeId);
+  async getCurrentBalance(@User() user: IUser) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
+    const balance = await this.financeService.getCurrentBalance(user.storeId);
     return {
-      store_id: storeId,
+      store_id: user.storeId,
       current_balance: balance.toString(),
     };
   }
@@ -497,10 +504,48 @@ export class FinanceController {
     status: 200,
     description: 'Danh sách phiếu thu',
   })
-  async getReceipts(@Query() query: QueryTransactionDto) {
+  async getReceipts(
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'transaction_date', 'amount'],
+      searchBy: ['code', 'contact_name', 'description'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        // transaction_type disallowed or ignored, forced to RECEIPT
+        transaction_source: z.nativeEnum(transaction_source).optional(),
+        status: z.nativeEnum(transaction_status).optional(),
+        payment_method: z.nativeEnum(payment_method).optional(),
+        reference_type: z.nativeEnum(TransactionReferenceType).optional(),
+        reference_code: z.string().optional(),
+        contact_type: z.nativeEnum(contact_type).optional(),
+        contact_id: z.string().uuid().optional(),
+        transaction_date: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+    @User() user: IUser,
+  ) {
     // Force transaction_type to RECEIPT
-    const receiptQuery = { ...query, transaction_type: 'RECEIPT' as const };
-    return this.financeService.getTransactions(receiptQuery);
+    query.prismaQuery.where = {
+      ...query.prismaQuery.where,
+      transaction_type: transaction_type.RECEIPT,
+    };
+
+    const { data, total } = await this.financeService.getTransactions(
+      user.storeId || '',
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   /**
@@ -517,10 +562,48 @@ export class FinanceController {
     status: 200,
     description: 'Danh sách phiếu chi',
   })
-  async getPayments(@Query() query: QueryTransactionDto) {
+  async getPayments(
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'transaction_date', 'amount'],
+      searchBy: ['code', 'contact_name', 'description'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        // transaction_type disallowed or ignored, forced to PAYMENT
+        transaction_source: z.nativeEnum(transaction_source).optional(),
+        status: z.nativeEnum(transaction_status).optional(),
+        payment_method: z.nativeEnum(payment_method).optional(),
+        reference_type: z.nativeEnum(TransactionReferenceType).optional(),
+        reference_code: z.string().optional(),
+        contact_type: z.nativeEnum(contact_type).optional(),
+        contact_id: z.string().uuid().optional(),
+        transaction_date: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+    @User() user: IUser,
+  ) {
     // Force transaction_type to PAYMENT
-    const paymentQuery = { ...query, transaction_type: 'PAYMENT' as const };
-    return this.financeService.getTransactions(paymentQuery);
+    query.prismaQuery.where = {
+      ...query.prismaQuery.where,
+      transaction_type: transaction_type.PAYMENT,
+    };
+
+    const { data, total } = await this.financeService.getTransactions(
+      user.storeId || '',
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
   // ========================================
@@ -552,8 +635,16 @@ export class FinanceController {
     status: 200,
     description: 'Thống kê theo ngày',
   })
-  async getDailyStatistics(@Query() query: CashBookQueryDto) {
-    return this.financeService.getDailyStatistics(query);
+  async getDailyStatistics(
+    @Query() query: CashBookQueryDto,
+    @User() user: IUser,
+  ) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
+    return this.financeService.getDailyStatistics(user.storeId, query);
   }
 
   /**
@@ -578,11 +669,16 @@ export class FinanceController {
     description: 'Thống kê theo tháng',
   })
   async getMonthlyStatistics(
-    @Query('store_id') storeId: string,
+    @User() user: IUser,
     @Query('year') year?: number,
   ) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
     return this.financeService.getMonthlyStatistics(
-      storeId,
+      user.storeId,
       year || new Date().getFullYear(),
     );
   }
@@ -603,8 +699,13 @@ export class FinanceController {
     status: 200,
     description: 'Dashboard data',
   })
-  async getDashboard(@Query('store_id') storeId: string) {
-    return this.financeService.getDashboard(storeId);
+  async getDashboard(@User() user: IUser) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
+    return this.financeService.getDashboard(user.storeId);
   }
 
   // ========================================
@@ -638,18 +739,23 @@ export class FinanceController {
     description: 'Sổ quỹ đã được sync',
   })
   async syncCashBook(
-    @Query('store_id') storeId: string,
+    @User() user: IUser,
     @Query('from_date') fromDate: string,
     @Query('to_date') toDate: string,
   ) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
     await this.financeService.syncCashBookRange(
-      storeId,
+      user.storeId,
       new Date(fromDate),
       new Date(toDate),
     );
     return {
       message: 'Sổ quỹ đã được đồng bộ thành công',
-      store_id: storeId,
+      store_id: user.storeId,
       from_date: fromDate,
       to_date: toDate,
     };
@@ -659,7 +765,7 @@ export class FinanceController {
    * Export danh sách giao dịch ra Excel
    * GET /finance/transactions/export
    */
-  @Get('transactions/export')
+  @Get('excel/transactions/export')
   @ApiOperation({
     summary: 'Export giao dịch ra Excel',
     description: 'Tải xuống danh sách giao dịch dưới dạng file Excel',
@@ -671,13 +777,15 @@ export class FinanceController {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {},
     },
   })
-  async exportTransactions(
-    @Query() query: QueryTransactionDto,
-    @Res() res: Response,
-  ) {
-    const buffer = await this.financeService.exportTransactions(query);
+  async exportTransactions(@User() user: IUser, @Res() res: Response) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
+    const buffer = await this.financeService.exportTransactions(user.storeId);
 
-    const fileName = `danh_sach_giao_dich_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `danh_sach_giao_dich_${new Date().toISOString()}.xlsx`;
 
     res.set({
       'Content-Type':
@@ -704,8 +812,20 @@ export class FinanceController {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {},
     },
   })
-  async exportCashBook(@Query() query: CashBookQueryDto, @Res() res: Response) {
-    const buffer = await this.financeService.exportCashBook(query);
+  async exportCashBook(
+    @Query() query: CashBookQueryDto,
+    @User() user: IUser,
+    @Res() res: Response,
+  ) {
+    if (!user.storeId) {
+      throw new BadRequestException(
+        'Không xác định được cửa hàng của người dùng',
+      );
+    }
+    const buffer = await this.financeService.exportCashBook(
+      user.storeId,
+      query,
+    );
 
     const fileName = `so_quy_tien_mat_${new Date().toISOString().split('T')[0]}.xlsx`;
 

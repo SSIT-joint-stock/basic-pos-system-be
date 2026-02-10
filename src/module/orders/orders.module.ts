@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
+import { FinanceModule } from 'app/module/finance/finance.module';
 import { StockMovementModule } from 'app/module/stock-movement/stock-movement.module';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { ExcelTemplateService } from 'app/shared/excel-template/excel-template.service';
@@ -12,7 +13,7 @@ import { OrdersService } from './orders.service';
 import { GenerateOrderCodeUseCase } from './use-case/generate-order-code.usecase';
 
 @Module({
-  imports: [StockMovementModule],
+  imports: [StockMovementModule, FinanceModule],
   providers: [
     OrdersService,
     PrismaService,

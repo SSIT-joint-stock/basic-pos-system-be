@@ -274,18 +274,23 @@
 
 ## 3.2 Query Parameters
 
-| Tên                  | Kiểu                | Bắt buộc | Mặc định | Mô tả                                                                     |
-| -------------------- | ------------------- | -------- | -------- | ------------------------------------------------------------------------- |
-| `store_id`           | string (UUID)       | Không    | —        | Filter theo cửa hàng                                                      |
-| `transaction_type`   | enum                | Không    | —        | `RECEIPT` hoặc `PAYMENT`                                                  |
-| `transaction_source` | enum                | Không    | —        | `SALE`, `PURCHASE`, `ORDER_RETURN`, `PURCHASE_RETURN`, `CUSTOMER_DEBT`... |
-| `status`             | enum                | Không    | —        | `PENDING`, `CONFIRMED`, `CANCELLED`                                       |
-| `payment_method`     | enum                | Không    | —        | `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`, `DIGITAL_WALLET`    |
-| `from_date`          | string (YYYY-MM-DD) | Không    | —        | Từ ngày (map `transaction_date.gte`)                                      |
-| `to_date`            | string (YYYY-MM-DD) | Không    | —        | Đến ngày (map `transaction_date.lte`)                                     |
-| `search`             | string              | Không    | —        | Tìm kiếm theo mã phiếu, tên người liên hệ, hoặc mô tả                     |
-| `page`               | int (string)        | Không    | `1`      | Trang hiện tại                                                            |
-| `limit`              | int (string)        | Không    | `20`     | Số bản ghi mỗi trang (1-100)                                              |
+| Tên                  | Kiểu            | Bắt buộc | Mặc định    | Mô tả                                                                     |
+| -------------------- | --------------- | -------- | ----------- | ------------------------------------------------------------------------- |
+| `page`               | int (string)    | Không    | `1`         | Trang hiện tại                                                            |
+| `limit`              | int (string)    | Không    | `20`        | Số bản ghi mỗi trang                                                      |
+| `sortBy`             | string          | Không    | `createdAt` | Trường sắp xếp (`createdAt`, `transaction_date`, `amount`)                |
+| `sort`               | `asc` \| `desc` | Không    | `desc`      | Thứ tự sắp xếp                                                            |
+| `q`                  | string          | Không    | —           | Tìm kiếm theo `code`, `contact_name`, `description`                       |
+| `transaction_type`   | enum            | Không    | —           | `RECEIPT` hoặc `PAYMENT`                                                  |
+| `transaction_source` | enum            | Không    | —           | `SALE`, `PURCHASE`, `ORDER_RETURN`, `PURCHASE_RETURN`, `CUSTOMER_DEBT`... |
+| `status`             | enum            | Không    | —           | `PENDING`, `CONFIRMED`, `CANCELLED`                                       |
+| `payment_method`     | enum            | Không    | —           | `CASH`, `CREDIT_CARD`, `DEBIT_CARD`, `BANK_TRANSFER`, `DIGITAL_WALLET`    |
+| `transaction_date`   | object          | Không    | —           | Filter theo ngày (xem ví dụ bên dưới)                                     |
+
+**Ví dụ Filter ngày:**
+
+- Từ ngày: `?transaction_date[gte]=2025-01-01`
+- Đến ngày: `?transaction_date[lte]=2025-01-31`
 
 ### 3.3 Dữ liệu đầu ra
 
@@ -616,6 +621,7 @@
 Giống như `/finance/transactions` (section 3.2), ngoại trừ:
 
 - Không cần `transaction_type` (auto filter RECEIPT)
+- Sử dụng các param chuẩn của `@FilterParse` (`q`, `sortBy`, `sort`...)
 
 ### 8.3 Dữ liệu đầu ra
 
@@ -735,11 +741,12 @@ Giống như `/finance/transactions` (section 3.2), ngoại trừ:
 
 ## 10.2 Query Parameters
 
-| Tên         | Kiểu                | Bắt buộc | Mặc định | Mô tả       |
-| ----------- | ------------------- | -------- | -------- | ----------- |
-| `store_id`  | string (UUID)       | ✓        | —        | ID cửa hàng |
-| `from_date` | string (YYYY-MM-DD) | Không    | —        | Từ ngày     |
-| `to_date`   | string (YYYY-MM-DD) | Không    | —        | Đến ngày    |
+| Tên         | Kiểu                | Bắt buộc | Mặc định | Mô tả    |
+| ----------- | ------------------- | -------- | -------- | -------- |
+| Tên         | Kiểu                | Bắt buộc | Mặc định | Mô tả    |
+| ----------- | ------------------- | -------- | -------- | -------  |
+| `from_date` | string (YYYY-MM-DD) | Không    | —        | Từ ngày  |
+| `to_date`   | string (YYYY-MM-DD) | Không    | —        | Đến ngày |
 
 ### 10.3 Dữ liệu đầu ra
 
@@ -803,9 +810,7 @@ Giống như `/finance/transactions` (section 3.2), ngoại trừ:
 
 ## 11.2 Query Parameters
 
-| Tên        | Kiểu          | Bắt buộc | Mô tả       |
-| ---------- | ------------- | -------- | ----------- |
-| `store_id` | string (UUID) | ✓        | ID cửa hàng |
+None
 
 ### 11.3 Dữ liệu đầu ra
 
@@ -841,11 +846,10 @@ Giống như `/finance/transactions` (section 3.2), ngoại trừ:
 
 ## 12.2 Query Parameters
 
-| Tên         | Kiểu                | Bắt buộc | Mô tả       |
-| ----------- | ------------------- | -------- | ----------- |
-| `store_id`  | string (UUID)       | ✓        | ID cửa hàng |
-| `from_date` | string (YYYY-MM-DD) | Không    | Từ ngày     |
-| `to_date`   | string (YYYY-MM-DD) | Không    | Đến ngày    |
+| Tên         | Kiểu                | Bắt buộc | Mô tả    |
+| ----------- | ------------------- | -------- | -------- |
+| `from_date` | string (YYYY-MM-DD) | Không    | Từ ngày  |
+| `to_date`   | string (YYYY-MM-DD) | Không    | Đến ngày |
 
 ### 12.3 Dữ liệu đầu ra
 
@@ -903,10 +907,9 @@ Giống như `/finance/transactions` (section 3.2), ngoại trừ:
 
 ## 13.2 Query Parameters
 
-| Tên        | Kiểu          | Bắt buộc | Mặc định     | Mô tả                       |
-| ---------- | ------------- | -------- | ------------ | --------------------------- |
-| `store_id` | string (UUID) | ✓        | —            | ID cửa hàng                 |
-| `year`     | number        | Không    | Năm hiện tại | Năm cần thống kê (vd: 2025) |
+| Tên    | Kiểu   | Bắt buộc | Mặc định     | Mô tả                       |
+| ------ | ------ | -------- | ------------ | --------------------------- |
+| `year` | number | Không    | Năm hiện tại | Năm cần thống kê (vd: 2025) |
 
 ### 13.3 Dữ liệu đầu ra
 
@@ -958,9 +961,7 @@ Giống như `/finance/transactions` (section 3.2), ngoại trừ:
 
 ## 14.2 Query Parameters
 
-| Tên        | Kiểu          | Bắt buộc | Mô tả       |
-| ---------- | ------------- | -------- | ----------- |
-| `store_id` | string (UUID) | ✓        | ID cửa hàng |
+None
 
 ### 14.3 Dữ liệu đầu ra
 
@@ -1030,11 +1031,10 @@ Giống như `/finance/transactions` (section 3.2), ngoại trừ:
 
 ## 15.2 Query Parameters
 
-| Tên         | Kiểu                | Bắt buộc | Mô tả       |
-| ----------- | ------------------- | -------- | ----------- |
-| `store_id`  | string (UUID)       | ✓        | ID cửa hàng |
-| `from_date` | string (YYYY-MM-DD) | ✓        | Từ ngày     |
-| `to_date`   | string (YYYY-MM-DD) | ✓        | Đến ngày    |
+| Tên         | Kiểu                | Bắt buộc | Mô tả    |
+| ----------- | ------------------- | -------- | -------- |
+| `from_date` | string (YYYY-MM-DD) | ✓        | Từ ngày  |
+| `to_date`   | string (YYYY-MM-DD) | ✓        | Đến ngày |
 
 ### 15.3 Dữ liệu đầu ra
 
@@ -1106,11 +1106,10 @@ Giống như `/finance/transactions` (section 3.2) để filter dữ liệu cầ
 
 ## 17.2 Query Parameters
 
-| Tên         | Kiểu                | Bắt buộc | Mô tả       |
-| ----------- | ------------------- | -------- | ----------- |
-| `store_id`  | string (UUID)       | ✓        | ID cửa hàng |
-| `from_date` | string (YYYY-MM-DD) | Không    | Từ ngày     |
-| `to_date`   | string (YYYY-MM-DD) | Không    | Đến ngày    |
+| Tên         | Kiểu                | Bắt buộc | Mô tả    |
+| ----------- | ------------------- | -------- | -------- |
+| `from_date` | string (YYYY-MM-DD) | Không    | Từ ngày  |
+| `to_date`   | string (YYYY-MM-DD) | Không    | Đến ngày |
 
 ### 17.3 Response
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { CalculateCashBookUseCase } from './calculate-cash-book.usecase';
 
 /**
@@ -16,8 +17,12 @@ export class SyncCashBookUseCase {
    * @param storeId - ID cửa hàng
    * @param date - Ngày cần đồng bộ
    */
-  async syncForDate(storeId: string, date: Date): Promise<void> {
-    await this.calculateCashBookUseCase.calculateForDate(storeId, date);
+  async syncForDate(
+    storeId: string,
+    date: Date,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    await this.calculateCashBookUseCase.calculateForDate(storeId, date, tx);
   }
 
   /**
@@ -30,6 +35,7 @@ export class SyncCashBookUseCase {
     storeId: string,
     fromDate: Date,
     toDate: Date,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const currentDate = new Date(fromDate);
 
@@ -37,6 +43,7 @@ export class SyncCashBookUseCase {
       await this.calculateCashBookUseCase.calculateForDate(
         storeId,
         new Date(currentDate),
+        tx,
       );
 
       // Tăng 1 ngày

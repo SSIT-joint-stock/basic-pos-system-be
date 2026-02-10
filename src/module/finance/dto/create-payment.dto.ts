@@ -1,15 +1,18 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
+  contact_type,
+  payment_method,
+  transaction_source,
+} from '@prisma/client';
+import {
+  IsEnum,
   IsNotEmpty,
   IsNumber,
-  IsString,
-  IsEnum,
   IsOptional,
-  IsUUID,
-  Min,
+  IsString,
   Max,
+  Min,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { transaction_source, payment_method } from '@prisma/client';
 
 /**
  * DTO để tạo phiếu chi mới
@@ -17,7 +20,6 @@ import { transaction_source, payment_method } from '@prisma/client';
  *
  * LƯU Ý:
  * - store_id: Lấy từ current store trong access token (không cần truyền)
- * - contact_name: Lấy từ database dựa trên contact_id (không cần truyền)
  * - created_by: Lấy từ user đang login trong token (không cần truyền)
  * - reference_id, reference_type: Cho vào query params, không cho vào body
  */
@@ -54,23 +56,32 @@ export class CreatePaymentDto {
 
   @ApiProperty({
     description:
-      'ID khách hàng/nhà cung cấp (hệ thống sẽ tự động lấy tên từ database)',
+      'ID khách hàng/nhà cung cấp (hệ thống sẽ tự động lấy tên từ database) (Optional)',
     example: '123e4567-e89b-12d3-a456-426614174000',
+    required: false,
   })
-  @IsNotEmpty({ message: 'ID liên hệ không được để trống' })
-  @IsUUID('4', { message: 'ID liên hệ không hợp lệ' })
-  contact_id: string;
+  @IsOptional()
+  contact_id?: string;
+
+  @ApiProperty({
+    description: 'Tên người liên hệ (Optional)',
+    example: 'Nguyễn Văn A',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Tên liên hệ phải là chuỗi' })
+  contact_name?: string;
 
   @ApiProperty({
     description: 'Loại người liên hệ',
-    enum: ['Customer', 'Supplier', 'Other'],
+    enum: contact_type,
     example: 'Supplier',
   })
   @IsNotEmpty({ message: 'Loại liên hệ không được để trống' })
-  @IsEnum(['Customer', 'Supplier', 'Other'], {
-    message: 'Loại liên hệ phải là Customer, Supplier, hoặc Other',
+  @IsEnum(contact_type, {
+    message: 'Loại liên hệ phải là Customer, Supplier, StoreMember hoặc Other',
   })
-  contact_type: string;
+  contact_type: contact_type;
 
   @ApiProperty({
     description: 'Lý do chi tiền',

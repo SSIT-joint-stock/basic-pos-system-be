@@ -9,13 +9,15 @@ import { FinanceController } from './finance.controller';
 import { FinanceService } from './finance.service';
 
 // UseCases
-import { GenerateTransactionCodeUseCase } from './use-case/generate-transaction-code.usecase';
-import { CreateReceiptUseCase } from './use-case/create-receipt.usecase';
-import { CreatePaymentUseCase } from './use-case/create-payment.usecase';
-import { UpdateTransactionUseCase } from './use-case/update-transaction.usecase';
-import { CancelTransactionUseCase } from './use-case/cancel-transaction.usecase';
+import { Format } from 'app/common/helpers/format';
+import { FormatStatus } from 'app/common/helpers/status';
 import { CalculateCashBookUseCase } from './use-case/calculate-cash-book.usecase';
+import { CancelTransactionUseCase } from './use-case/cancel-transaction.usecase';
+import { CreatePaymentUseCase } from './use-case/create-payment.usecase';
+import { CreateReceiptUseCase } from './use-case/create-receipt.usecase';
+import { GenerateTransactionCodeUseCase } from './use-case/generate-transaction-code.usecase';
 import { SyncCashBookUseCase } from './use-case/sync-cash-book.usecase';
+import { UpdateTransactionUseCase } from './use-case/update-transaction.usecase';
 
 @Module({
   imports: [],
@@ -34,6 +36,8 @@ import { SyncCashBookUseCase } from './use-case/sync-cash-book.usecase';
     CancelTransactionUseCase,
     CalculateCashBookUseCase,
     SyncCashBookUseCase,
+    FormatStatus,
+    Format,
   ],
   exports: [
     FinanceService, // Export để các module khác có thể sử dụng (Orders, Purchase, Returns)
