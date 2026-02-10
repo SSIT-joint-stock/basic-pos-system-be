@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { order_status, Prisma } from '@prisma/client';
+import { order_status, Prisma, purchase_return_status } from '@prisma/client';
 import { Format } from 'app/common/helpers/format';
 import { FormatStatus } from 'app/common/helpers/status';
 import { PrismaService } from 'app/prisma/prisma.service';
@@ -12,6 +12,26 @@ import {
   REPORT_ORDER_ITEMS_EXCEL_TEMPLATE,
   ReportOrderItemExcel,
 } from 'app/shared/excel-template/template/report-order-item';
+import {
+  REPORT_ORDER_RETURN_EXCEL_TEMPLATE,
+  ReportOrderReturnExcel,
+} from 'app/shared/excel-template/template/report-order-return';
+import {
+  REPORT_PURCHASE_INVOICE_EXCEL_TEMPLATE,
+  ReportPurchaseInvoiceExcel,
+} from 'app/shared/excel-template/template/report-purchase-invoice';
+import {
+  REPORT_PURCHASE_RETURN_EXCEL_TEMPLATE,
+  ReportPurchaseReturnExcel,
+} from 'app/shared/excel-template/template/report-purchase-return';
+import {
+  REPORT_STOCK_EXCEL_TEMPLATE,
+  ReportStockExcel,
+} from 'app/shared/excel-template/template/report-stock';
+import {
+  REPORT_STOCK_LEDGER_EXCEL_TEMPLATE,
+  ReportStockLedgerExcel,
+} from 'app/shared/excel-template/template/report-stock-ledger';
 import {
   REPORT_SUPPLIERS_EXCEL_TEMPLATE,
   ReportSupplierExcel,
@@ -44,6 +64,49 @@ type StoreMemberWithUser = Prisma.StoreMemberGetPayload<{
         email: true;
       };
     };
+  };
+}>;
+type VariantStockWithVariant = Prisma.VariantStockGetPayload<{
+  include: {
+    variant: { include: { product: true } };
+  };
+}>;
+type PurchaseReturnItemWithReturn = Prisma.PurchaseReturnItemGetPayload<{
+  include: {
+    purchase_return: true;
+    variant: true;
+    product: true;
+  };
+}>;
+type OrderReturnItemWithReturn = Prisma.OrderReturnItemGetPayload<{
+  include: {
+    order_return: true;
+    variant: true;
+    product: true;
+  };
+}>;
+type PurchaseOrderItemWithOrder = Prisma.PurchaseOrderItemGetPayload<{
+  include: {
+    purchase_order: true;
+    variant: true;
+    product: true;
+  };
+}>;
+type OrderItemWithOrderInfo = Prisma.OrderItemGetPayload<{
+  include: {
+    order: true;
+    variant: true;
+    product: true;
+  };
+}>;
+type PurchaseOrderWithSupplier = Prisma.PurchaseOrderGetPayload<{
+  include: {
+    supplier: true;
+  };
+}>;
+type PurchaseReturnWithSupplier = Prisma.PurchaseReturnGetPayload<{
+  include: {
+    supplier: true;
   };
 }>;
 
@@ -129,6 +192,137 @@ export class ExportReportService {
     const rows = this.flattenStoreMemberData(storeMembers);
     return this.excelService.exportData(
       REPORT_STORE_MEMBER_EXCEL_TEMPLATE,
+      rows,
+    );
+  }
+
+  async exportReportStocks(storeId: string) {
+    const stocks = await this.prisma.variantStock.findMany({
+      where: {
+        store_id: storeId,
+      },
+      include: {
+        variant: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const rows = this.flattenStockData(stocks);
+    return this.excelService.exportData(REPORT_STOCK_EXCEL_TEMPLATE, rows);
+  }
+
+  async exportReportStockLedger(storeId: string) {
+    const [purchaseItems, orderItems] = await Promise.all([
+      this.prisma.purchaseOrderItem.findMany({
+        where: {
+          purchase_order: {
+            store_id: storeId,
+          },
+        },
+        include: {
+          purchase_order: true,
+          product: true,
+          variant: true,
+        },
+      }),
+      this.prisma.orderItem.findMany({
+        where: {
+          order: {
+            store_id: storeId,
+          },
+        },
+        include: {
+          order: true,
+          product: true,
+          variant: true,
+        },
+      }),
+    ]);
+
+    const rows = this.flattenStockLedgerData(purchaseItems, orderItems);
+    return this.excelService.exportData(
+      REPORT_STOCK_LEDGER_EXCEL_TEMPLATE,
+      rows,
+    );
+  }
+
+  async exportReportPurchaseReturns(storeId: string) {
+    const items = await this.prisma.purchaseReturnItem.findMany({
+      where: {
+        purchase_return: {
+          store_id: storeId,
+        },
+      },
+      include: {
+        purchase_return: true,
+        variant: true,
+        product: true,
+      },
+      orderBy: {
+        purchase_return: {
+          createdAt: 'desc',
+        },
+      },
+    });
+
+    const rows = this.flattenPurchaseReturnData(items);
+    return this.excelService.exportData(
+      REPORT_PURCHASE_RETURN_EXCEL_TEMPLATE,
+      rows,
+    );
+  }
+
+  async exportReportPurchaseInvoices(storeId: string) {
+    const [purchaseOrders, purchaseReturns] = await Promise.all([
+      this.prisma.purchaseOrder.findMany({
+        where: { store_id: storeId },
+        include: { supplier: true },
+      }),
+      this.prisma.purchaseReturn.findMany({
+        where: { store_id: storeId },
+        include: { supplier: true },
+      }),
+    ]);
+
+    const rows = this.flattenPurchaseInvoiceData(
+      purchaseOrders,
+      purchaseReturns,
+    );
+
+    return this.excelService.exportData(
+      REPORT_PURCHASE_INVOICE_EXCEL_TEMPLATE,
+      rows,
+    );
+  }
+
+  async exportReportOrderReturns(storeId: string) {
+    const items = await this.prisma.orderReturnItem.findMany({
+      where: {
+        order_return: {
+          store_id: storeId,
+        },
+      },
+      include: {
+        order_return: true,
+        variant: true,
+        product: true,
+      },
+      orderBy: {
+        order_return: {
+          createdAt: 'desc',
+        },
+      },
+    });
+
+    const rows = this.flattenOrderReturnData(items);
+    return this.excelService.exportData(
+      REPORT_ORDER_RETURN_EXCEL_TEMPLATE,
       rows,
     );
   }
@@ -237,5 +431,192 @@ export class ExportReportService {
     });
 
     return rows;
+  }
+
+  private flattenStockData(stocks: VariantStockWithVariant[]) {
+    const rows: ReportStockExcel[] = [];
+
+    stocks.forEach((item, index) => {
+      const onHand = Number(item.onHand ?? 0);
+      const cost = Number(item.variant?.cost ?? 0);
+      rows.push({
+        stt: index + 1,
+        variant_name: item.variant?.name || '',
+        product_name: item.variant?.product?.name || '',
+        sku: item.variant?.sku || '',
+        base_unit: item.variant?.product?.baseUnit || '',
+        on_hand: onHand,
+        reserved: Number(item.reserved ?? 0),
+        damaged: Number(item.damaged ?? 0),
+        price: this.format.formatCurrency(item.variant?.price ?? 0),
+        cost: this.format.formatCurrency(cost),
+        stock_value: this.format.formatCurrency(onHand * cost),
+      });
+    });
+
+    return rows;
+  }
+
+  private flattenStockLedgerData(
+    purchaseItems: PurchaseOrderItemWithOrder[],
+    orderItems: OrderItemWithOrderInfo[],
+  ) {
+    const rows: Array<ReportStockLedgerExcel & { rawDate: Date }> = [];
+
+    purchaseItems.forEach((item) => {
+      const quantity = Number(item.total_base_qty ?? item.quantity ?? 0);
+      rows.push({
+        stt: 0,
+        created_at: this.format.formatDate(item.purchase_order.order_date),
+        code: item.purchase_order.order_number,
+        type: 'NHẬP',
+        partner_name: item.purchase_order.supplier_name || '',
+        variant_name: item.variant?.name || item.item_name || '',
+        product_name: item.product?.name || '',
+        base_unit: item.product?.baseUnit || '',
+        quantity_in: quantity,
+        quantity_out: 0,
+        unit_price: this.format.formatCurrency(item.unit_cost ?? 0),
+        line_total: this.format.formatCurrency(item.total ?? 0),
+        rawDate: item.purchase_order.order_date,
+      });
+    });
+
+    orderItems.forEach((item) => {
+      rows.push({
+        stt: 0,
+        created_at: this.format.formatDate(item.order.createdAt),
+        code: item.order.code || '',
+        type: 'XUẤT',
+        partner_name: item.order.customer_name || '',
+        variant_name: item.variant?.name || '',
+        product_name: item.product?.name || '',
+        base_unit: item.product?.baseUnit || '',
+        quantity_in: 0,
+        quantity_out: Number(item.quantity ?? 0),
+        unit_price: this.format.formatCurrency(item.price ?? 0),
+        line_total: this.format.formatCurrency(item.total ?? 0),
+        rawDate: item.order.createdAt,
+      });
+    });
+
+    rows.sort((a, b) => {
+      return b.rawDate.getTime() - a.rawDate.getTime();
+    });
+
+    return rows.map(({ ...row }, index) => ({
+      ...row,
+      stt: index + 1,
+    }));
+  }
+
+  private flattenPurchaseReturnData(items: PurchaseReturnItemWithReturn[]) {
+    const rows: ReportPurchaseReturnExcel[] = [];
+
+    items.forEach((item, index) => {
+      rows.push({
+        stt: index + 1,
+        return_date: this.format.formatDate(item.purchase_return.return_date),
+        return_number: item.purchase_return.return_number,
+        supplier_name: item.purchase_return.supplier_name || '',
+        supplier_code: item.purchase_return.supplier_code || '',
+        status: String(item.purchase_return.status || ''),
+        payment_status: this.status.paymentStatus(
+          item.purchase_return.payment_status,
+        ),
+        total_return: this.format.formatCurrency(
+          item.purchase_return.total ?? 0,
+        ),
+        variant_name: item.variant?.name || item.item_name || '',
+        product_name: item.product?.name || '',
+        base_unit: item.product?.baseUnit || '',
+        quantity: Number(item.quantity ?? 0),
+        unit_cost: this.format.formatCurrency(item.unit_cost ?? 0),
+        line_total: this.format.formatCurrency(item.total ?? 0),
+        reason: item.reason || '',
+      });
+    });
+
+    return rows;
+  }
+
+  private flattenOrderReturnData(items: OrderReturnItemWithReturn[]) {
+    const rows: ReportOrderReturnExcel[] = [];
+
+    items.forEach((item, index) => {
+      rows.push({
+        stt: index + 1,
+        return_date: this.format.formatDate(item.order_return.createdAt),
+        return_number: item.order_return.order_return_number,
+        order_number: item.order_return.order_number,
+        customer_name: item.order_return.customer_name || '',
+        return_status: String(item.order_return.return_status || ''),
+        return_type: String(item.order_return.return_type || ''),
+        total_return: this.format.formatCurrency(item.order_return.total ?? 0),
+        variant_name: item.variant?.name || item.item_name || '',
+        product_name: item.product?.name || '',
+        base_unit: item.product?.baseUnit || '',
+        quantity: Number(item.quantity ?? 0),
+        line_total: this.format.formatCurrency(item.total ?? 0),
+        reason_status: String(item.reason_status || ''),
+        condition: item.condition || '',
+      });
+    });
+
+    return rows;
+  }
+
+  private flattenPurchaseInvoiceData(
+    purchaseOrders: PurchaseOrderWithSupplier[],
+    purchaseReturns: PurchaseReturnWithSupplier[],
+  ) {
+    const rows: Array<ReportPurchaseInvoiceExcel & { rawDate: Date }> = [];
+
+    purchaseOrders.forEach((order) => {
+      rows.push({
+        supplier_code: order.supplier_code || order.supplier?.code || '',
+        supplier_name: order.supplier_name || order.supplier?.name || '',
+        invoice_type: 'NHẬP',
+        invoice_code: order.order_number,
+        status: this.status.purchaseOrderStatus(order.status),
+        payment_status: this.status.paymentStatus(order.payment_status),
+        payment_method: order.payment_method
+          ? this.status.paymentMethod(order.payment_method)
+          : '',
+        invoice_date: this.format.formatDate(order.order_date),
+        total_amount: this.format.formatCurrency(order.total ?? 0),
+        note: order.notes || '',
+        rawDate: order.order_date,
+      });
+    });
+
+    purchaseReturns.forEach((ret) => {
+      rows.push({
+        supplier_code: ret.supplier_code || ret.supplier?.code || '',
+        supplier_name: ret.supplier_name || ret.supplier?.name || '',
+        invoice_type: 'TRẢ',
+        invoice_code: ret.return_number,
+        status: this.formatPurchaseReturnStatus(ret.status),
+        payment_status: this.status.paymentStatus(ret.payment_status),
+        payment_method: '',
+        invoice_date: this.format.formatDate(ret.return_date),
+        total_amount: this.format.formatCurrency(ret.total ?? 0),
+        note: ret.reason || ret.notes || '',
+        rawDate: ret.return_date,
+      });
+    });
+
+    rows.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
+
+    return rows.map(({ ...row }) => row);
+  }
+
+  private formatPurchaseReturnStatus(status: purchase_return_status) {
+    const map: Record<purchase_return_status, string> = {
+      DRAFT: 'Nháp',
+      COMPLETED: 'Hoàn thành',
+      CANCELLED: 'Đã hủy',
+    };
+    return map[status];
   }
 }
