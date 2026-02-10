@@ -1,5 +1,11 @@
 import { Controller, Get, Param, Query, Res } from '@nestjs/common';
 import {
+  order_return_status,
+  order_return_type,
+  payment_status,
+  purchase_return_status,
+} from '@prisma/client';
+import {
   FilterParse,
   type FilterParseResult,
 } from 'app/common/decorators/filter-parse.decorator';
@@ -11,6 +17,10 @@ import type { IUser } from 'app/common/types/user.type';
 import { ReportCustomerService } from 'app/module/report/customer/report-customer.service';
 import { ExportReportService } from 'app/module/report/export-report.service';
 import { ReportOrderItemService } from 'app/module/report/order-item/report-order-item.service';
+import { ReportPurchaseService } from 'app/module/report/purchase/report-purchase.service';
+import { ReportOrderReturnService } from 'app/module/report/return/report-order-return.service';
+import { ReportStockLedgerService } from 'app/module/report/stock-ledger/report-stock-ledger.service';
+import { ReportStockService } from 'app/module/report/stock/report-stock.service';
 import { ReportSupplierService } from 'app/module/report/supplier/report-supplier.service';
 import express from 'express';
 import z from 'zod';
@@ -21,6 +31,10 @@ export class ReportController {
     private readonly reportCustomer: ReportCustomerService,
     private readonly reportSupplier: ReportSupplierService,
     private readonly reportOrderItem: ReportOrderItemService,
+    private readonly reportStock: ReportStockService,
+    private readonly reportStockLedger: ReportStockLedgerService,
+    private readonly reportPurchase: ReportPurchaseService,
+    private readonly reportOrderReturn: ReportOrderReturnService,
     private readonly excel: ExportReportService,
   ) {}
 
@@ -135,6 +149,175 @@ export class ReportController {
     return PaginatedResponse.from(data, query.page, query.limit, total, '');
   }
 
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('stocks')
+  async getReportStocks(
+    @User() user: IUser,
+    @Query('q') q: string | undefined,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'onHand'],
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportStock.getReportStocks(
+      user.storeId || '',
+      query.prismaQuery,
+      q,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('stock-ledger')
+  async getReportStockLedger(
+    @User() user: IUser,
+    @Query('q') q: string | undefined,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt'],
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportStockLedger.getReportStockLedger(
+      user.storeId || '',
+      query,
+      q,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('purchase-returns')
+  async getReportPurchaseReturns(
+    @User() user: IUser,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'return_number', 'supplier_name'],
+      searchBy: ['return_number', 'supplier_code', 'supplier_name'],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+        payment_status: z.enum(payment_status).optional(),
+        status: z.enum(purchase_return_status).optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportPurchase.getReportPurchaseReturns(
+      user.storeId || '',
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('purchase-invoices')
+  async getReportPurchaseInvoices(
+    @User() user: IUser,
+    @Query('q') q: string | undefined,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'code', 'supplier_name'],
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportPurchase.getReportPurchaseInvoices(
+      user.storeId || '',
+      query,
+      q,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
+  @RequirePermission([PERMISSIONS.REPORT_READ])
+  @Get('order-returns')
+  async getReportOrderReturns(
+    @User() user: IUser,
+    @FilterParse({
+      allowPagination: true,
+      allowSorting: true,
+      allowGetBetweenDate: true,
+      defaultSortBy: 'createdAt',
+      defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'order_return_number', 'order_number'],
+      searchBy: [
+        'order_return_number',
+        'order_number',
+        'customer_name',
+        'customer_phone',
+      ],
+      searchKey: 'q',
+      schema: z.object({
+        q: z.string().optional(),
+        createdAt: z
+          .object({
+            gte: z.string().optional(),
+            lte: z.string().optional(),
+          })
+          .optional(),
+        return_type: z.enum(order_return_type).optional(),
+        return_status: z.enum(order_return_status).optional(),
+      }),
+    })
+    query: FilterParseResult<any>,
+  ) {
+    const { data, total } = await this.reportOrderReturn.getReportOrderReturns(
+      user.storeId || '',
+      query.prismaQuery,
+    );
+    return PaginatedResponse.from(data, query.page, query.limit, total, '');
+  }
+
   // excel
   @Get('/excel/suppliers')
   async exportExcelSuppliers(
@@ -173,6 +356,94 @@ export class ReportController {
     res.setHeader(
       'Content-Disposition',
       'attachment; filename=order-items.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
+
+  @Get('/excel/stocks')
+  async exportExcelStocks(@Res() res: express.Response, @User() user: IUser) {
+    const buffer = await this.excel.exportReportStocks(user.storeId || '');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=report-stocks.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
+
+  @Get('/excel/stock-ledger')
+  async exportExcelStockLedger(
+    @Res() res: express.Response,
+    @User() user: IUser,
+  ) {
+    const buffer = await this.excel.exportReportStockLedger(user.storeId || '');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=stock-ledger.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
+
+  @Get('/excel/purchase-returns')
+  async exportExcelPurchaseReturns(
+    @Res() res: express.Response,
+    @User() user: IUser,
+  ) {
+    const buffer = await this.excel.exportReportPurchaseReturns(
+      user.storeId || '',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=purchase-returns.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
+
+  @Get('/excel/purchase-invoices')
+  async exportExcelPurchaseInvoices(
+    @Res() res: express.Response,
+    @User() user: IUser,
+  ) {
+    const buffer = await this.excel.exportReportPurchaseInvoices(
+      user.storeId || '',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=purchase-invoices.xlsx',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.end(buffer);
+  }
+
+  @Get('/excel/order-returns')
+  async exportExcelOrderReturns(
+    @Res() res: express.Response,
+    @User() user: IUser,
+  ) {
+    const buffer = await this.excel.exportReportOrderReturns(
+      user.storeId || '',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=order-returns.xlsx',
     );
     res.setHeader(
       'Content-Type',

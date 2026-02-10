@@ -257,19 +257,20 @@ export class ProductExcelService {
         // 1. Xử lý Category
         let categoryId: string | undefined;
         if (firstItem.category_name) {
-          const category = await tx.category.upsert({
+          let category = await tx.category.findFirst({
             where: {
-              store_id_name: {
-                store_id: storeId,
-                name: firstItem.category_name,
-              },
-            },
-            create: {
               store_id: storeId,
               name: firstItem.category_name,
             },
-            update: {},
           });
+          if (!category) {
+            category = await tx.category.create({
+              data: {
+                store_id: storeId,
+                name: firstItem.category_name,
+              },
+            });
+          }
           categoryId = category.id;
         }
 

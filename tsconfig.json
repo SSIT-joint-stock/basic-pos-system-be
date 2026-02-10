@@ -27,5 +27,6 @@
       "config/*": ["./src/config/*"],
       "test/*": ["./test/*"]
     }
-  }
+  },
+  "exclude": ["dist"]
 }
