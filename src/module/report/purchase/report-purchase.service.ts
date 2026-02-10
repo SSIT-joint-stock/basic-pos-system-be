@@ -18,7 +18,7 @@ export class ReportPurchaseService {
   ) {
     await this.checkStore(storeId);
 
-    const baseWhere = (query.where ?? {}) as Prisma.PurchaseReturnWhereInput;
+    const baseWhere = query.where ?? {};
     const returnWhere: Prisma.PurchaseReturnWhereInput = {
       AND: [baseWhere, { store_id: storeId }],
     };

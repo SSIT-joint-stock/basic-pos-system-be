@@ -18,11 +18,15 @@ export class ReportStockService {
   ) {
     await this.checkStore(storeId);
 
-    const baseWhere = (query.where ?? {}) as Prisma.VariantStockWhereInput;
+    const baseWhere = query.where ?? {};
     const searchWhere = this.buildSearchWhere(search);
 
     const where: Prisma.VariantStockWhereInput = {
-      AND: [baseWhere, { store_id: storeId }, ...(searchWhere ? [searchWhere] : [])],
+      AND: [
+        baseWhere,
+        { store_id: storeId },
+        ...(searchWhere ? [searchWhere] : []),
+      ],
     };
 
     const [stocks, total] = await Promise.all([
