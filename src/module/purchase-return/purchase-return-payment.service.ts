@@ -7,6 +7,7 @@ import {
   PurchaseReturn,
 } from '@prisma/client';
 import { BadRequestError, NotFoundError } from 'app/common/response';
+import { FinanceService } from 'app/module/finance/finance.service';
 import { AcceptPaymentPurchaseReturnDto } from 'app/module/purchase-return/dto/accept-paymen-purchase-return.dto';
 import { PrismaService } from 'app/prisma/prisma.service';
 
@@ -19,7 +20,10 @@ export class PurchaseReturnPaymentService {
       'Đơn nhập chưa hoàn thành. Vui lòng thử lập sau',
     PAYMENT_AMOUNT_NOT_VALID: 'Số tiền thanh toán không hợp lệ',
   };
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financeService: FinanceService,
+  ) {}
   async acceptPaymentPurchaseReturn(
     storeId: string,
     purchaseReturnId: string,
@@ -60,6 +64,12 @@ export class PurchaseReturnPaymentService {
           },
         },
       });
+      await this.financeService.createReceiptFromPurchaseReturn(
+        purchaseReturnId,
+        purchaseReturn?.created_by || '',
+        Number(dto.amount),
+        dto.payment_method,
+      );
       return {
         ...purchaseReturn,
         payment_status: payment_status.PAID,
