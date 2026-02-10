@@ -129,6 +129,32 @@ enum payment_method {
   DIGITAL_WALLET // Ví điện tử (MoMo, ZaloPay, etc.)
 }
 
+// Loại giao dịch tài chính
+enum transaction_type {
+  RECEIPT  // Phiếu thu (tiền vào)
+  PAYMENT  // Phiếu chi (tiền ra)
+}
+
+// Nguồn phát sinh giao dịch
+enum transaction_source {
+  SALE              // Bán hàng
+  PURCHASE          // Nhập hàng
+  ORDER_RETURN      // Trả hàng (khách trả)
+  PURCHASE_RETURN   // Trả hàng nhập (trả NCC)
+  CUSTOMER_DEBT     // Thu công nợ khách hàng
+  SUPPLIER_DEBT     // Trả công nợ NCC
+  OTHER_INCOME      // Thu khác
+  OTHER_EXPENSE     // Chi khác
+  OPENING_BALANCE   // Số dư đầu kỳ
+}
+
+// Trạng thái giao dịch
+enum transaction_status {
+  PENDING    // Chờ xác nhận
+  CONFIRMED  // Đã xác nhận
+  CANCELLED  // Đã hủy
+}
+
 enum supplier_status {
   ACTIVE
   INACTIVE
@@ -245,7 +271,8 @@ model Store {
   purchase_orders PurchaseOrder[]
   purchase_return PurchaseReturn[]
   variant_stock VariantStock[]
-
+cash_transactions   CashTransaction[]
+  cash_book_entries   CashBookEntry[]
 
   // indexes
   @@index([owner_id])
@@ -1022,6 +1049,68 @@ model StatisticsDaily {
   @@index([store_id])
   @@index([stat_date])
   @@map("statistics_daily")
+}// CashTransaction: Quản lý phiếu thu/phiếu chi
+model CashTransaction {
+  id                  String              @id @default(uuid()) @db.Uuid
+  code                String              // PT00001, PC00001
+  
+  store_id            String              @db.Uuid
+  transaction_type    transaction_type    // RECEIPT hoặc PAYMENT
+  transaction_source  transaction_source
+  
+  amount              Decimal             @db.Decimal(15, 2)
+  payment_method      payment_method
+  
+  reference_type      String?
+  reference_id        String?             @db.Uuid
+  
+  contact_type        String?
+  contact_id          String?             @db.Uuid
+  contact_name        String
+  
+  description         String
+  notes               String?
+  
+  status              transaction_status  @default(PENDING)
+  transaction_date    DateTime            @default(now())
+  
+  created_by          String              @db.Uuid
+  approved_by         String?             @db.Uuid
+  cancelled_by        String?             @db.Uuid
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  store               Store               @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  
+  @@index([store_id, transaction_date])
+  @@index([store_id, transaction_type])
+  @@index([store_id, code])
+  @@index([reference_type, reference_id])
+  @@index([contact_type, contact_id])
+  @@map("cash_transaction")
+}
+
+// CashBookEntry: Sổ quỹ tiền mặt
+model CashBookEntry {
+  id                  String    @id @default(uuid()) @db.Uuid
+  store_id            String    @db.Uuid
+  
+  date                DateTime
+  
+  opening_balance     Decimal   @db.Decimal(15, 2)
+  total_receipts      Decimal   @db.Decimal(15, 2)
+  total_payments      Decimal   @db.Decimal(15, 2)
+  closing_balance     Decimal   @db.Decimal(15, 2)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  store               Store     @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  
+  @@unique([store_id, date])
+  @@index([store_id, date])
+  @@map("cash_book_entry")
 }
 
 model Asset {
