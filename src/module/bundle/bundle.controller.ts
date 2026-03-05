@@ -24,7 +24,7 @@ import { CreateBundleDto } from './dto/create-bundle.dto';
 import { UpdateBundleDto } from './dto/update-bundle.dto';
 
 @ApiTags('Bundle')
-@Controller('bundle')
+@Controller('bundles')
 export class BundleController {
   constructor(private readonly bundleService: BundleService) {}
 
@@ -45,6 +45,7 @@ export class BundleController {
       allowSorting: true,
       defaultSortBy: 'createdAt',
       defaultSort: 'desc',
+      allowedSortBy: ['createdAt', 'name', 'price', 'quantity', 'sku'],
       searchBy: ['name', 'sku'],
       schema: z.object({
         q: z.string().optional(),

@@ -3,6 +3,7 @@ import {
   IsArray,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
@@ -28,9 +29,7 @@ export class CreateBundleDto {
   quantity: number;
 
   @IsString()
-  @IsNotEmpty({
-    message: 'Vui lòng nhập SKU cho combo',
-  })
+  @IsOptional()
   sku: string;
 
   @IsArray()

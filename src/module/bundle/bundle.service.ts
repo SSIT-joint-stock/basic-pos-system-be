@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { BadRequestError } from 'app/common/response';
+import { BadRequestError, NotFoundError } from 'app/common/response';
+import { GenerateBundleSkuUseCase } from 'app/module/bundle/use-case/generate-code.usecase';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { CreateBundleDto } from './dto/create-bundle.dto';
 import { UpdateBundleDto } from './dto/update-bundle.dto';
@@ -15,23 +16,44 @@ export class BundleService {
       'Tên combo đã tồn tại trong cửa hàng. Vui lòng chọn tên khác!',
   };
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly generateCode: GenerateBundleSkuUseCase,
+  ) {}
 
   async create(createBundleDto: CreateBundleDto, storeId: string) {
     const { items, ...body } = createBundleDto;
-
+    let variantName = '';
     await this.checkHasSku(body.sku, storeId);
     await this.checkHasName(body.name, storeId);
 
     return this.prisma.$transaction(async (tx) => {
+      for (const item of items) {
+        const variant = await tx.variant.findFirst({
+          where: {
+            id: item.variantId,
+            product: {
+              store_id: storeId,
+            },
+          },
+        });
+        if (!variant) {
+          throw new NotFoundError(
+            `Biến thể với id ${item.variantId} không tồn tại trong cửa hàng!`,
+          );
+        }
+        variantName = variant.name;
+      }
       const bundle = await tx.bundle.create({
         data: {
           ...body,
+          sku: body.sku || (await this.generateCode.generateSku(storeId)),
           storeId,
           items: {
             create: items.map((item) => ({
               variantId: item.variantId,
               quantity: item.quantity,
+              variant_name: variantName,
             })),
           },
         },
@@ -107,6 +129,7 @@ export class BundleService {
 
   async update(id: string, updateBundleDto: UpdateBundleDto, storeId: string) {
     await this.findOne(id, storeId);
+    let variantName = '';
 
     if (updateBundleDto.sku) {
       await this.checkHasSku(updateBundleDto.sku, storeId, id);
@@ -121,6 +144,22 @@ export class BundleService {
     return this.prisma.$transaction(async (tx) => {
       // If items are provided, replace them
       if (items) {
+        for (const item of items) {
+          const variant = await tx.variant.findFirst({
+            where: {
+              id: item.variantId,
+              product: {
+                store_id: storeId,
+              },
+            },
+          });
+          if (!variant) {
+            throw new NotFoundError(
+              `Biến thể với id ${item.variantId} không tồn tại trong cửa hàng!`,
+            );
+          }
+          variantName = variant.name;
+        }
         // Delete existing items
         await tx.bundleItem.deleteMany({
           where: { bundleId: id },
@@ -135,6 +174,7 @@ export class BundleService {
               create: items.map((item) => ({
                 variantId: item.variantId,
                 quantity: item.quantity,
+                variant_name: variantName,
               })),
             },
           },
