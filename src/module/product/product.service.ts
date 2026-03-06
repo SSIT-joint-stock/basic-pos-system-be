@@ -7,6 +7,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { GenerateProductSkuUseCase } from './use-case/generate-sku.usecase';
 
 import { IUser } from 'app/common/types/user.type';
+import { AssetsService } from '../assets/assets.service';
 import { StockMovementService } from '../stock-movement/stock-movement.service';
 import { GenerateVariantSkuUseCase } from '../variant/use-case/genereate-sku-variant.usecase';
 
@@ -30,9 +31,15 @@ export class ProductService {
     private readonly generateSku: GenerateProductSkuUseCase,
     private readonly generateVariantSku: GenerateVariantSkuUseCase,
     private readonly stockMovementService: StockMovementService,
+    private readonly assetsService: AssetsService,
   ) {}
 
-  async create(user: IUser, storeId: string, data: CreateProductDto) {
+  async create(
+    user: IUser,
+    storeId: string,
+    data: CreateProductDto,
+    file?: Express.Multer.File,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const genSku = await this.generateSku.generateSku(storeId);
       const skuToUse = data.sku && data.sku.trim() !== '' ? data.sku : genSku;
@@ -63,6 +70,23 @@ export class ProductService {
           variant: true,
         },
       });
+
+      // Handle file upload if present
+      let imageUrl = newProduct.image_url;
+      if (file) {
+        const asset = await this.assetsService.uploadFile(user, file, {
+          entityId: newProduct.id,
+          entityType: 'product',
+          folder: 'products',
+        });
+        imageUrl = asset.url;
+        // Update product with image_url
+        await tx.product.update({
+          where: { id: newProduct.id },
+          data: { image_url: imageUrl },
+        });
+      }
+
       if (barcode && barcode.trim() !== '') {
         await this.checkHasBarCode(barcode, storeId);
       }
@@ -97,6 +121,7 @@ export class ProductService {
         ...newVariant,
         product: {
           baseUnit: newProduct?.baseUnit,
+          image_url: imageUrl,
         },
       };
     });
@@ -166,7 +191,13 @@ export class ProductService {
     };
   }
 
-  async update(storeId: string, id: string, data: UpdateProductDto) {
+  async update(
+    storeId: string,
+    id: string,
+    data: UpdateProductDto,
+    user: IUser,
+    file?: Express.Multer.File,
+  ) {
     // 1) Lấy product hiện tại để kiểm tra tồn tại
 
     await this.checkHasProduct(id, storeId);
@@ -176,11 +207,24 @@ export class ProductService {
     }
 
     const { categoryIds, tagIds, barcode, ...res } = data;
+
+    // Handle file upload if present
+    let imageUrl = res.image_url;
+    if (file) {
+      const asset = await this.assetsService.uploadFile(user, file, {
+        entityId: id,
+        entityType: 'product',
+        folder: 'products',
+      });
+      imageUrl = asset.url;
+    }
+
     // 3) Thực hiện update
     const updated = await this.prisma.product.update({
       where: { id, store_id: storeId },
       data: {
         ...res,
+        image_url: imageUrl,
 
         categories:
           categoryIds !== undefined
