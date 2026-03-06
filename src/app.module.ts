@@ -67,26 +67,31 @@ import { FinanceModule } from './module/finance/finance.module';
 @Module({
   imports: [
     ServeStaticModule.forRoot(
-      // uploads assets
+      // public uploads
       {
-        rootPath: join(process.cwd(), 'uploads'),
-        serveRoot: '/uploads', // http://host/uploads/...
+        rootPath: join(process.cwd(), 'uploads', 'public'),
+        serveRoot: '/uploads/public',
         serveStaticOptions: {
           index: false,
-          setHeaders: (res) => {
-            res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
-          },
+        },
+      },
+      // legacy uploads (if any)
+      {
+        rootPath: join(process.cwd(), 'uploads'),
+        serveRoot: '/uploads',
+        serveStaticOptions: {
+          index: false,
         },
       },
       // public assets
       {
         rootPath: join(process.cwd(), 'public'),
-        serveRoot: '/assets', // http://host/public/...
+        serveRoot: '/assets',
       },
       // docs assets
       {
         rootPath: join(process.cwd(), 'public', 'docs'),
-        serveRoot: '/docs/assets', // http://host/docs/assets/...
+        serveRoot: '/docs/assets',
       },
     ),
     // config
