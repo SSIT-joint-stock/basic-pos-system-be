@@ -187,18 +187,19 @@ enum purchase_order_status {
   RECEIVED // Đã nhận hàng đầy đủ (đã nhận toàn bộ hàng đặt)
 }
 
-enum AssetVisibility {
-  PUBLIC
-  PRIVATE
-  TEMP
+enum asset_type {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  OTHER
 }
 
-enum AssetAction {
-  READ
-  WRITE
-  DELETE
+enum asset_access_type {
+  PUBLIC   /// Ai cũng có thể truy cập (qua CDN)
+  PRIVATE  /// Chỉ user có quyền mới truy cập
+  TEMP     /// File tạm, có thời gian hết hạn
 }
-
 enum purchase_return_status {
   DRAFT
   COMPLETED
@@ -241,6 +242,7 @@ model User {
   created_purchases        PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
   approved_purchases       PurchaseOrder[]  @relation("PurchaseOrderApprovedBy")
   created_purchases_return PurchaseReturn[]
+  assets                   Asset[]
 
   // indexes
   @@index([role, status])
@@ -286,6 +288,7 @@ model Store {
   cash_transactions  CashTransaction[]
   cash_book_entries  CashBookEntry[]
   bundles            Bundle[]
+  assets             Asset[]
 
   // indexes
   @@index([owner_id])
@@ -1111,61 +1114,55 @@ model CashBookEntry {
   @@map("cash_book_entry")
 }
 
+/// File / Tài nguyên được upload vào hệ thống
 model Asset {
-  id           String            @id @default(cuid())
-  storeId      String
-  visibility   AssetVisibility   @default(PUBLIC)
-  storageKey   String // e.g stores/<storeId>/public/2026/01/<uuid>.png
-  originalName String
-  mimeType     String
-  size         Int
-  checksum     String?
-  createdBy    String
-  expiresAt    DateTime?
-  deletedAt    DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  permissions  AssetPermission[]
-  links        AssetLink[]
+  id              String            @id @default(uuid()) @db.Uuid
+  store_id        String            @db.Uuid
+  original_name   String                                        /// Tên file gốc từ client
+  filename        String                                        /// Tên file sau khi lưu trữ (unique)
+  mime_type       String                                        /// MIME type: image/png, application/pdf...
+  size            Int                                           /// Kích thước file (bytes)
+  path            String                                        /// Đường dẫn tương đối từ storage root
+  access_type     asset_access_type @default(PUBLIC)           /// PUBLIC / PRIVATE / TEMP
+  type            asset_type        @default(OTHER)            /// IMAGE / VIDEO / AUDIO / DOCUMENT / OTHER
+  folder          String?                                       /// Thư mục con do client chỉ định
+  metadata        Json?                                         /// Metadata bổ sung (duration cho audio, v.v.)
+  is_deleted      Boolean           @default(false)            /// Soft delete
+  uploaded_by_id  String?           @db.Uuid                  /// ID user upload (null nếu do hệ thống tạo)
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
 
-  @@unique([storeId, storageKey])
-  @@index([storeId])
-  @@index([storeId, visibility])
-  @@index([storeId, createdBy])
-  @@index([storeId, deletedAt])
-  @@index([storeId, expiresAt])
+  store           Store             @relation(fields: [store_id], references: [id], onDelete: Cascade)
+  uploaded_by     User?             @relation(fields: [uploaded_by_id], references: [id])
+  links           AssetLink[]       /// Danh sách entity được gắn với file này
+
+  @@index([store_id])
+  @@index([access_type])
+  @@index([type])
+  @@index([uploaded_by_id])
+  @@index([is_deleted])
+  @@index([created_at])
   @@map("asset")
 }
 
-model AssetPermission {
-  id        String      @id @default(cuid())
-  storeId   String
-  assetId   String
-  userId    String
-  action    AssetAction
-  createdAt DateTime    @default(now())
-  asset     Asset       @relation(fields: [assetId], references: [id])
-
-  @@unique([storeId, assetId, userId, action])
-  @@index([storeId, userId])
-  @@index([storeId, assetId])
-  @@map("asset_permission")
-}
-
+/// Liên kết file với entity nghiệp vụ (polymorphic association)
 model AssetLink {
-  id         String   @id @default(cuid())
-  storeId    String
-  assetId    String
-  entityType String // PRODUCT, INVOICE, USER...
-  entityId   String
-  field      String?
-  createdAt  DateTime @default(now())
-  asset      Asset    @relation(fields: [assetId], references: [id])
+  id          String   @id @default(uuid()) @db.Uuid
+  store_id    String   @db.Uuid
+  asset_id    String   @db.Uuid
+  entity_id   String   @db.Uuid                      /// ID của entity (product, order, user...)
+  entity_type String                                  /// Tên entity: "product", "order", "user"...
+  created_at  DateTime @default(now())
 
-  @@index([storeId, entityType, entityId])
-  @@index([storeId, assetId])
+  asset       Asset    @relation(fields: [asset_id], references: [id], onDelete: Cascade)
+
+  @@unique([asset_id, entity_id, entity_type])
+  @@index([store_id])
+  @@index([entity_id, entity_type])
   @@map("asset_link")
 }
+
+
 
 // ==========================================
 // BUNDLE MODELS

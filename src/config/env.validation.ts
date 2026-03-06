@@ -57,6 +57,18 @@ export const envSchema = z.object({
   // File Upload Configuration
   UPLOAD_DEST: z.string().default('./uploads'),
   MAX_FILE_SIZE: z.coerce.number().int().min(1).default(10485760), // 10MB
+  MAX_UPLOAD_SIZE: z.coerce.number().int().min(1).optional(),
+  ALLOWED_MIME_TYPES: z.string().optional(),
+
+  // --- STORAGE CONFIGURATION ---
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  STORAGE_ROOT_DIR: z.string().default('/app/storage'),
+  STORAGE_PUBLIC_DIR_NAME: z.string().default('public'),
+  STORAGE_PRIVATE_DIR_NAME: z.string().default('private'),
+  STORAGE_TEMP_DIR_NAME: z.string().default('temp'),
+
+  // --- CDN / PUBLIC ACCESS ---
+  ASSET_CDN_URL: z.string().url().default('https://cdn.example.com'),
 
   // Logging Configuration
   LOG_LEVEL: z
@@ -107,6 +119,7 @@ export const envSchema = z.object({
 
   // Client
   FRONTEND_URL: z.string().default('http://localhost:3001'),
+  APP_URL: z.string().default('http://localhost:3000'),
 });
 
 // define the environment variables type
