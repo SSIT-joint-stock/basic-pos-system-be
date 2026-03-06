@@ -82,11 +82,17 @@ export class ProductController {
   @Post()
   @RequirePermissions([PERMISSIONS.PRODUCT_CREATE])
   @ApiSuccess('Tạo sản phẩm thành công!')
-  create(@User() user: IUser, @Body() createProductDto: CreateProductDto) {
+  @UseInterceptors(FileInterceptor('file'))
+  create(
+    @User() user: IUser,
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
     return this.productService.create(
       user,
       user.storeId || '',
       createProductDto,
+      file,
     );
   }
 
@@ -100,12 +106,20 @@ export class ProductController {
   @Patch(':id')
   @RequirePermissions([PERMISSIONS.PRODUCT_UPDATE, PERMISSIONS.PRODUCT_ALL])
   @ApiSuccess('Cập nhật sản phẩm thành công!')
+  @UseInterceptors(FileInterceptor('file'))
   update(
     @User() user: IUser,
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.productService.update(user.storeId || '', id, updateProductDto);
+    return this.productService.update(
+      user.storeId || '',
+      id,
+      updateProductDto,
+      user,
+      file,
+    );
   }
 
   @Delete(':id')
