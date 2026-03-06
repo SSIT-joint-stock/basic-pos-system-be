@@ -61,6 +61,7 @@ import { OrderReturnModule } from './module/order-return/order-return.module';
 
 import { FinanceModule } from './module/finance/finance.module';
 import { CatalogModule } from './module/catalog/catalog.module';
+import { BundleModule } from './module/bundle/bundle.module';
 
 @Module({
   imports: [
@@ -147,6 +148,8 @@ import { CatalogModule } from './module/catalog/catalog.module';
     FinanceModule,
 
     CatalogModule,
+
+    BundleModule,
   ],
   providers: [
     TokenService,
