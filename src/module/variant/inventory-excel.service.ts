@@ -18,10 +18,15 @@ export class VariantExcelService {
       where: {
         product: {
           store_id: storeId,
+          is_deleted: false,
         },
       },
       include: {
-        variant_stocks: true,
+        variant_stocks: {
+          where: {
+            store_id: storeId,
+          },
+        },
         product: true,
         conversions: true,
       },

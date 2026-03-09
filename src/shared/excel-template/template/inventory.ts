@@ -16,7 +16,7 @@ export const INVENTORY_EXCEL_TEMPLATE: ExcelTemplateConfig = {
         {
           header: 'Tên sản phẩm',
           key: 'product_name',
-          width: 28,
+          width: 30,
           merge: true,
         },
         {
@@ -39,7 +39,7 @@ export const INVENTORY_EXCEL_TEMPLATE: ExcelTemplateConfig = {
         {
           header: 'Tên biến thể',
           key: 'variant_name',
-          width: 28,
+          width: 40,
           // merge: true,
         },
         {

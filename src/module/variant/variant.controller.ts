@@ -155,11 +155,14 @@ export class VariantController {
 
   // EXCEL
   @Get('/excel/export/')
-  async exportPurchaseOrdersExcel(
+  @RequirePermission([PERMISSIONS.VARIANT_READ, PERMISSIONS.VARIANT_ALL])
+  async exportInventoryExcel(
     @Res() res: express.Response,
-    @Param('storeId') storeId: string,
+    @User() { storeId }: IUser,
   ) {
-    const buffer = await this.variantExcelService.exportInventory(storeId);
+    const buffer = await this.variantExcelService.exportInventory(
+      storeId || '',
+    );
 
     res.setHeader('Content-Disposition', 'attachment; filename=ton_kho.xlsx');
     res.setHeader(

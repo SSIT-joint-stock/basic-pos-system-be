@@ -51,6 +51,19 @@ export class OrdersService {
     const changeAmount = customer_pay_amount - pricing.total_amount;
 
     return this.prisma.$transaction(async (tx) => {
+      // Check if any product is deleted
+      const productIds = [...new Set(order_items.map((i) => i.product_id))];
+      const deletedProducts = await tx.product.count({
+        where: {
+          id: { in: productIds },
+          is_deleted: true,
+        },
+      });
+
+      if (deletedProducts > 0) {
+        throw new NotFoundError('Một số sản phẩm trong đơn hàng đã bị xóa!');
+      }
+
       const order = await tx.order.create({
         data: {
           store_id: storeId,
