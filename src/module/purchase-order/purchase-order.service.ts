@@ -57,6 +57,9 @@ export class PurchaseOrderService {
           id: {
             in: variantIds,
           },
+          product: {
+            is_deleted: false,
+          },
         },
         include: {
           product: true,

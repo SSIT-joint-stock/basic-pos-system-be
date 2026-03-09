@@ -20,7 +20,8 @@ export class VariantService {
     PRODUCT_NOT_FOUND: 'Sản phẩm không tồn tại trong kho!',
     STORE_NOT_FOUND: 'Không tìm thấy cửa hàng!',
     VARIANT_NOT_FOUND: 'Không tìm thấy biến thể của sản phẩm!',
-    CANNOT_DELETE_VARIANT: 'Không thể xoá biến thể cuối cùng của sản phẩm.',
+    CANNOT_DELETE_VARIANT:
+      'Không thể xoá biến thể cuối cùng của sản phẩm. Vui lòng xoá sản phẩm!',
     VARIANT_EXISTED_BARCODE_OR_SKU:
       'Mã vach (barcode) / mã (sku) biến thể này được tìm thấy trong cửa hàng. Vui lòng thử lại!',
     VARIANT_NAME_EXISTED:
@@ -73,7 +74,10 @@ export class VariantService {
   async findALlInProduct(productId: string, storeId: string) {
     await this.checkProduct(productId, storeId);
     return this.prisma.variant.findMany({
-      where: { product_id: productId, product: { store_id: storeId } },
+      where: {
+        product_id: productId,
+        product: { store_id: storeId, is_deleted: false },
+      },
     });
   }
   async findOneInProduct(id: string, productId: string, storeId: string) {
@@ -89,6 +93,7 @@ export class VariantService {
           product: {
             store_id: storeId,
             product_status: product_status.ACTIVE,
+            is_deleted: false,
           },
         },
       ],
@@ -202,6 +207,7 @@ export class VariantService {
       where: {
         id,
         store_id: storeId,
+        is_deleted: false,
       },
       include: {
         variant: true,

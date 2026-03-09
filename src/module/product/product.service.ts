@@ -263,8 +263,13 @@ export class ProductService {
   async remove(storeId: string, id: string) {
     await this.checkHasProduct(id, storeId);
 
-    return await this.prisma.product.delete({
+    // Soft delete - chỉ đánh dấu là đã xóa
+    return await this.prisma.product.update({
       where: { id, store_id: storeId },
+      data: {
+        is_deleted: true,
+        deletedAt: new Date(),
+      },
     });
   }
 

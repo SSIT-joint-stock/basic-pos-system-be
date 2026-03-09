@@ -287,11 +287,15 @@ export class PurchaseOrderController {
   }
 
   @Get('/excel/export/')
+  @RequirePermission([
+    PERMISSIONS.PURCHASE_ORDER_READ,
+    PERMISSIONS.PURCHASE_ORDER_ALL,
+  ])
   async exportPurchaseOrdersExcel(
     @Res() res: express.Response,
-    @Param('storeId') storeId: string,
+    @User() { storeId }: IUser,
   ) {
-    const buffer = await this.excel.exportPurchaseOrders(storeId);
+    const buffer = await this.excel.exportPurchaseOrders(storeId || '');
 
     res.setHeader(
       'Content-Disposition',

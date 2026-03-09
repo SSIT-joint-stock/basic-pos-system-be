@@ -46,7 +46,7 @@ export class PurchaseOrderExcelService {
     const variantsInDB = await this.prisma.variant.findMany({
       where: {
         sku: { in: excelSkus },
-        product: { store_id: storeId }, // Đảm bảo thuộc store
+        product: { store_id: storeId, is_deleted: false }, // Đảm bảo thuộc store và chưa xóa
       },
       select: {
         id: true, // variant_id
@@ -109,7 +109,10 @@ export class PurchaseOrderExcelService {
       // 3. Lấy thông tin variant chi tiết để tính toán
       const variantIds = validItems.map((item) => item.variant_id);
       const variants = await tx.variant.findMany({
-        where: { id: { in: variantIds } },
+        where: {
+          id: { in: variantIds },
+          product: { is_deleted: false },
+        },
         include: {
           product: true,
           conversions: true,

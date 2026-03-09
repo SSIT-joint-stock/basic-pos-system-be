@@ -449,7 +449,10 @@ export class PurchaseReturnService {
     const inputQty = new Prisma.Decimal(quantity);
 
     const variant = await tx.variant.findUnique({
-      where: { id: variantId },
+      where: {
+        id: variantId,
+        product: { is_deleted: false },
+      },
       include: {
         product: true,
         conversions: true,

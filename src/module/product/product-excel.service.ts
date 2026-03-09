@@ -31,10 +31,15 @@ export class ProductExcelService {
       where: {
         product: {
           store_id: storeId,
+          is_deleted: false,
         },
       },
       include: {
-        variant_stocks: true,
+        variant_stocks: {
+          where: {
+            store_id: storeId,
+          },
+        },
         product: {
           include: {
             categories: true,
@@ -93,12 +98,13 @@ export class ProductExcelService {
         where: {
           store_id: storeId,
           sku: { in: productSkus },
+          is_deleted: false,
         },
         select: { sku: true, id: true, name: true },
       }),
       this.prisma.variant.findMany({
         where: {
-          product: { store_id: storeId },
+          product: { store_id: storeId, is_deleted: false },
           OR: [{ sku: { in: variantSkus } }, { barcode: { in: barcodes } }],
         },
         include: {
@@ -134,6 +140,7 @@ export class ProductExcelService {
     const productsWithVariants = await this.prisma.product.findMany({
       where: {
         store_id: storeId,
+        is_deleted: false,
         OR: [{ sku: { in: productSkus } }, { name: { in: productNames } }],
       },
       include: { variant: { select: { name: true } } },
