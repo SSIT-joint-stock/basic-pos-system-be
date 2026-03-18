@@ -5,10 +5,10 @@ import { CodeService } from 'app/common/helpers/code.util';
 import jwtConfig from 'app/config/jwt.config';
 import { EmailService } from 'app/email/email.service';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { UsersModule } from 'app/users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import { UsersModule } from 'app/module/users/users.module';
 
 @Module({
   controllers: [AuthController],

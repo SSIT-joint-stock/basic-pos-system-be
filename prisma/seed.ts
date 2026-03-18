@@ -1,4 +1,12 @@
-import { PrismaClient } from '@prisma/client';
+import {
+  PrismaClient,
+  user_role,
+  user_status,
+  provider_type,
+  stock_movement_type,
+  payment_method,
+  order_status,
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -11,25 +19,27 @@ async function main() {
   await prisma.order.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.stockMovement.deleteMany();
-  await prisma.inventory.deleteMany();
+  await prisma.variantStock.deleteMany();
+  await prisma.variant.deleteMany();
   await prisma.product.deleteMany();
   await prisma.storeMember.deleteMany();
   await prisma.category.deleteMany();
-  await prisma.store.deleteMany();
   await prisma.tag.deleteMany();
+  await prisma.store.deleteMany();
   await prisma.user.deleteMany();
 
   console.log('🧹 Cleared existing data');
 
   // Create sample users with different roles
+  // Use user_role and user_status enums from prisma client
   const users = await Promise.all([
     prisma.user.create({
       data: {
         email: 'admin@example.com',
         username: 'admin',
         password: '$2b$10$hashedpassword', // In real app, use proper hashing
-        role: 'ADMIN',
-        status: 'ACTIVE',
+        role: user_role.ADMIN,
+        status: user_status.ACTIVE,
         is_verified: true,
       },
     }),
@@ -38,8 +48,8 @@ async function main() {
         email: 'owner@example.com',
         username: 'store_owner',
         password: '$2b$10$hashedpassword',
-        role: 'USER',
-        status: 'ACTIVE',
+        role: user_role.USER,
+        status: user_status.ACTIVE,
         is_verified: true,
       },
     }),
@@ -48,8 +58,8 @@ async function main() {
         email: 'staff@example.com',
         username: 'cashier',
         password: '$2b$10$hashedpassword',
-        role: 'STAFF',
-        status: 'ACTIVE',
+        role: user_role.STAFF,
+        status: user_status.ACTIVE,
         is_verified: true,
       },
     }),
@@ -58,8 +68,8 @@ async function main() {
         email: 'member@example.com',
         username: 'member',
         password: '$2b$10$hashedpassword',
-        role: 'USER',
-        status: 'ACTIVE',
+        role: user_role.USER,
+        status: user_status.ACTIVE,
         is_verified: true,
       },
     }),
@@ -129,18 +139,21 @@ async function main() {
   const tags = await Promise.all([
     prisma.tag.create({
       data: {
+        store_id: store.id,
         name: 'New',
         description: 'New products',
       },
     }),
     prisma.tag.create({
       data: {
+        store_id: store.id,
         name: 'Bestseller',
         description: 'Best selling products',
       },
     }),
     prisma.tag.create({
       data: {
+        store_id: store.id,
         name: 'Discounted',
         description: 'Products on sale',
       },
@@ -149,17 +162,15 @@ async function main() {
 
   console.log(`✅ Created ${tags.length} tags`);
 
-  // Create products
+  // Create products and variants
+  // In the current schema, SKU, price, and cost are in Variant model
   const products = await Promise.all([
     prisma.product.create({
       data: {
         store_id: store.id,
         name: 'iPhone 15 Pro',
-        sku: 'IPH15P-128',
-        barcode: '123456789012',
-        price: 99900, // $999.00 in cents
-        cost: 80000, // $800.00 in cents
-        image_url: 'https://example.com/iphone15.jpg',
+        sku: 'IPH15P',
+        baseUnit: 'Unit',
         description: 'Latest iPhone with advanced features',
         created_by: users[1].id, // store_owner
         categories: {
@@ -171,17 +182,23 @@ async function main() {
             { id: tags[1].id }, // Bestseller
           ],
         },
+        variant: {
+          create: {
+            sku: 'IPH15P-128',
+            name: 'Standard',
+            price: 99900, // $999.00 in cents
+            cost: 80000, // $800.00 in cents
+          },
+        },
       },
+      include: { variant: true },
     }),
     prisma.product.create({
       data: {
         store_id: store.id,
         name: 'MacBook Pro 16"',
-        sku: 'MBP16-M3',
-        barcode: '123456789013',
-        price: 249900, // $2499.00 in cents
-        cost: 200000, // $2000.00 in cents
-        image_url: 'https://example.com/macbook.jpg',
+        sku: 'MBP16',
+        baseUnit: 'Unit',
         description: 'Powerful laptop for professionals',
         created_by: users[1].id,
         categories: {
@@ -190,83 +207,80 @@ async function main() {
         tags: {
           connect: [{ id: tags[0].id }], // New
         },
+        variant: {
+          create: {
+            sku: 'MBP16-M3',
+            name: 'M3 Pro',
+            price: 249900, // $2499.00 in cents
+            cost: 200000, // $2000.00 in cents
+          },
+        },
       },
+      include: { variant: true },
     }),
     prisma.product.create({
       data: {
         store_id: store.id,
         name: 'iPhone Charger',
-        sku: 'IPH-CHGR-20W',
-        barcode: '123456789014',
-        price: 2500, // $25.00 in cents
-        cost: 1500, // $15.00 in cents
+        sku: 'IPH-CHGR',
+        baseUnit: 'Unit',
         description: '20W USB-C charger for iPhone',
         created_by: users[1].id,
         categories: {
           connect: [{ id: categories[2].id }], // Accessories
         },
+        variant: {
+          create: {
+            sku: 'IPH-CHGR-20W',
+            name: 'Standard',
+            price: 2500, // $25.00 in cents
+            cost: 1500, // $15.00 in cents
+          },
+        },
       },
+      include: { variant: true },
     }),
   ]);
 
-  console.log(`✅ Created ${products.length} products`);
+  console.log(`✅ Created ${products.length} products with variants`);
 
-  // Create inventory for products
-  const inventories = await Promise.all([
-    prisma.inventory.create({
-      data: {
-        product_id: products[0].id, // iPhone 15 Pro
-        quantity: 50,
-        discount: 0,
-        total: 50,
-      },
-    }),
-    prisma.inventory.create({
-      data: {
-        product_id: products[1].id, // MacBook Pro
-        quantity: 10,
-        discount: 0,
-        total: 10,
-      },
-    }),
-    prisma.inventory.create({
-      data: {
-        product_id: products[2].id, // iPhone Charger
-        quantity: 100,
-        discount: 0,
-        total: 100,
-      },
-    }),
-  ]);
+  // Create initial stock (VariantStock)
+  const variantStocks = await Promise.all(
+    products.map((p) =>
+      prisma.variantStock.create({
+        data: {
+          store_id: store.id,
+          variant_id: p.variant[0].id,
+          onHand: p.name.includes('iPhone 15')
+            ? 50
+            : p.name.includes('MacBook')
+              ? 10
+              : 100,
+        },
+      }),
+    ),
+  );
 
-  console.log(`✅ Created inventory for ${inventories.length} products`);
+  console.log(`✅ Created stock for ${variantStocks.length} variants`);
 
-  // Create stock movements
-  const stockMovements = await Promise.all([
-    prisma.stockMovement.create({
-      data: {
-        product_id: products[0].id,
-        quantity: 50,
-        type: 'PURCHASE',
-      },
-    }),
-    prisma.stockMovement.create({
-      data: {
-        product_id: products[1].id,
-        quantity: 10,
-        type: 'PURCHASE',
-      },
-    }),
-    prisma.stockMovement.create({
-      data: {
-        product_id: products[2].id,
-        quantity: 100,
-        type: 'PURCHASE',
-      },
-    }),
-  ]);
+  // Create initial stock movements
+  const stockMovements = await Promise.all(
+    products.map((p) =>
+      prisma.stockMovement.create({
+        data: {
+          variant_id: p.variant[0].id,
+          quantity: p.name.includes('iPhone 15')
+            ? 50
+            : p.name.includes('MacBook')
+              ? 10
+              : 100,
+          type: stock_movement_type.PURCHASE,
+        },
+      }),
+    ),
+  );
 
-  console.log(`✅ Created ${stockMovements.length} stock movements`);
+  console.log(`✅ Created ${stockMovements.length} initial stock movements`);
 
   // Create customers
   const customers = await Promise.all([
@@ -313,8 +327,17 @@ async function main() {
         discount_amount: 0,
         tax_amount: 9990, // $99.90 (10% tax)
         total_amount: 109890, // $1098.90
-        payment_method: 'CREDIT_CARD',
-        status: 'COMPLETED',
+        payment_method: payment_method.CREDIT_CARD,
+        status: order_status.COMPLETED,
+        order_item: {
+          create: {
+            product_id: products[0].id,
+            variant_id: products[0].variant[0].id,
+            quantity: 1,
+            price: 99900,
+            total: 99900,
+          },
+        },
       },
     }),
     prisma.order.create({
@@ -328,8 +351,17 @@ async function main() {
         discount_amount: 0,
         tax_amount: 250, // $2.50 (10% tax)
         total_amount: 2750, // $27.50
-        payment_method: 'CASH',
-        status: 'COMPLETED',
+        payment_method: payment_method.CASH,
+        status: order_status.COMPLETED,
+        order_item: {
+          create: {
+            product_id: products[2].id,
+            variant_id: products[2].variant[0].id,
+            quantity: 1,
+            price: 2500,
+            total: 2500,
+          },
+        },
       },
     }),
     prisma.order.create({
@@ -341,84 +373,58 @@ async function main() {
         discount_amount: 24990, // $249.90 (10% discount)
         tax_amount: 22491, // $224.91 (10% tax on discounted amount)
         total_amount: 247401, // $2474.01
-        payment_method: 'DEBIT_CARD',
-        status: 'COMPLETED',
+        payment_method: payment_method.DEBIT_CARD,
+        status: order_status.COMPLETED,
+        order_item: {
+          create: {
+            product_id: products[1].id,
+            variant_id: products[1].variant[0].id,
+            quantity: 1,
+            price: 249900,
+            total: 249900,
+          },
+        },
       },
     }),
   ]);
 
-  console.log(`✅ Created ${orders.length} orders`);
+  console.log(`✅ Created ${orders.length} orders with items`);
 
-  // Create order items
-  const orderItems = await Promise.all([
-    prisma.orderItem.create({
-      data: {
-        order_id: orders[0].id,
-        product_id: products[0].id,
-        quantity: 1,
-        price: 99900, // $999.00
-      },
-    }),
-    prisma.orderItem.create({
-      data: {
-        order_id: orders[1].id,
-        product_id: products[2].id,
-        quantity: 1,
-        price: 2500, // $25.00
-      },
-    }),
-    prisma.orderItem.create({
-      data: {
-        order_id: orders[2].id,
-        product_id: products[1].id,
-        quantity: 1,
-        price: 249900, // $2499.00
-      },
-    }),
-  ]);
+  // Update stock movements for sales
+  await Promise.all(
+    orders.map(async (order) => {
+      // Since we combined order item creation, this part just records the movement
+      // In a real app, this would be handled by a service
+      const item = await prisma.orderItem.findFirst({
+        where: { order_id: order.id },
+      });
+      if (item) {
+        await prisma.stockMovement.create({
+          data: {
+            variant_id: item.variant_id,
+            quantity: -item.quantity,
+            type: stock_movement_type.SALE,
+          },
+        });
 
-  console.log(`✅ Created ${orderItems.length} order items`);
+        await prisma.variantStock.update({
+          where: {
+            variant_id_store_id: {
+              variant_id: item.variant_id,
+              store_id: store.id,
+            },
+          },
+          data: {
+            onHand: { decrement: item.quantity },
+          },
+        });
+      }
+    }),
+  );
 
-  // Update inventory after sales (simulate stock reduction)
-  await Promise.all([
-    prisma.inventory.update({
-      where: { id: inventories[0].id },
-      data: { quantity: 49 }, // iPhone: 50 - 1 = 49
-    }),
-    prisma.inventory.update({
-      where: { id: inventories[2].id },
-      data: { quantity: 99 }, // Charger: 100 - 1 = 99
-    }),
-    prisma.inventory.update({
-      where: { id: inventories[1].id },
-      data: { quantity: 9 }, // MacBook: 10 - 1 = 9
-    }),
-  ]);
-
-  // Create additional stock movements for sales
-  await Promise.all([
-    prisma.stockMovement.create({
-      data: {
-        product_id: products[0].id,
-        quantity: -1, // Sale
-        type: 'SALE',
-      },
-    }),
-    prisma.stockMovement.create({
-      data: {
-        product_id: products[2].id,
-        quantity: -1, // Sale
-        type: 'SALE',
-      },
-    }),
-    prisma.stockMovement.create({
-      data: {
-        product_id: products[1].id,
-        quantity: -1, // Sale
-        type: 'SALE',
-      },
-    }),
-  ]);
+  console.log(
+    `✅ Recorded sales in stock movements and updated on-hand quantities`,
+  );
 
   // Create daily statistics
   const today = new Date();
@@ -436,7 +442,7 @@ async function main() {
       net_revenue: 358041, // $3580.41
       units_sold: 3,
       units_returned: 0,
-      stock_in_units: 158, // Current total inventory
+      stock_in_units: 158, // Initial total
       stock_out_units: 3,
       stock_net_units: 155,
       product_created: 3,
@@ -447,25 +453,9 @@ async function main() {
   console.log(`✅ Created daily statistics`);
 
   console.log('🎉 Seed completed successfully!');
-  console.log('\n📊 Summary:');
-  console.log(`   Users: ${users.length}`);
-  console.log(`   Stores: 1`);
-  console.log(`   Store Members: ${storeMembers.length}`);
-  console.log(`   Categories: ${categories.length}`);
-  console.log(`   Tags: ${tags.length}`);
-  console.log(`   Products: ${products.length}`);
-  console.log(`   Customers: ${customers.length}`);
-  console.log(`   Orders: ${orders.length}`);
-  console.log(`   Order Items: ${orderItems.length}`);
-  console.log(`   Stock Movements: ${stockMovements.length + 3}`); // +3 for sales
-  console.log(`   Daily Statistics: 1`);
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seed failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error('❌ Seed failed:', e);
+  process.exit(1);
+});

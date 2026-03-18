@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { ForbiddenError, NotFoundError } from 'app/common/response';
 import { IUser } from 'app/common/types/user.type';
 import { PermissionService } from 'app/permissions/permission.service';
@@ -177,6 +178,60 @@ export class StoreService {
     if (!store) {
       throw new NotFoundError(this.errMsg.STORE_NOT_FOUND);
     }
+  }
+
+  async findAllPaginated(prismaQuery: Prisma.StoreFindManyArgs) {
+    const [data, total] = await Promise.all([
+      this.prismaService.store.findMany(prismaQuery),
+      this.prismaService.store.count({ where: prismaQuery.where }),
+    ]);
+    return { data, total };
+  }
+
+  async getStoreAdminStats() {
+    const [total, byCity, newToday] = await Promise.all([
+      this.prismaService.store.count(),
+      this.prismaService.store.groupBy({
+        by: ['city'],
+        _count: { _all: true },
+      }),
+      this.prismaService.store.count({
+        where: {
+          createdAt: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          },
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      newToday,
+      byCity: byCity.reduce(
+        (acc, c) => ({ ...acc, [c.city || 'Unknown']: c._count._all }),
+        {} as Record<string, number>,
+      ),
+    };
+  }
+
+  async findOneAdmin(storeId: string) {
+    const store = await this.prismaService.store.findUnique({
+      where: { id: storeId },
+      include: {
+        owner: {
+          select: { id: true, username: true, email: true },
+        },
+        _count: {
+          select: {
+            products: true,
+            members: true,
+            orders: true,
+          },
+        },
+      },
+    });
+    if (!store) throw new NotFoundError(this.errMsg.STORE_NOT_FOUND);
+    return store;
   }
 
   // HELPER METHODS PRIVATE

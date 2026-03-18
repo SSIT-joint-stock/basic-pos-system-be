@@ -1,4 +1,4 @@
-import { Prisma, User } from '@prisma/client';
+import { Prisma, User, user_role, user_status } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'app/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -104,5 +104,46 @@ export class UsersService {
     return this.prisma.user.create({
       data: user,
     });
+  }
+  async findAllPaginated(prismaQuery: Prisma.UserFindManyArgs) {
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany(prismaQuery),
+      this.prisma.user.count({ where: prismaQuery.where }),
+    ]);
+    return { data, total };
+  }
+
+  async getStats() {
+    const [total, roles, statuses, newToday] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.groupBy({
+        by: ['role'],
+        _count: { _all: true },
+      }),
+      this.prisma.user.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      }),
+      this.prisma.user.count({
+        where: {
+          createdAt: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          },
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      newToday,
+      byRole: roles.reduce(
+        (acc, r) => ({ ...acc, [r.role]: r._count._all }),
+        {} as Partial<Record<user_role, number>>,
+      ),
+      byStatus: statuses.reduce(
+        (acc, s) => ({ ...acc, [s.status]: s._count._all }),
+        {} as Partial<Record<user_status, number>>,
+      ),
+    };
   }
 }

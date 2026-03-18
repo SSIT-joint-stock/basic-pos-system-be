@@ -1,16 +1,16 @@
 // core
-import { NestFactory } from '@nestjs/core';
-import { ConfigType } from '@nestjs/config';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
 // app
 import { AppModule } from 'app/app.module';
 import { appConfig } from 'app/config';
 // common
-import { ResponseInterceptor } from 'common/interceptors/response.interceptor';
 import { AllExceptionsFilter } from 'common/filters/all-exceptions.filter';
 import { HttpLogInterceptor } from 'common/interceptors/http-logger.interceptor';
-import * as path from 'path';
+import { ResponseInterceptor } from 'common/interceptors/response.interceptor';
 import * as fs from 'fs';
+import * as path from 'path';
 // external
 import cookieParser from 'cookie-parser';
 
@@ -40,6 +40,8 @@ async function bootstrap() {
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3002',
+        'http://localhost:3003',
+        'http://localhost:3004',
         ...appCfg.origins,
       ],
       credentials: true,

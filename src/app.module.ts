@@ -39,7 +39,7 @@ import { CategoryModule } from './module/category/category.module';
 import { ProductModule } from './module/product/product.module';
 import { StoreModule } from './module/store/store.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { UsersModule } from './users/users.module';
+import { UsersModule } from './module/users/users.module';
 
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AssetsModule } from './module/assets/assets.module';
@@ -63,6 +63,8 @@ import { VariantModule } from './module/variant/variant.module';
 import { BundleModule } from './module/bundle/bundle.module';
 import { CatalogModule } from './module/catalog/catalog.module';
 import { FinanceModule } from './module/finance/finance.module';
+import { FeedbackModule } from './module/feedback/feedback.module';
+import { AdminModule } from './module/admin/admin.module';
 
 @Module({
   imports: [
@@ -157,6 +159,10 @@ import { FinanceModule } from './module/finance/finance.module';
     CatalogModule,
 
     BundleModule,
+
+    FeedbackModule,
+
+    AdminModule,
   ],
   providers: [
     TokenService,

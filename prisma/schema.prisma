@@ -206,6 +206,39 @@ enum purchase_return_status {
   CANCELLED
 }
 
+enum FeedbackStatus {
+  PROCESSING
+  REJECTED
+  COMPLETED
+}
+
+enum SatisfactionRating {
+  POOR
+  FAIR
+  GOOD
+  EXCELLENT
+}
+
+enum CommenterType {
+  USER
+  ADMIN
+}
+
+enum notification_type {
+  SYSTEM       // Tự động bởi hệ thống
+  ADMIN        // Thủ công bởi Admin
+  ORDER        // Liên quan đến đơn hàng
+  INVENTORY    // Liên quan đến kho/tồn kho
+  FINANCE      // Liên quan đến tài chính
+  SECURITY     // Thao tác nhạy cảm
+}
+
+enum notification_target_type {
+  ALL          // Toàn bộ user
+  ROLE         // Theo role
+  USER         // Theo user cụ thể
+}
+
 /**
  * User model
  * User is a model that represents the user of the system
@@ -243,6 +276,15 @@ model User {
   approved_purchases       PurchaseOrder[]  @relation("PurchaseOrderApprovedBy")
   created_purchases_return PurchaseReturn[]
   assets                   Asset[]
+
+  // feedback relations
+  feedbacks_submitted Feedback[]        @relation("UserFeedback")
+  feedbacks_assigned  Feedback[]        @relation("AdminFeedback")
+  feedback_comments   FeedbackComment[]
+
+  // notification relations
+  notifications_created  Notification[]     @relation("NotificationCreator")
+  user_notifications     UserNotification[] @relation("UserNotifications")
 
   // indexes
   @@index([role, status])
@@ -289,6 +331,7 @@ model Store {
   cash_book_entries  CashBookEntry[]
   bundles            Bundle[]
   assets             Asset[]
+  feedbacks          Feedback[]
 
   // indexes
   @@index([owner_id])
@@ -1196,4 +1239,105 @@ model BundleItem {
   updatedAt DateTime @updatedAt
 
   @@map("bundle_items")
+}
+
+model Feedback {
+  id          String  @id @default(uuid()) @db.Uuid
+  store_id    String? @db.Uuid // The store context of the feedback
+  title       String
+  content     String  @db.Text
+
+  // Sender Info (optional/backup info)
+  senderName    String?
+  senderPhone   String?
+  senderAddress String?
+
+  // Status & Workflow
+  status       FeedbackStatus @default(PROCESSING)
+  rejectReason String?
+
+  // Satisfaction Rating (filled by user after completion)
+  satisfactionRating SatisfactionRating?
+  ratedAt            DateTime?
+
+  // Relations
+  userId       String? @db.Uuid // The POS user who submitted
+  assignedToId String? @db.Uuid // The Super Admin handling it
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store      Store?            @relation(fields: [store_id], references: [id])
+  user       User?             @relation("UserFeedback", fields: [userId], references: [id])
+  assignedTo User?             @relation("AdminFeedback", fields: [assignedToId], references: [id])
+  comments   FeedbackComment[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("feedback")
+}
+
+model FeedbackComment {
+  id         String        @id @default(uuid()) @db.Uuid
+  content    String        @db.Text
+  feedbackId String        @db.Uuid
+  userId     String?       @db.Uuid // Author of the comment
+  type       CommenterType @default(USER)
+  isAdmin    Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id])
+
+  @@index([feedbackId])
+  @@map("feedback_comment")
+}
+
+/**
+ * Notification model
+ * Represents a single notification event (admin push or system-generated)
+ * Each user who receives it gets a UserNotification row to track read status
+ */
+model Notification {
+  id           String                   @id @default(uuid()) @db.Uuid
+  title        String
+  content      String                   @db.Text
+  type         notification_type        @default(SYSTEM)
+  target_type  notification_target_type @default(ALL)
+  target_role  user_role?               // Set when target_type = ROLE
+  metadata     Json                     @default("{}")  // Extra context (e.g. orderId, storeId)
+  created_by   String?                  @db.Uuid        // null = system-generated
+  scheduled_at DateTime?                // null = send immediately
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  creator            User?              @relation("NotificationCreator", fields: [created_by], references: [id], onDelete: SetNull)
+  user_notifications  UserNotification[]
+
+  @@index([type])
+  @@index([created_by])
+  @@index([createdAt])
+  @@map("notification")
+}
+
+/**
+ * UserNotification model
+ * Per-user tracking of notification delivery and read status
+ */
+model UserNotification {
+  id              String   @id @default(uuid()) @db.Uuid
+  notification_id String   @db.Uuid
+  user_id         String   @db.Uuid
+  is_read         Boolean  @default(false)
+  read_at         DateTime?
+  createdAt       DateTime @default(now())
+
+  notification Notification @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+  user         User         @relation("UserNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([notification_id, user_id])
+  @@index([user_id, is_read])
+  @@index([notification_id])
+  @@map("user_notification")
 }

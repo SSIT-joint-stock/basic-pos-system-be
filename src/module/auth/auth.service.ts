@@ -10,13 +10,13 @@ import {
 } from 'app/common/response';
 import { EmailService } from 'app/email/email.service';
 import { PrismaService } from 'app/prisma/prisma.service';
-import { UsersService } from 'app/users/users.service';
 import { EmailRequestDto } from './dto/email-request.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { TokenService } from './token.service';
+import { UsersService } from 'app/module/users/users.service';
 export interface AuthResponse {
   access_token: string;
   refresh_token: string;
